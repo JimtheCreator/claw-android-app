@@ -10,13 +10,7 @@ import android.view.ViewGroup;
 
 import com.claw.ai.R;
 
-/**
- * A simple {@link Fragment} subclass.
- * Use the {@link AlertTabFragment#newInstance} factory method to
- * create an instance of this fragment.
- */
 public class AlertTabFragment extends Fragment {
-
 
     public AlertTabFragment() {
         // Required empty public constructor
