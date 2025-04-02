@@ -1,0 +1,33 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.Claw" parent="Theme.Material3.DayNight.NoActionBar"
+        >
+        <!-- Customize your light theme here. -->
+        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowTranslucentStatus">true</item>
+
+    </style>
+
+    <style name="Theme.Claw" parent="Base.Theme.Claw" />
+
+    <!--    For the SearchBar-->
+    <style name="RoundedSearchInput" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">16dp</item>
+    </style>
+
+    <style name="CustomSearchViewStyle" parent="Widget.Material3.SearchView">
+        <!-- Customize text color -->
+        <item name="android:textColor">@color/white</item>
+        <!-- Customize search icon -->
+        <item name="searchIcon">@drawable/search_icon</item>
+        <!-- Customize close icon -->
+        <item name="closeIcon">@drawable/baseline_close_24</item>
+        <!-- Customize query hint color -->
+        <item name="android:textColorHint">@color/matteblack</item>
+        <!-- Customize query text appearance -->
+    </style>
+</resources>
