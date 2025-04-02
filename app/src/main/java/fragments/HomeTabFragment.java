@@ -25,6 +25,8 @@ public class HomeTabFragment extends Fragment {
     private boolean isSearchExpanded = false;
     private BottomSheetBehavior<NestedScrollView> bottomSheetBehavior;
 
+    DisplayMetrics metrics;
+
     // Lifecycle Methods
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -35,6 +37,7 @@ public class HomeTabFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+
         setupBottomSheet();
         initializeSearch();
         setupClickListeners();
@@ -50,8 +53,7 @@ public class HomeTabFragment extends Fragment {
     // Bottom Sheet Configuration
     private void setupBottomSheet() {
         bottomSheetBehavior = BottomSheetBehavior.from(binding.nest);
-        DisplayMetrics metrics = getDisplayMetrics();
-
+        metrics = getDisplayMetrics();
         bottomSheetBehavior.setPeekHeight((int) (metrics.heightPixels * 0.1));
         bottomSheetBehavior.setFitToContents(false);
         bottomSheetBehavior.setHalfExpandedRatio(0.4f);
@@ -107,6 +109,9 @@ public class HomeTabFragment extends Fragment {
             if (isSearchExpanded) {
                 binding.getRoot().post(() -> {
                     animateSearchState(false);
+                    bottomSheetBehavior.setPeekHeight((int) (metrics.heightPixels * 0.1));
+                    bottomSheetBehavior.setFitToContents(false);
+                    bottomSheetBehavior.setHalfExpandedRatio(0.4f);
                     bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
                 });
             }
@@ -125,8 +130,13 @@ public class HomeTabFragment extends Fragment {
                         binding.searchBox.setText("");
 
                         if (isSearchExpanded) {
-                            animateSearchState(false);
-                            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
+                            binding.getRoot().post(() -> {
+                                animateSearchState(false);
+                                bottomSheetBehavior.setPeekHeight((int) (metrics.heightPixels * 0.1));
+                                bottomSheetBehavior.setFitToContents(false);
+                                bottomSheetBehavior.setHalfExpandedRatio(0.4f);
+                                bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
+                            });
                         }
                     }
                 }
