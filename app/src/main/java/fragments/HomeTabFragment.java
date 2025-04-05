@@ -1,23 +1,27 @@
 package fragments;
 
-import android.content.Context;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.inputmethod.InputMethodManager;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.widget.NestedScrollView;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.transition.TransitionManager;
 
 import com.claw.ai.databinding.FragmentHomeTabBinding;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
+
+import adapters.CryptosAdapter;
+import animations.BounceEdgeEffectFactory;
+import utils.DateUtils;
+import utils.KeyboardQuickFunctions;
 
 public class HomeTabFragment extends Fragment {
 
@@ -38,10 +42,16 @@ public class HomeTabFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        initializeViews();
         setupBottomSheet();
         initializeSearch();
         setupClickListeners();
         setupBackPressHandler();
+    }
+
+    private void initializeViews() {
+        binding.dateText.setText(DateUtils.getFormattedDate());
+
     }
 
     @Override
@@ -89,7 +99,7 @@ public class HomeTabFragment extends Fragment {
         binding.dummySearchbox.setVisibility(View.GONE);
         binding.doneSearch.setVisibility(View.VISIBLE);
         binding.searchBox.requestFocus();
-        showKeyboard();
+        KeyboardQuickFunctions.showKeyboard(binding.searchBox, requireContext());
     }
 
     // Click Listeners
@@ -102,7 +112,7 @@ public class HomeTabFragment extends Fragment {
         });
 
         binding.doneSearch.setOnClickListener(v -> {
-            closeKeyboard();
+            KeyboardQuickFunctions.closeKeyboard(binding.searchBox, requireContext());
             searchBarStateBeforeClicked();
             binding.searchBox.setText("");
 
@@ -125,7 +135,7 @@ public class HomeTabFragment extends Fragment {
                 new OnBackPressedCallback(true) {
                     @Override
                     public void handleOnBackPressed() {
-                        closeKeyboard();
+                        KeyboardQuickFunctions.closeKeyboard(binding.searchBox, requireContext());
                         searchBarStateBeforeClicked();
                         binding.searchBox.setText("");
 
@@ -154,7 +164,7 @@ public class HomeTabFragment extends Fragment {
                 .setDuration(300)
                 .start();
 
-        binding.searchBar.animate()
+        binding.mainpagelayout.animate()
                 .translationY(translation)
                 .setDuration(300)
                 .start();
@@ -162,21 +172,45 @@ public class HomeTabFragment extends Fragment {
         isSearchExpanded = expand;
     }
 
-    // Keyboard Utilities
-    private void showKeyboard() {
-        InputMethodManager imm = (InputMethodManager) requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.showSoftInput(binding.searchBox, InputMethodManager.SHOW_IMPLICIT);
-    }
-
-    private void closeKeyboard() {
-        InputMethodManager imm = (InputMethodManager) requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.hideSoftInputFromWindow(binding.searchBox.getWindowToken(), 0);
-    }
-
     // Helper Methods
     private DisplayMetrics getDisplayMetrics() {
         DisplayMetrics metrics = new DisplayMetrics();
         requireActivity().getWindowManager().getDefaultDisplay().getMetrics(metrics);
         return metrics;
+    }
+
+
+    /**
+     * Sets up the RecyclerView that shows a list of popular cryptocurrencies.
+     *
+     * <p>This configuration uses a {@link LinearLayoutManager} for vertical scrolling,
+     * a {@link CryptosAdapter} to bind the data to views, and applies a
+     * {@link BounceEdgeEffectFactory} to enhance the overscroll behavior with
+     * a spring-like bounce effect.</p>
+     *
+     * @see CryptosAdapter
+     * @see BounceEdgeEffectFactory
+     */
+    private void setupPopularCryptosList() {
+        binding.popularCryptosList.setLayoutManager(new LinearLayoutManager(requireContext()));
+        binding.popularCryptosList.setAdapter(new CryptosAdapter(requireContext()));
+        binding.popularCryptosList.setEdgeEffectFactory(new BounceEdgeEffectFactory(requireContext()));
+    }
+
+    /**
+     * Initializes the RecyclerView that displays the search results for cryptocurrencies.
+     *
+     * <p>This method sets up a vertically scrolling list using {@link LinearLayoutManager},
+     * attaches an instance of {@link CryptosAdapter} to provide the data and views,
+     * and applies a custom {@link BounceEdgeEffectFactory} to give the RecyclerView
+     * an iOS-style bouncy overscroll effect.</p>
+     *
+     * @see CryptosAdapter
+     * @see BounceEdgeEffectFactory
+     */
+    private void setupSearchedCryptoList(){
+        binding.searchedCryptosList.setLayoutManager(new LinearLayoutManager(requireContext()));
+        binding.searchedCryptosList.setAdapter(new CryptosAdapter(requireContext()));
+        binding.searchedCryptosList.setEdgeEffectFactory(new BounceEdgeEffectFactory(requireContext()));
     }
 }

@@ -2,21 +2,19 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/black2_0"
-    android:id="@+id/main"
     tools:context="fragments.HomeTabFragment">
 
-    <!-- Header Layout -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="15dp"
-        android:layout_marginTop="40dp"
+        android:layout_marginTop="10dp"
         android:layout_marginEnd="15dp"
         android:orientation="vertical">
-
 
         <!-- Header Layout -->
         <LinearLayout
@@ -40,10 +38,10 @@
                     android:textSize="22.5sp" />
 
                 <TextView
+                    android:id="@+id/dateText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/sanfrans_bold"
-                    android:text="2 April"
                     android:textColor="@color/thickGrey"
                     android:textSize="24sp"
                     android:textStyle="bold" />
@@ -53,96 +51,126 @@
 
         </LinearLayout>
 
-        <!-- Search Bar Layout -->
-        <RelativeLayout
-            android:id="@+id/search_bar"
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/mainpagelayout"
+            android:fitsSystemWindows="true"
+            android:fillViewport="true"
+            android:scrollbars="vertical"
+            android:scrollIndicators="end"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:orientation="horizontal"
-            app:layout_behavior="com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior">
+            android:layout_height="match_parent">
 
             <LinearLayout
-                android:id="@+id/dummy_searchbox"
                 android:layout_width="match_parent"
-                android:layout_height="55dp"
-                android:layout_centerVertical="true"
-                android:background="@drawable/search_background"
-                android:orientation="horizontal">
+                android:layout_height="match_parent"
+                android:orientation="vertical">
 
-                <ImageView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical"
-                    android:layout_marginStart="20dp"
-                    android:src="@drawable/search_icon" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical"
-                    android:layout_marginStart="15dp"
-                    android:fontFamily="@font/sanfrans_regular"
-                    android:text="Search"
-                    android:textColor="@color/thickGrey"
-                    android:textSize="17sp" />
-
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:visibility="gone"
-                android:id="@+id/frame_search_box"
-                android:layout_width="match_parent"
-                android:layout_height="55dp"
-                android:layout_centerVertical="true"
-                android:layout_marginEnd="15dp"
-                android:layout_toStartOf="@+id/done_search"
-                android:background="@drawable/search_background"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical"
-                    android:layout_marginStart="20dp"
-                    android:src="@drawable/search_icon" />
-
-                <EditText
-                    android:textColor="@color/bblack"
-                    android:id="@+id/search_box"
+                <!-- Search Bar Layout -->
+                <RelativeLayout
+                    android:id="@+id/search_bar"
                     android:layout_width="match_parent"
-                    android:layout_height="55dp"
-                    android:layout_gravity="center_vertical"
-                    android:layout_marginStart="15dp"
-                    android:layout_marginEnd="15dp"
-                    android:background="@color/invincibleColor"
-                    android:focusable="true"
-                    android:fontFamily="@font/sanfrans_regular"
-                    android:gravity="center_vertical"
-                    android:hint="Search"
-                    android:inputType="text"
-                    android:textColorHint="@color/thickGrey"
-                    android:textSize="17sp" />
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:orientation="horizontal"
+                    app:layout_behavior="com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior">
 
+                    <LinearLayout
+                        android:id="@+id/dummy_searchbox"
+                        android:layout_width="match_parent"
+                        android:layout_height="55dp"
+                        android:layout_centerVertical="true"
+                        android:background="@drawable/search_background"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical"
+                            android:layout_marginStart="20dp"
+                            android:src="@drawable/search_icon" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical"
+                            android:layout_marginStart="15dp"
+                            android:fontFamily="@font/sanfrans_regular"
+                            android:text="Search"
+                            android:textColor="@color/thickGrey"
+                            android:textSize="17sp" />
+
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/frame_search_box"
+                        android:layout_width="match_parent"
+                        android:layout_height="55dp"
+                        android:layout_centerVertical="true"
+                        android:layout_marginEnd="15dp"
+                        android:layout_toStartOf="@+id/done_search"
+                        android:background="@drawable/search_background"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <ImageView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical"
+                            android:layout_marginStart="20dp"
+                            android:src="@drawable/search_icon" />
+
+                        <EditText
+                            android:id="@+id/search_box"
+                            android:layout_width="match_parent"
+                            android:layout_height="55dp"
+                            android:layout_gravity="center_vertical"
+                            android:layout_marginStart="15dp"
+                            android:layout_marginEnd="15dp"
+                            android:background="@color/invincibleColor"
+                            android:focusable="true"
+                            android:fontFamily="@font/sanfrans_regular"
+                            android:gravity="center_vertical"
+                            android:hint="Search"
+                            android:inputType="text"
+                            android:textColor="@color/black2_0"
+                            android:textColorHint="@color/thickGrey"
+                            android:textSize="17sp" />
+
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/done_search"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:fontFamily="@font/sanfrans_medium"
+                        android:text="Done"
+                        android:textColor="@color/blue"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
+
+
+                </RelativeLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/searched_cryptos_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_marginTop="10dp"
+                    android:fitsSystemWindows="true" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/popular_cryptos_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"/>
 
             </LinearLayout>
 
-            <TextView
-                android:visibility="gone"
-                android:id="@+id/done_search"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:text="Done"
-                android:textStyle="bold"
-                android:fontFamily="@font/sanfrans_medium"
-                android:textColor="@color/blue"
-                android:textSize="18sp" />
-
-
-        </RelativeLayout>
+        </androidx.core.widget.NestedScrollView>
 
 
     </LinearLayout>

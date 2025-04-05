@@ -14,6 +14,7 @@ import androidx.fragment.app.FragmentTransaction;
 
 import com.claw.ai.databinding.ActivityMainBinding;
 
+import bottomsheets.PricingPackageSheetFragment;
 import fragments.AlertTabFragment;
 import fragments.HomeTabFragment;
 import fragments.MoreTabFragment;
@@ -25,8 +26,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
         EdgeToEdge.enable(this);
         // Initialize view binding
         binding = ActivityMainBinding.inflate(getLayoutInflater());
@@ -58,6 +57,8 @@ public class MainActivity extends AppCompatActivity {
                 binding.bottomNavigation.setBackground(ContextCompat.getDrawable(MainActivity.this, R.color.darkTheme));
             } else if (itemId == R.id.more) {
                 fragment = new MoreTabFragment();
+                PricingPackageSheetFragment pricingPackageSheetFragment = PricingPackageSheetFragment.newInstance();
+                pricingPackageSheetFragment.show(getSupportFragmentManager(), "PricingPackageSheetFragment");
                 binding.bottomNavigation.setBackground(ContextCompat.getDrawable(MainActivity.this, R.color.black2_0));
             } else {
                 fragment = new HomeTabFragment();
@@ -76,7 +77,7 @@ public class MainActivity extends AppCompatActivity {
         FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
 
         // Apply animations based on navigation direction
-        if (currentFragment != null) {
+//        if (currentFragment != null) {
 //            if (fragment instanceof HomeTabFragment) {
 //                transaction.setCustomAnimations(
 //                        R.anim.slide_in_left,
@@ -94,7 +95,7 @@ public class MainActivity extends AppCompatActivity {
 //                        R.anim.slide_out_left
 //                );
 //            }
-        }
+//        }
 
         // Replace fragment and commit
         transaction.replace(R.id.fragment_container, fragment);

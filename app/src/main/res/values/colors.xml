@@ -1,48 +1,69 @@
 <?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Core Colors -->
     <color name="black">#FF000000</color>
     <color name="white">#E9FFFFFF</color>
+    <color name="black_shade">#1C1C1C</color>
+    <color name="black2_0">#010101</color>
 
-    <!-- Premium colors -->
+    <!-- Text Colors -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B3B3B3</color>
+    <color name="text_tertiary">#808080</color>
+    <color name="text_disabled">#4D4D4D</color>
+    <color name="text_accent">#00BFFF</color>
+    <color name="text_success">#4ADE80</color>
+    <color name="text_warning">#FACC15</color>
+    <color name="text_error">#F75555</color>
+    <color name="text_brand">#FF3CAC</color>
+
+    <!-- Premium Colors -->
     <color name="premium_gold">#FFD700</color>
     <color name="premium_gold_transparent">#33FFD700</color>
     <color name="premium_rose_gold">#B76E79</color>
     <color name="premium_royal_purple">#7851A9</color>
-    <color name="gray_inactive">#757575</color>
 
-    <!--    LIGHT THEME-->
+    <!-- Neutral & Background Colors -->
+    <color name="graphite_black">#121212</color>
+    <color name="midnight_blue">#0A1F44</color>
+    <color name="beige">#E6DAC8</color>
+    <color name="dark_beige">#D3C3A9</color>
+    <color name="light_beige">#E0D7C6</color>
+    <color name="coolDeepBlack">#010203</color>
+    <color name="ballBlack">#33363D</color>
+    <color name="niceBlack">#0D0D0D</color>
+    <color name="niceblue">#66CCFF</color>
+
+    <!-- Accent Colors -->
+    <color name="neon_cyan">#00D1FF</color>
+    <color name="emerald_green">#00A86B</color>
+    <color name="crimson_red">#D72638</color>
+
+    <!-- Light Theme Colors -->
     <color name="off_white">#F5F5F5</color>
     <color name="grey">#CBCBCB</color>
 
+    <!-- Dark Theme Colors -->
+    <color name="darkTheme">#121212</color>
 
-    <!--    DARK THEME-->
-    <color name="black_shade">#1C1C1C</color>
-
-    <!--    SECONDARY colours-->
+    <!-- Secondary Colors -->
     <color name="cool">#80FFFFFF</color>
     <color name="blue">#57A0D3</color>
     <color name="thickwhite">#E5E5E5</color>
     <color name="invincibleColor">#00000000</color>
-    <color name="niceBlack">#0D0D0D</color>
-    <color name="coolDeepBlack">#010203</color>
-    <color name="ballBlack">#33363D</color>
-    <color name="thickerwhite">#E0E0E0</color>
-    <color name="niceblue">#66CCFF</color>
-    <color name="bblack">#222222</color>
-    <color name="foreignblue">#0e2433</color>
     <color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>
     <color name="teal_200">#FF03DAC5</color>
     <color name="teal_700">#FF018786</color>
     <color name="blackTransparent">#CC000000</color>
-    <color name="lightTransparent">#80FFFFFF</color>
-    <color name="black2_0">#010101</color>
     <color name="matteblack">#242124</color>
     <color name="thickpink">#b30d0d</color>
     <color name="onlyYT">#FF0000</color>
     <color name="newlyaddedcolor1">#D2EDFC</color>
     <color name="purpleembrace">#D10CFD</color>
+    <color name="gray_inactive">#757575</color>
     <color name="newlyaddedcolor2">#287CF6</color>
     <color name="newColor">#E6CDAE</color>
     <color name="colorGrey">#CBCBCB</color>
@@ -56,15 +77,15 @@
     <color name="lightlightBlack">#1F1F21</color>
     <color name="invicibleColor">#00000000</color>
     <color name="fadedgreen">#1B2719</color>
-    ♀<color name="thickRed">#FF782727</color>
+    <color name="thickRed">#FF782727</color>
     <color name="uniqueColor">#182828</color>
     <color name="lightblue">#ADD8E6</color>
     <color name="foreignColor">#132020</color>
     <color name="anotherForeign">#1c2f2f</color>
     <color name="dimmed_green">#25D366</color>
     <color name="testcolor">#38ed2e</color>
-    <color name="darkTheme">#121212</color>
-    <!--   Original LightGreen #00FA9A-->
+
+    <!-- Light Green & Other Special Colors -->
     <color name="lightGreen">#25D366</color>
     <color name="thickGreen">#006400</color>
     <color name="colorPurple">#800080</color>
@@ -74,9 +95,10 @@
     <color name="colorLight">#80FFFFFF</color>
     <color name="foreignBlack">#1D1D1D</color>
 
-    <!--    FOR WIDGET-->
+    <!-- Widget Colors -->
     <color name="defaultCOLOR">#80CCCCCC</color>
-    <!--    SOLID COLORS-->
+
+    <!-- Solid Colors -->
     <color name="awesomeGreen">#8BC34A</color>
     <color name="deepOrange">#FF5722</color>
     <color name="indigo">#3F51B5</color>
@@ -88,18 +110,7 @@
     <color name="lime">#CDDC39</color>
     <color name="brown">#795548</color>
 
-    <!--    TRANSPARENT COLORS-->
-    <!--    <color name="transparentCool1">#90FFFFFF</color>-->
-    <!--    <color name="transparentCool2">#90CBCBCB</color>-->
-    <!--    <color name="transparentCool3">#9057A0D3</color>-->
-    <!--    <color name="transparentCool4">#90E5E5E5</color>-->
-    <!--    <color name="transparentCool5">#90FF5722</color>-->
-    <!--    <color name="transparentCool6">#903F51B5</color>-->
-    <!--    <color name="transparentCool7">#90673AB7</color>-->
-    <!--    <color name="transparentCool8">#90FFC107</color>-->
-    <!--    <color name="transparentCool9">#90009688</color>-->
-    <!--    <color name="transparentCool10">#9000BCD4</color>-->
-
+    <!-- Transparent Colors -->
     <color name="transparentCool1">#80FF4081</color>
     <color name="transparentCool2">#8081C784</color>
     <color name="transparentCool3">#804CAF50</color>

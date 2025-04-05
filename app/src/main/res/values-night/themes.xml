@@ -14,7 +14,7 @@
         <!-- Customize search icon -->
         <item name="searchIcon">@drawable/search_icon</item>
         <!-- Customize close icon -->
-        <item name="closeIcon">@drawable/baseline_close_24</item>
+        <item name="closeIcon">@drawable/white_close_ic</item>
         <!-- Customize query hint color -->
         <item name="android:textColorHint">@color/thickGrey</item>
         <!-- Customize query text appearance -->
