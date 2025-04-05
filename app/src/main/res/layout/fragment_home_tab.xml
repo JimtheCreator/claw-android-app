@@ -54,7 +54,6 @@
         <androidx.core.widget.NestedScrollView
             android:id="@+id/mainpagelayout"
             android:fitsSystemWindows="true"
-            android:fillViewport="true"
             android:scrollbars="vertical"
             android:scrollIndicators="end"
             android:layout_width="match_parent"
@@ -70,7 +69,6 @@
                     android:id="@+id/search_bar"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
                     android:orientation="horizontal"
                     app:layout_behavior="com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior">
 
@@ -163,10 +161,6 @@
                     android:layout_marginTop="10dp"
                     android:fitsSystemWindows="true" />
 
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/popular_cryptos_list"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"/>
 
             </LinearLayout>
 
@@ -186,6 +180,17 @@
         app:layout_behavior="@string/bottom_sheet_behavior">
 
         <!-- Bottom sheet content -->
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/popular_cryptos_list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"/>
+
+        </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
 

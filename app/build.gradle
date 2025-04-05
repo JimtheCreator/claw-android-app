@@ -26,6 +26,10 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+
+        debug {
+            // some debug-specific configurations
+        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
@@ -44,4 +48,15 @@ dependencies {
 
     //CHARTS LIBRARY
     implementation libs.mpandroidchart
+    
+    //Retrofit
+    implementation libs.retrofit
+    implementation libs.converter.gson
+
+    //OkHttp
+    implementation libs.okhttp
+    implementation libs.logging.interceptor
+
+    //Timber for Logs
+    implementation libs.timber
 }
