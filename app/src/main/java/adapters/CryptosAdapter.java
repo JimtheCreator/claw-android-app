@@ -114,10 +114,13 @@ public class CryptosAdapter extends RecyclerView.Adapter<CryptosAdapter.ViewHold
                 for (int i = 0; i < sparkline.size(); i++) {
                     entries.add(new Entry(i, sparkline.get(i).floatValue()));
                 }
+
                 setupChart(holder.binding.lineChart, entries);
             } else {
                 holder.binding.lineChart.setVisibility(View.GONE);
             }
+
+
 
         } catch (Exception e) {
             Timber.e(e, "Error binding view at position %d", position);
