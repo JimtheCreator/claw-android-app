@@ -19,7 +19,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:background="@color/darkTheme"
+        android:background="@color/black_shade"
         android:defaultFocusHighlightEnabled="false"
         app:itemActiveIndicatorStyle="@color/invincibleColor"
         app:itemIconSize="32dp"

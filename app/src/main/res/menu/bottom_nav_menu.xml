@@ -2,14 +2,20 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
-        android:id="@+id/alert_signals"
-        android:icon="@drawable/baseline_crisis_alert_24"
+        android:id="@+id/recent_tabs"
+        android:icon="@drawable/recent_tabs_ic"
         android:title="" />
 
     <item
         android:id="@+id/home"
         android:icon="@drawable/home_ic"
         android:title="" />
+
+    <item
+        android:id="@+id/alert_signals"
+        android:icon="@drawable/baseline_crisis_alert_24"
+        android:title="" />
+
 
     <item
         android:id="@+id/more"

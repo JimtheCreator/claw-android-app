@@ -30,4 +30,12 @@
         <item name="android:textColorHint">@color/matteblack</item>
         <!-- Customize query text appearance -->
     </style>
+
+    <!--    FOR THE HOMETABLAYOUT-->
+    <style name="CustomTabText">
+        <item name="android:textSize">17.5sp</item> <!-- Adjust size as needed -->
+        <item name="android:fontFamily">@font/sf_pro_text_medium</item> <!-- Optional -->
+        <item name="textAllCaps">false</item> <!-- Set to false if you don't want uppercase -->
+    </style>
+
 </resources>

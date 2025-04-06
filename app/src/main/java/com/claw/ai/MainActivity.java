@@ -1,7 +1,6 @@
 package com.claw.ai;
 
 import android.os.Bundle;
-import android.view.WindowManager;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -18,6 +17,7 @@ import bottomsheets.PricingPackageSheetFragment;
 import fragments.AlertTabFragment;
 import fragments.HomeTabFragment;
 import fragments.MoreTabFragment;
+import recent_tabs.RecentTabsFragment;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -49,12 +49,15 @@ public class MainActivity extends AppCompatActivity {
             Fragment fragment;
             int itemId = item.getItemId();
 
-            if (itemId == R.id.alert_signals) {
-                fragment = new AlertTabFragment();
+            if (itemId == R.id.recent_tabs) {
+                fragment = new RecentTabsFragment();
                 binding.bottomNavigation.setBackground(ContextCompat.getDrawable(MainActivity.this, R.color.black2_0));
             } else if (itemId == R.id.home) {
                 fragment = new HomeTabFragment();
-                binding.bottomNavigation.setBackground(ContextCompat.getDrawable(MainActivity.this, R.color.darkTheme));
+                binding.bottomNavigation.setBackground(ContextCompat.getDrawable(MainActivity.this, R.color.black_shade));
+            } else if (itemId == R.id.alert_signals) {
+                fragment = new AlertTabFragment();
+                binding.bottomNavigation.setBackground(ContextCompat.getDrawable(MainActivity.this, R.color.black2_0));
             } else if (itemId == R.id.more) {
                 fragment = new MoreTabFragment();
                 PricingPackageSheetFragment pricingPackageSheetFragment = PricingPackageSheetFragment.newInstance();

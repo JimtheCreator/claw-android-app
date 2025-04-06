@@ -4,32 +4,32 @@ import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.DisplayMetrics;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.SearchView;
+import android.view.inputmethod.EditorInfo;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.widget.NestedScrollView;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-import androidx.transition.TransitionManager;
 
 import com.claw.ai.databinding.FragmentHomeTabBinding;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.tabs.TabLayoutMediator;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import adapters.CryptosAdapter;
 import animations.BounceEdgeEffectFactory;
+import animations.MotionAnimation;
+import home_tabs.TabPagerAdapter;
 import models.Symbol;
+import space.SpacebetweenItems;
 import timber.log.Timber;
 import utils.DateUtils;
 import utils.KeyboardQuickFunctions;
@@ -37,20 +37,26 @@ import viewmodels.HomeViewModel;
 
 public class HomeTabFragment extends Fragment {
 
+    // Initialize a variable to store the previous slideOffset
+    private float lastSlideOffset = -1;
+    boolean isBottomSheetExpanded = false;
     private FragmentHomeTabBinding binding;
     private boolean isSearchExpanded = false;
-    private BottomSheetBehavior<NestedScrollView> bottomSheetBehavior;
-    HomeViewModel homeViewModel;
-    List<Symbol> symbolList;
-    CryptosAdapter cryptosAdapter;
+    private BottomSheetBehavior bottomSheetBehavior;
+    private HomeViewModel homeViewModel;
+    private List<Symbol> popularSymbolList;
+    private List<Symbol> searchedSymbolList;
+    private CryptosAdapter popularCryptosAdapter;
+    private CryptosAdapter searchedCryptosAdapter;
 
-    DisplayMetrics metrics;
+    private DisplayMetrics metrics;
 
     // Add these variables
     private int currentPopularPage = 1;
     private boolean isLoadingPopular = false;
     private String currentQuery = "";
 
+    private final String[] tabTitles = {"Trending", "Top Gainers", "Top Losers", "New"};
 
     // Lifecycle Methods
     @Override
@@ -68,16 +74,47 @@ public class HomeTabFragment extends Fragment {
         initializeSearch();
         setupClickListeners();
         setupBackPressHandler();
-        setupPopularCryptosList();  // Add this
-        setupSearchedCryptoList();  // Add this
+//        setupPopularCryptosList();
+        setupSearchedCryptoList();
         setupObservers();
     }
 
     private void initializeViews() {
-        symbolList = new ArrayList<>();
-        cryptosAdapter = new CryptosAdapter(requireContext(), symbolList);
+        binding.viewPager.setAdapter(new TabPagerAdapter(requireActivity()));
+
+        new TabLayoutMediator(binding.tabLayout, binding.viewPager,
+                (tab, position) -> tab.setText(tabTitles[position])).attach();
+
+        popularSymbolList = new ArrayList<>();
+        searchedSymbolList = new ArrayList<>();
+
+        popularCryptosAdapter = new CryptosAdapter(requireContext(), popularSymbolList);
+        searchedCryptosAdapter = new CryptosAdapter(requireContext(), searchedSymbolList);
+
         homeViewModel = new ViewModelProvider(this).get(HomeViewModel.class);
         binding.dateText.setText(DateUtils.getFormattedDate());
+
+        // Initially hide searched list and show the empty state
+        binding.searchedCryptosList.setVisibility(View.GONE);
+        binding.emptySearchState.setVisibility(View.GONE);
+
+        binding.searchBox.setOnEditorActionListener((textView, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                KeyboardQuickFunctions.closeKeyboard(textView, requireContext());
+                String query = textView.getText().toString().trim();
+
+                // 🔍 Perform your search logic here
+                performSearch(query);
+
+                bottomSheetBehavior.setPeekHeight((int) (metrics.heightPixels * 0.1));
+                bottomSheetBehavior.setFitToContents(false);
+                bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+
+                return true; // We handled the action
+            }
+            return false;
+        });
+
     }
 
     @Override
@@ -92,20 +129,52 @@ public class HomeTabFragment extends Fragment {
         metrics = getDisplayMetrics();
         bottomSheetBehavior.setPeekHeight((int) (metrics.heightPixels * 0.1));
         bottomSheetBehavior.setFitToContents(false);
-        bottomSheetBehavior.setHalfExpandedRatio(0.4f);
-        bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
+        bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
 
         bottomSheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
             @Override
             public void onStateChanged(@NonNull View bottomSheet, int newState) {
                 Timber.tag("BottomSheet").d("State: %s", newState);
+                if (newState == BottomSheetBehavior.STATE_COLLAPSED) {
+                    isBottomSheetExpanded = false;
+                    bottomSheetBehavior.setDraggable(true);
+                    searchBarStateBeforeClicked();
+                    KeyboardQuickFunctions.closeKeyboard(binding.searchBox, requireContext());
+                } else if (newState == BottomSheetBehavior.STATE_EXPANDED) {
+                    bottomSheetBehavior.setDraggable(false);
+                    isBottomSheetExpanded = true;
+                    imeKeyboardSearch(bottomSheet);
+                } else if (newState == BottomSheetBehavior.STATE_HALF_EXPANDED) {
+                    bottomSheetBehavior.setDraggable(false);
+                    isBottomSheetExpanded = false;
+                    searchBarStateWhenClicked();
+
+                }
+
             }
 
             @Override
             public void onSlide(@NonNull View bottomSheet, float slideOffset) {
                 Timber.tag("BottomSheet").d("Slide: %s", slideOffset);
+                // Check if the slideOffset has changed direction (dragging down)
+                if (lastSlideOffset != -1) {
+                    // If the slideOffset is decreasing, it's being dragged down
+                    if (slideOffset < lastSlideOffset) {
+                        // Bottom sheet is being dragged down
+                        bottomSheetBehavior.setDraggable(true);
+                    }
+                }
+
+                // Update the lastSlideOffset for the next slide
+                lastSlideOffset = slideOffset;
+
+                // Optional: Log the slideOffset value for debugging
+                Timber.tag("BottomSheet").d("Slide: %s", slideOffset);
             }
         });
+
+
+
     }
 
     // Search Handling
@@ -116,42 +185,96 @@ public class HomeTabFragment extends Fragment {
     private void searchBarStateBeforeClicked() {
         binding.frameSearchBox.setVisibility(View.GONE);
         binding.dummySearchbox.setVisibility(View.VISIBLE);
-        TransitionManager.beginDelayedTransition(binding.main);
-        binding.doneSearch.setVisibility(View.GONE);
+        binding.exitSearch.setVisibility(View.GONE);
+        // Hide search results when search is closed
+        binding.searchedCryptosList.setVisibility(View.GONE);
+        bottomSheetBehavior.setPeekHeight((int) (metrics.heightPixels * 0.1));
+        bottomSheetBehavior.setFitToContents(false);
+        bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+        MotionAnimation.animateSmoothScrollToBottom(binding.scrollView);
     }
+
+
+
 
     private void searchBarStateWhenClicked() {
         binding.frameSearchBox.setVisibility(View.VISIBLE);
         binding.dummySearchbox.setVisibility(View.GONE);
-        binding.doneSearch.setVisibility(View.VISIBLE);
+        binding.exitSearch.setVisibility(View.VISIBLE);
         binding.searchBox.requestFocus();
         KeyboardQuickFunctions.showKeyboard(binding.searchBox, requireContext());
+        // Show searched list when search is active
+        binding.searchedCryptosList.setVisibility(View.VISIBLE);
+
+        bottomSheetBehavior.setPeekHeight((int) (metrics.heightPixels * 0.1));
+        bottomSheetBehavior.setFitToContents(false);
+        bottomSheetBehavior.setHalfExpandedRatio(0.6f);
+
+        if (!isBottomSheetExpanded) {
+            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
+        } else {
+            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+        }
+
+    }
+
+
+    private void imeKeyboardSearch(View bottomSheet) {
+        binding.frameSearchBox.setVisibility(View.VISIBLE);
+        binding.dummySearchbox.setVisibility(View.GONE);
+        binding.exitSearch.setVisibility(View.VISIBLE);
+        binding.searchBox.clearFocus();
+        binding.searchedCryptosList.setVisibility(View.VISIBLE);
+        MotionAnimation.animateSmoothScrollToTop(binding.scrollView);
+        bottomSheetBehavior.setPeekHeight((int) (metrics.heightPixels * 0.1));
+        bottomSheetBehavior.setFitToContents(false);
+        bottomSheetBehavior.setHalfExpandedRatio(0.6f);
+
+        if (!isBottomSheetExpanded) {
+            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
+        } else {
+            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+        }
+
     }
 
     // Click Listeners
     private void setupClickListeners() {
         binding.searchBar.setOnClickListener(v -> {
-            bottomSheetBehavior.setPeekHeight(0);
-            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
-            animateSearchState(true);
+            MotionAnimation.animateSmoothScrollToTop(binding.scrollView);
             searchBarStateWhenClicked();
         });
 
-        binding.doneSearch.setOnClickListener(v -> {
+        binding.exitSearch.setOnClickListener(v -> {
             KeyboardQuickFunctions.closeKeyboard(binding.searchBox, requireContext());
             searchBarStateBeforeClicked();
             binding.searchBox.setText("");
 
-            if (isSearchExpanded) {
-                binding.getRoot().post(() -> {
-                    animateSearchState(false);
-                    bottomSheetBehavior.setPeekHeight((int) (metrics.heightPixels * 0.1));
-                    bottomSheetBehavior.setFitToContents(false);
-                    bottomSheetBehavior.setHalfExpandedRatio(0.4f);
-                    bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
-                });
-            }
+            bottomSheetBehavior.setPeekHeight((int) (metrics.heightPixels * 0.1));
+            bottomSheetBehavior.setFitToContents(false);
+            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+            MotionAnimation.animateSmoothScrollToBottom(binding.scrollView);
+
+//            binding.getRoot().post(() -> {
+//                bottomSheetBehavior.setPeekHeight((int) (metrics.heightPixels * 0.1));
+//                bottomSheetBehavior.setFitToContents(false);
+//                bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+//            });
         });
+    }
+
+    private void handleSearchClose() {
+        if (bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED || bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_HALF_EXPANDED) {
+            MotionAnimation.animateSmoothScrollToBottom(binding.scrollView);
+            KeyboardQuickFunctions.closeKeyboard(binding.searchBox, requireContext());
+            binding.searchBox.setText("");
+            // Clear search results
+            searchedSymbolList.clear();
+            searchedCryptosAdapter.notifyDataSetChanged();
+            searchBarStateBeforeClicked();
+        } else {
+            requireActivity().finishAffinity();
+        }
     }
 
     // Back Press Handling
@@ -161,42 +284,12 @@ public class HomeTabFragment extends Fragment {
                 new OnBackPressedCallback(true) {
                     @Override
                     public void handleOnBackPressed() {
-                        KeyboardQuickFunctions.closeKeyboard(binding.searchBox, requireContext());
-                        searchBarStateBeforeClicked();
-                        binding.searchBox.setText("");
-
-                        if (isSearchExpanded) {
-                            binding.getRoot().post(() -> {
-                                animateSearchState(false);
-                                bottomSheetBehavior.setPeekHeight((int) (metrics.heightPixels * 0.1));
-                                bottomSheetBehavior.setFitToContents(false);
-                                bottomSheetBehavior.setHalfExpandedRatio(0.4f);
-                                bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
-                            });
-                        }
+                        handleSearchClose();
                     }
                 }
         );
     }
 
-    // Animation Utilities
-    private void animateSearchState(boolean expand) {
-        float headerAlpha = expand ? 0f : 1f;
-        float translation = expand ? -binding.headerContainer.getHeight() : 0f;
-
-        binding.headerContainer.animate()
-                .alpha(headerAlpha)
-                .translationY(translation)
-                .setDuration(300)
-                .start();
-
-        binding.mainpagelayout.animate()
-                .translationY(translation)
-                .setDuration(300)
-                .start();
-
-        isSearchExpanded = expand;
-    }
 
     // Helper Methods
     private DisplayMetrics getDisplayMetrics() {
@@ -205,42 +298,6 @@ public class HomeTabFragment extends Fragment {
         return metrics;
     }
 
-
-    /**
-     * Sets up the RecyclerView that shows a list of popular cryptocurrencies.
-     *
-     * <p>This configuration uses a {@link LinearLayoutManager} for vertical scrolling,
-     * a {@link CryptosAdapter} to bind the data to views, and applies a
-     * {@link BounceEdgeEffectFactory} to enhance the overscroll behavior with
-     * a spring-like bounce effect.</p>
-     *
-     * @see CryptosAdapter
-     * @see BounceEdgeEffectFactory
-     */
-    // Update setupPopularCryptosList
-    private void setupPopularCryptosList() {
-        binding.popularCryptosList.setLayoutManager(new LinearLayoutManager(requireContext()));
-        binding.popularCryptosList.setHasFixedSize(true);
-        binding.popularCryptosList.setAdapter(cryptosAdapter);
-        binding.popularCryptosList.setEdgeEffectFactory(new BounceEdgeEffectFactory(requireContext()));
-
-        binding.popularCryptosList.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                LinearLayoutManager layoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
-                assert layoutManager != null;
-                int visibleItemCount = layoutManager.getChildCount();
-                int totalItemCount = layoutManager.getItemCount();
-                int firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition();
-
-                if (!isLoadingPopular && (visibleItemCount + firstVisibleItemPosition) >= totalItemCount) {
-                    homeViewModel.loadNextPage();
-                }
-            }
-        });
-
-        homeViewModel.loadTopCryptos(1);
-    }
 
     /**
      * Initializes the RecyclerView that displays the search results for cryptocurrencies.
@@ -253,53 +310,97 @@ public class HomeTabFragment extends Fragment {
      * @see CryptosAdapter
      * @see BounceEdgeEffectFactory
      */
-    private void setupSearchedCryptoList(){
+    private void setupSearchedCryptoList() {
         binding.searchedCryptosList.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.searchedCryptosList.setHasFixedSize(true);
-        binding.searchedCryptosList.setAdapter(cryptosAdapter);
+        binding.searchedCryptosList.setAdapter(searchedCryptosAdapter);
+        binding.searchedCryptosList.addItemDecoration(new SpacebetweenItems(15));
         binding.searchedCryptosList.setEdgeEffectFactory(new BounceEdgeEffectFactory(requireContext()));
+        binding.searchedCryptosList.setNestedScrollingEnabled(false);
 
         binding.searchBox.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-
             }
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-
             }
 
             @Override
             public void afterTextChanged(Editable s) {
-                String query = s.toString().trim();
-                if (query.length() >= 2) {
-                    homeViewModel.searchCryptos(query, 20);
-                }
+                currentQuery = s.toString().trim();
+
+                performSearch(currentQuery);
             }
         });
     }
 
+    private void performSearch(String query) {
+        if (query.length() >= 3) {
+            homeViewModel.searchCryptos(query, 20);
+            binding.emptySearchState.setVisibility(View.GONE);
+        } else {
+            // Clear search results if query is too short
+            searchedSymbolList.clear();
+            searchedCryptosAdapter.notifyDataSetChanged();
 
-    // Update setupObservers
-    private void setupObservers() {
-        // In HomeTabFragment's setupObservers()
-        homeViewModel.getCryptoList().observe(getViewLifecycleOwner(), symbols -> {
-            Timber.d("Received %d symbols", symbols.size()); // Log data size
-            if (!symbols.isEmpty()) {
-                symbolList.clear();
-                symbolList.addAll(symbols);
-                cryptosAdapter.setData(symbolList);
+            if (query.isEmpty()) {
+                binding.emptySearchState.setVisibility(View.GONE);
+            } else {
+                binding.emptySearchState.setVisibility(View.VISIBLE);
             }
-        });
-        homeViewModel.getErrorMessage().observe(getViewLifecycleOwner(), this::showErrorToast);
-    }
-
-
-    private void showErrorToast(String message) {
-        if (getContext() != null) {
-            Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
         }
     }
 
+
+    // Update setupObservers to handle both lists separately
+    private void setupObservers() {
+        // Observe popular cryptos list
+//        homeViewModel.getCryptoList().observe(getViewLifecycleOwner(), symbols -> {
+//            Timber.d("Received %d popular symbols", symbols.size());
+//            if (!symbols.isEmpty()) {
+//                isLoadingPopular = false;
+//                popularSymbolList.clear();
+//                popularSymbolList.addAll(symbols);
+//
+//                popularCryptosAdapter.setData(popularSymbolList);
+//
+//
+//                // Show loading indicator based on state
+//                binding.popularLoadingIndicator.setVisibility(View.GONE);
+//            }
+//        });
+
+
+        // Observe search results
+        homeViewModel.getSearchResults().observe(getViewLifecycleOwner(), symbols -> {
+            Timber.d("Received %d search results", symbols.size());
+            searchedSymbolList.clear();
+
+            if (!symbols.isEmpty()) {
+                searchedSymbolList.addAll(symbols);
+                binding.emptySearchState.setVisibility(View.GONE);
+            } else if (currentQuery.length() >= 2) {
+                // Show empty state if no results for valid search
+                binding.emptySearchState.setVisibility(View.VISIBLE);
+            }
+
+            searchedCryptosAdapter.setData(searchedSymbolList);
+        });
+
+        // Handle errors
+        homeViewModel.getErrorMessage().observe(getViewLifecycleOwner(), this::showErrorToast);
+
+        // Handle loading state
+//        homeViewModel.getIsLoading().observe(getViewLifecycleOwner(), isLoading -> {
+//            binding.popularLoadingIndicator.setVisibility(isLoading ? View.VISIBLE : View.GONE);
+//        });
+    }
+
+    private void showErrorToast(String message) {
+        if (getContext() != null && message != null && !message.isEmpty()) {
+            Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+        }
+    }
 }

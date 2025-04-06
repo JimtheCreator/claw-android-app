@@ -2,6 +2,7 @@ package adapters;
 
 import android.content.Context;
 import android.view.LayoutInflater;
+import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
@@ -25,6 +26,8 @@ import java.util.Locale;
 import models.Symbol;
 import utils.SymbolDiffCallback;
 
+import timber.log.Timber;
+
 /**
  * A RecyclerView adapter that displays cryptocurrency symbol data, including price information
  * and sparkline charts. Updates list items efficiently using DiffUtil.
@@ -32,7 +35,6 @@ import utils.SymbolDiffCallback;
 public class CryptosAdapter extends RecyclerView.Adapter<CryptosAdapter.ViewHolder> {
 
     Context context;
-
     private List<Symbol> symbolList;
 
     /**
@@ -40,10 +42,23 @@ public class CryptosAdapter extends RecyclerView.Adapter<CryptosAdapter.ViewHold
      * @param newList The new list of cryptocurrency symbols to display
      */
     public void setData(List<Symbol> newList) {
+        if (this.symbolList == null) {
+            this.symbolList = new ArrayList<>();
+        }
+
+        // Log data update for debugging
+        Timber.d("Updating adapter with %d symbols", newList.size());
+
+        List<Symbol> oldList = new ArrayList<>(this.symbolList);
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new SymbolDiffCallback(oldList, newList));
         this.symbolList.clear();
-        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new SymbolDiffCallback(this.symbolList, newList));
-        this.symbolList = newList;
+        this.symbolList.addAll(newList);
         diffResult.dispatchUpdatesTo(this);
+
+        // Notify that data has changed as a fallback
+        if (newList.size() != oldList.size()) {
+            notifyDataSetChanged();
+        }
     }
 
     /**
@@ -53,7 +68,7 @@ public class CryptosAdapter extends RecyclerView.Adapter<CryptosAdapter.ViewHold
      */
     public CryptosAdapter(Context context, List<Symbol> symbolList) {
         this.context = context;
-        this.symbolList = symbolList;
+        this.symbolList = symbolList != null ? new ArrayList<>(symbolList) : new ArrayList<>();
     }
 
     /**
@@ -79,28 +94,35 @@ public class CryptosAdapter extends RecyclerView.Adapter<CryptosAdapter.ViewHold
     public void onBindViewHolder(@NonNull CryptosAdapter.ViewHolder holder, int position) {
         Symbol symbol = symbolList.get(position);
 
-        // Texts
-        holder.binding.getRoot().setBackgroundColor(context.getColor(R.color.black2_0));
-        holder.binding.textViewSymbol.setText(symbol.getSymbol());
-        holder.binding.textViewName.setText(symbol.getName());
-        holder.binding.textViewPrice.setText(String.format(Locale.US, "US$%.2f", symbol.getCurrentPrice()));
-        holder.binding.textViewChange.setText(String.format(Locale.US,"%.2f%%", symbol.get_24hChange()));
+        try {
+            // Texts
+            holder.binding.textViewSymbol.setText(symbol.getSymbol());
+            holder.binding.textViewName.setText(symbol.getName());
+            holder.binding.textViewPrice.setText(String.format(Locale.US, "US$%.2f", symbol.getCurrentPrice()));
+            holder.binding.textViewChange.setText(String.format(Locale.US,"%.2f%%", symbol.get_24hChange()));
 
-        // Change color based on +/- change
-        boolean isNegative = symbol.get_24hChange() < 0;
-        int boxBackground = isNegative ? R.drawable.red_box : R.drawable.green_box;
-        holder.binding.changeBox.setBackgroundResource(boxBackground);
+            // Change color based on +/- change
+            boolean isNegative = symbol.get_24hChange() < 0;
+            int boxBackground = isNegative ? R.drawable.red_box : R.drawable.green_box;
+            holder.binding.changeBox.setBackgroundResource(boxBackground);
 
-        // Sparkline chart
-        List<Entry> entries = new ArrayList<>();
-        List<Double> sparkline = symbol.getSparkline();
-        for (int i = 0; i < sparkline.size(); i++) {
-            entries.add(new Entry(i, sparkline.get(i).floatValue()));
+            // Sparkline chart
+            List<Entry> entries = new ArrayList<>();
+            List<Double> sparkline = symbol.getSparkline();
+            if (sparkline != null && !sparkline.isEmpty()) {
+                holder.binding.lineChart.setVisibility(View.VISIBLE);
+                for (int i = 0; i < sparkline.size(); i++) {
+                    entries.add(new Entry(i, sparkline.get(i).floatValue()));
+                }
+                setupChart(holder.binding.lineChart, entries);
+            } else {
+                holder.binding.lineChart.setVisibility(View.GONE);
+            }
+
+        } catch (Exception e) {
+            Timber.e(e, "Error binding view at position %d", position);
         }
-
-        setupChart(holder.binding.lineChart, entries);
     }
-
 
     /**
      * Returns the total number of items in the dataset
@@ -133,7 +155,7 @@ public class CryptosAdapter extends RecyclerView.Adapter<CryptosAdapter.ViewHold
      * @param dataPoints List of price entries for the sparkline chart
      */
     private void setupChart(LineChart chart, List<Entry> dataPoints) {
-        if (dataPoints.isEmpty()) return;
+        if (dataPoints == null || dataPoints.isEmpty()) return;
 
         // Determine if trend is up or down
         int lastIndex = dataPoints.size() - 1;
@@ -151,7 +173,7 @@ public class CryptosAdapter extends RecyclerView.Adapter<CryptosAdapter.ViewHold
 
         // Set fill gradient for shaded effect
         dataSet.setDrawFilled(true);
-        dataSet.setFillDrawable(ContextCompat.getDrawable(chart.getContext(), shadeColor)); // previous code was: dataSet.setFillDrawable(chart.getContext().getDrawable(shadeColor)
+        dataSet.setFillDrawable(ContextCompat.getDrawable(chart.getContext(), shadeColor));
 
         // Apply data
         LineData lineData = new LineData(dataSet);
@@ -176,5 +198,4 @@ public class CryptosAdapter extends RecyclerView.Adapter<CryptosAdapter.ViewHold
 
         chart.getAxisRight().setEnabled(false);
     }
-
 }

@@ -12,7 +12,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="15dp"
         android:layout_marginTop="40dp"
-        android:fontFamily="@font/sanfrans_bold"
+        android:fontFamily="@font/sf_pro_text_bold"
         android:text="Profile card"
         android:textColor="@color/white"
         android:textSize="22.5sp" />

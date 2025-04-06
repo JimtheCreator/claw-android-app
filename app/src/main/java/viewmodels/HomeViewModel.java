@@ -16,73 +16,89 @@ import retrofit2.Callback;
 import retrofit2.Response;
 import timber.log.Timber;
 
+
 /**
  * ViewModel for handling cryptocurrency data operations and exposing data to the UI.
  */
 public class HomeViewModel extends ViewModel {
     private final MutableLiveData<List<Symbol>> cryptoList = new MutableLiveData<>();
+    private final MutableLiveData<List<Symbol>> searchResults = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
+
     private final CryptoApiService apiService;
+
     // For top cryptos pagination
     private int currentPage = 1;
     private final int PAGE_SIZE = 20;
     private final List<Symbol> allCryptos = new ArrayList<>();
-    private boolean isLoading = false;
 
+    public HomeViewModel() {
+        apiService = MainClient.getInstance().create(CryptoApiService.class);
+    }
 
     private List<Symbol> getPaginatedData() {
         int end = Math.min(currentPage * PAGE_SIZE, allCryptos.size());
         return allCryptos.subList(0, end);
     }
 
+    /**
+     * Loads the next page of popular cryptocurrencies if available.
+     */
     public void loadNextPage() {
-        if (!isLoading && (currentPage * PAGE_SIZE) < allCryptos.size()) {
-            currentPage++;
-            cryptoList.postValue(getPaginatedData());
+        Boolean loading = isLoading.getValue();
+        if (Boolean.TRUE.equals(loading) || (currentPage * PAGE_SIZE) >= allCryptos.size()) {
+            return;
         }
+
+        currentPage++;
+        cryptoList.postValue(getPaginatedData());
     }
 
-    public HomeViewModel() {
-        apiService = MainClient.getInstance().create(CryptoApiService.class);
+    // Add this method to check if more data is available
+    public boolean hasMoreData() {
+        return currentPage * PAGE_SIZE < allCryptos.size();
     }
 
     /**
-     * Fetches top cryptocurrencies from the backend
-     *
-     * @param limit Number of items per page
+     * Fetches top cryptocurrencies from the backend with pagination.
+     * @param limit Number of items to fetch initially
      */
     public void loadTopCryptos(int limit) {
-        if (isLoading) return;
+        Boolean loading = isLoading.getValue();
+        if (Boolean.TRUE.equals(loading)) return;
 
-        isLoading = true;
+        isLoading.postValue(true);
         apiService.getTopCryptos(limit, null).enqueue(new Callback<List<Symbol>>() {
             @Override
             public void onResponse(Call<List<Symbol>> call, Response<List<Symbol>> response) {
                 if (response.isSuccessful() && response.body() != null) {
+                    allCryptos.clear();
                     allCryptos.addAll(response.body());
-                    List<Symbol> pageData = getPaginatedData();
-                    cryptoList.postValue(pageData);
+                    currentPage = 1;
+                    cryptoList.postValue(getPaginatedData());
                 }
-                isLoading = false;
+                isLoading.postValue(false);
             }
 
             @Override
             public void onFailure(Call<List<Symbol>> call, Throwable t) {
-                isLoading = false;
+                isLoading.postValue(false);
                 errorMessage.postValue("Network error: " + t.getMessage());
             }
         });
     }
 
     /**
-     * Searches cryptocurrencies based on user query
-     *
+     * Searches cryptocurrencies based on user query.
      * @param query Search string input by user
+     * @param limit Maximum number of search results
      */
     public void searchCryptos(String query, int limit) {
         Timber.d("Initiating search for: %s", query);
         if (query.length() < 2) {
             Timber.w("Search query too short");
+            searchResults.postValue(new ArrayList<>());
             return;
         }
 
@@ -90,7 +106,7 @@ public class HomeViewModel extends ViewModel {
             @Override
             public void onResponse(@NonNull Call<List<Symbol>> call, @NonNull Response<List<Symbol>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    cryptoList.postValue(response.body());
+                    searchResults.postValue(response.body());
                     Timber.i("Search found %d results", response.body().size());
                 } else {
                     errorMessage.postValue("Search failed: " + response.code());
@@ -111,12 +127,17 @@ public class HomeViewModel extends ViewModel {
         return cryptoList;
     }
 
-    public LiveData<List<Symbol>> getSearchedCryptoList() {
-        return cryptoList;
+    public LiveData<List<Symbol>> getSearchResults() {
+        return searchResults;
+    }
+
+    public LiveData<Boolean> getIsLoading() {
+        return isLoading;
     }
 
     public LiveData<String> getErrorMessage() {
         return errorMessage;
     }
 }
+
 

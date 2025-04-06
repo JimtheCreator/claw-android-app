@@ -67,7 +67,7 @@
                     android:layout_marginStart="20dp"
                     android:layout_marginTop="10dp"
                     android:layout_marginEnd="20dp"
-                    android:fontFamily="@font/sanfrans_regular"
+                    android:fontFamily="@font/regular"
                     android:gravity="center_horizontal"
                     android:text="Glad you made it to this page. Choose the package that suits you."
                     android:textColor="@color/grey"
@@ -108,7 +108,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:fontFamily="@font/sanfrans_medium"
+                                android:fontFamily="@font/sf_pro_text_medium"
                                 android:text="Subscription"
                                 android:textColor="@color/white"
                                 android:textSize="19sp" />
@@ -117,7 +117,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="10dp"
-                                android:fontFamily="@font/sanfrans_regular"
+                                android:fontFamily="@font/sf_pro_text_regular"
                                 android:text="Ready to go all in? Subscribe for unlimited potential and transform your results month after month."
                                 android:textColor="@color/thickGrey"
                                 android:textSize="14sp" />
@@ -177,7 +177,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_gravity="center_vertical"
-                                    android:fontFamily="@font/sanfrans_medium"
+                                    android:fontFamily="@font/sf_pro_text_medium"
                                     android:text="Test Drive"
                                     android:textColor="@color/white"
                                     android:textSize="19sp" />
@@ -186,7 +186,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="10dp"
-                                    android:fontFamily="@font/sanfrans_regular"
+                                    android:fontFamily="@font/sf_pro_text_regular"
                                     android:text="Curious? Get a taste of premium results without the full commitment."
                                     android:textColor="@color/thickGrey"
                                     android:textSize="14sp" />
@@ -221,7 +221,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_centerInParent="true"
-                            android:fontFamily="@font/sanfrans_bold"
+                            android:fontFamily="@font/sf_pro_text_bold"
                             android:text="RECOMMENDED"
                             android:textColor="@color/black"
                             android:textSize="11sp" />
