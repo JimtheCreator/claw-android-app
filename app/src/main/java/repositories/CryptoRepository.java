@@ -1,9 +1,13 @@
 package repositories;
 
+import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import backend.CryptoApiService;
 import backend.MainClient;
@@ -14,41 +18,49 @@ import retrofit2.Response;
 
 public class CryptoRepository {
     private final CryptoApiService api;
+    private final Map<String, List<Symbol>> searchCache = new ConcurrentHashMap<>();
+    private Call<List<Symbol>> currentSearchCall;
 
     public CryptoRepository() {
         api = MainClient.getInstance().create(CryptoApiService.class);
     }
 
-    public LiveData<List<Symbol>> getTopCryptos(int limit) {
-        MutableLiveData<List<Symbol>> data = new MutableLiveData<>();
-        api.getTopCryptos(limit, null).enqueue(new Callback<List<Symbol>>() {
-            @Override
-            public void onResponse(Call<List<Symbol>> call, Response<List<Symbol>> response) {
-                data.setValue(response.body());
-            }
 
-            @Override
-            public void onFailure(Call<List<Symbol>> call, Throwable t) {
-                data.setValue(null); // handle error appropriately
-            }
-        });
-        return data;
-    }
-
+    // Fixed searchCrypto implementation
     public LiveData<List<Symbol>> searchCrypto(String query, int limit) {
-        MutableLiveData<List<Symbol>> data = new MutableLiveData<>();
-        api.searchCrypto(query, limit).enqueue(new Callback<List<Symbol>>() {
+        MutableLiveData<List<Symbol>> liveData = new MutableLiveData<>();
+
+        // 1. Cancel previous request
+        if (currentSearchCall != null) {
+            currentSearchCall.cancel();
+        }
+
+        // 2. Check cache first
+        if (searchCache.containsKey(query)) {
+            liveData.postValue(searchCache.get(query));
+            return liveData;
+        }
+
+        // 3. Make new network request
+        currentSearchCall = api.searchCrypto(query, limit);
+        currentSearchCall.enqueue(new Callback<List<Symbol>>() {
             @Override
-            public void onResponse(Call<List<Symbol>> call, Response<List<Symbol>> response) {
-                data.setValue(response.body());
+            public void onResponse(@NonNull Call<List<Symbol>> call, @NonNull Response<List<Symbol>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    searchCache.put(query, response.body());
+                    liveData.postValue(response.body());
+                }
             }
 
             @Override
-            public void onFailure(Call<List<Symbol>> call, Throwable t) {
-                data.setValue(null);
+            public void onFailure(@NonNull Call<List<Symbol>> call, @NonNull Throwable t) {
+                if (!call.isCanceled()) {
+                    liveData.postValue(Collections.emptyList());
+                }
             }
         });
-        return data;
+
+        return liveData;
     }
 }
 

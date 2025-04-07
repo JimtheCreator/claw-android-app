@@ -6,6 +6,11 @@
     <color name="black_shade">#1C1C1C</color>
     <color name="black2_0">#010101</color>
 
+<!--    Chart Color-->
+    <color name="chart_color">#FF3CAC</color>
+    <color name="green_chart_color">#4CAF50</color>
+
+
     <!-- Text Colors -->
     <color name="text_primary">#FFFFFF</color>
     <color name="text_secondary">#B3B3B3</color>
@@ -124,5 +129,8 @@
     <color name="transparentCool8">#80FF6F00</color>
     <color name="transparentCool9">#808BC34A</color>
     <color name="transparentCool10">#803F51B5</color>
+
+
+
 
 </resources>

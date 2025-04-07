@@ -3,6 +3,7 @@ package viewmodels;
 import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModel;
 
 import java.util.ArrayList;
@@ -11,6 +12,7 @@ import java.util.List;
 import backend.CryptoApiService;
 import backend.MainClient;
 import models.Symbol;
+import repositories.CryptoRepository;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -22,19 +24,22 @@ import timber.log.Timber;
  */
 public class HomeViewModel extends ViewModel {
     private final MutableLiveData<List<Symbol>> cryptoList = new MutableLiveData<>();
-    private final MutableLiveData<List<Symbol>> searchResults = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
-
-    private final CryptoApiService apiService;
 
     // For top cryptos pagination
     private int currentPage = 1;
     private final int PAGE_SIZE = 20;
     private final List<Symbol> allCryptos = new ArrayList<>();
 
+    // Add these class variables
+    private Call<List<Symbol>> currentSearchCall;
+    private final CryptoRepository repository; // Add this
+
+    private final MutableLiveData<List<Symbol>> searchResults = new MutableLiveData<>();
+
     public HomeViewModel() {
-        apiService = MainClient.getInstance().create(CryptoApiService.class);
+        repository = new CryptoRepository();
     }
 
     private List<Symbol> getPaginatedData() {
@@ -61,66 +66,34 @@ public class HomeViewModel extends ViewModel {
     }
 
     /**
-     * Fetches top cryptocurrencies from the backend with pagination.
-     * @param limit Number of items to fetch initially
-     */
-    public void loadTopCryptos(int limit) {
-        Boolean loading = isLoading.getValue();
-        if (Boolean.TRUE.equals(loading)) return;
-
-        isLoading.postValue(true);
-        apiService.getTopCryptos(limit, null).enqueue(new Callback<List<Symbol>>() {
-            @Override
-            public void onResponse(Call<List<Symbol>> call, Response<List<Symbol>> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    allCryptos.clear();
-                    allCryptos.addAll(response.body());
-                    currentPage = 1;
-                    cryptoList.postValue(getPaginatedData());
-                }
-                isLoading.postValue(false);
-            }
-
-            @Override
-            public void onFailure(Call<List<Symbol>> call, Throwable t) {
-                isLoading.postValue(false);
-                errorMessage.postValue("Network error: " + t.getMessage());
-            }
-        });
-    }
-
-    /**
      * Searches cryptocurrencies based on user query.
      * @param query Search string input by user
      * @param limit Maximum number of search results
      */
     public void searchCryptos(String query, int limit) {
-        Timber.d("Initiating search for: %s", query);
-        if (query.length() < 2) {
-            Timber.w("Search query too short");
-            searchResults.postValue(new ArrayList<>());
-            return;
-        }
+        isLoading.postValue(true);
 
-        apiService.searchCrypto(query, limit).enqueue(new Callback<List<Symbol>>() {
+        LiveData<List<Symbol>> liveData = repository.searchCrypto(query, limit);
+        Observer<List<Symbol>> observer = new Observer<List<Symbol>>() {
             @Override
-            public void onResponse(@NonNull Call<List<Symbol>> call, @NonNull Response<List<Symbol>> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    searchResults.postValue(response.body());
-                    Timber.i("Search found %d results", response.body().size());
-                } else {
-                    errorMessage.postValue("Search failed: " + response.code());
-                    Timber.e("Search request failed: %s", response.message());
+            public void onChanged(List<Symbol> results) {
+                // Update search results even if null
+                searchResults.postValue(results);
+                isLoading.postValue(false); // Hide loading regardless
+
+                // Clean up observer
+                liveData.removeObserver(this);
+
+                // Optionally handle errors
+                if (results == null) {
+                    errorMessage.postValue("Failed to fetch results");
                 }
             }
+        };
 
-            @Override
-            public void onFailure(@NonNull Call<List<Symbol>> call, @NonNull Throwable t) {
-                errorMessage.postValue("Search error: " + t.getMessage());
-                Timber.e(t, "Search network failure");
-            }
-        });
+        liveData.observeForever(observer);
     }
+
 
     // LiveData getters
     public LiveData<List<Symbol>> getCryptoList() {
@@ -138,6 +111,7 @@ public class HomeViewModel extends ViewModel {
     public LiveData<String> getErrorMessage() {
         return errorMessage;
     }
+
 }
 
 

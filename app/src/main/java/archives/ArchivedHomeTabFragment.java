@@ -17,6 +17,7 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import com.claw.ai.R;
 import com.claw.ai.databinding.FragmentArchivedHomeTabBinding;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.tabs.TabLayoutMediator;
@@ -102,8 +103,8 @@ public class ArchivedHomeTabFragment extends Fragment {
         popularSymbolList = new ArrayList<>();
         searchedSymbolList = new ArrayList<>();
 
-        popularCryptosAdapter = new CryptosAdapter(requireContext(), popularSymbolList);
-        searchedCryptosAdapter = new CryptosAdapter(requireContext(), searchedSymbolList);
+        popularCryptosAdapter = new CryptosAdapter(requireContext(), popularSymbolList, false);
+        searchedCryptosAdapter = new CryptosAdapter(requireContext(), searchedSymbolList, true);
 
         homeViewModel = new ViewModelProvider(this).get(HomeViewModel.class);
         binding.dateText.setText(DateUtils.getFormattedDate());
@@ -322,10 +323,13 @@ public class ArchivedHomeTabFragment extends Fragment {
      * @see BounceEdgeEffectFactory
      */
     private void setupSearchedCryptoList() {
+        int verticalSpacing = 10; // Set vertical spacing in pixels
+        int dividerColor = getResources().getColor(R.color.inactive); // Set your divider colo
+
         binding.searchedCryptosList.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.searchedCryptosList.setHasFixedSize(true);
         binding.searchedCryptosList.setAdapter(searchedCryptosAdapter);
-        binding.searchedCryptosList.addItemDecoration(new SpacebetweenItems(15));
+//        binding.searchedCryptosList.addItemDecoration(new SpacebetweenItems(verticalSpacing, dividerColor));
         binding.searchedCryptosList.setEdgeEffectFactory(new BounceEdgeEffectFactory(requireContext()));
         binding.searchedCryptosList.setNestedScrollingEnabled(false);
 

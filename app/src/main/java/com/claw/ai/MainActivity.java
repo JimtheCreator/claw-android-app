@@ -23,14 +23,20 @@ import recent_tabs.RecentTabsFragment;
 public class MainActivity extends AppCompatActivity {
 
     ActivityMainBinding binding;
+    private final Fragment homeFragment = new HomeTabFragment();
+    private final Fragment recentTabsFragment = new RecentTabsFragment();
+    private final Fragment alertTabFragment = new AlertTabFragment();
+    private final Fragment moreTabFragment = new MoreTabFragment();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
+
         // Initialize view binding
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
         ViewCompat.setOnApplyWindowInsetsListener(binding.main, (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
@@ -39,72 +45,66 @@ public class MainActivity extends AppCompatActivity {
 
         // Load default fragment
         if (savedInstanceState == null) {
-            loadFragment(new HomeTabFragment());
+            loadFragment(homeFragment);
             binding.bottomNavigation.setSelectedItemId(R.id.home);
         }
 
         // Set up bottom navigation with view binding
         binding.bottomNavigation.setOnItemSelectedListener(item -> {
-            Fragment fragment;
+            Fragment selectedFragment = null;
+
             int itemId = item.getItemId();
 
+            // Select the appropriate fragment based on the item clicked
             if (itemId == R.id.recent_tabs) {
-                fragment = new RecentTabsFragment();
+                selectedFragment = recentTabsFragment;
                 binding.bottomNavigation.setBackground(ContextCompat.getDrawable(MainActivity.this, R.color.black2_0));
             } else if (itemId == R.id.home) {
-                fragment = new HomeTabFragment();
+                selectedFragment = homeFragment;
                 binding.bottomNavigation.setBackground(ContextCompat.getDrawable(MainActivity.this, R.color.black_shade));
             } else if (itemId == R.id.alert_signals) {
-                fragment = new AlertTabFragment();
+                selectedFragment = alertTabFragment;
                 binding.bottomNavigation.setBackground(ContextCompat.getDrawable(MainActivity.this, R.color.black2_0));
             } else if (itemId == R.id.more) {
-                fragment = new MoreTabFragment();
+                selectedFragment = moreTabFragment;
                 PricingPackageSheetFragment pricingPackageSheetFragment = PricingPackageSheetFragment.newInstance();
                 pricingPackageSheetFragment.show(getSupportFragmentManager(), "PricingPackageSheetFragment");
                 binding.bottomNavigation.setBackground(ContextCompat.getDrawable(MainActivity.this, R.color.black2_0));
             } else {
-                fragment = new ArchivedHomeTabFragment();
+                selectedFragment = homeFragment;
             }
 
-            loadFragment(fragment);
+            loadFragment(selectedFragment);
             return true;
         });
     }
 
     private void loadFragment(Fragment fragment) {
-        // Get current fragment to determine animation direction
-        Fragment currentFragment = getSupportFragmentManager().findFragmentById(R.id.fragment_container);
-
-        // Initialize transaction
+        // Begin a transaction
         FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
 
-        // Apply animations based on navigation direction
-//        if (currentFragment != null) {
-//            if (fragment instanceof HomeTabFragment) {
-//                transaction.setCustomAnimations(
-//                        R.anim.slide_in_left,
-//                        R.anim.slide_out_right
-//                );
-//            } else if (fragment instanceof MoreTabFragment) {
-//                transaction.setCustomAnimations(
-//                        R.anim.slide_in_right,
-//                        R.anim.slide_out_left
-//                );
-//            } else {
-//                // Default animations
-//                transaction.setCustomAnimations(
-//                        R.anim.slide_in_right,
-//                        R.anim.slide_out_left
-//                );
-//            }
-//        }
+        // Hide all fragments before showing the selected one
+        hideAllFragments(transaction);
 
-        // Replace fragment and commit
-        transaction.replace(R.id.fragment_container, fragment);
+        // Show the selected fragment
+        if (!fragment.isAdded()) {
+            transaction.add(R.id.fragment_container, fragment);
+        } else {
+            transaction.show(fragment);
+        }
+
+        // Commit the transaction
         transaction.commit();
     }
 
-    // Clean up view binding when activity is destroyed
+    private void hideAllFragments(FragmentTransaction transaction) {
+        // Hide all fragments from the fragment manager
+        if (homeFragment.isAdded()) transaction.hide(homeFragment);
+        if (recentTabsFragment.isAdded()) transaction.hide(recentTabsFragment);
+        if (alertTabFragment.isAdded()) transaction.hide(alertTabFragment);
+        if (moreTabFragment.isAdded()) transaction.hide(moreTabFragment);
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();

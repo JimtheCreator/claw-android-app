@@ -120,7 +120,7 @@
                     android:layout_gravity="center_vertical"
                     android:layout_marginStart="15dp"
                     android:fontFamily="@font/sf_pro_text_regular"
-                    android:text="Search"
+                    android:text="Search symbol"
                     android:textColor="@color/thickGrey"
                     android:textSize="17sp" />
             </LinearLayout>
@@ -164,7 +164,7 @@
                         android:focusable="true"
                         android:fontFamily="@font/sf_pro_text_regular"
                         android:gravity="center_vertical"
-                        android:hint="Search"
+                        android:hint="Search symbol"
                         android:imeOptions="actionSearch"
                         android:inputType="text"
                         android:textColor="@color/off_white"
@@ -238,6 +238,14 @@
                     android:text="No results found"
                     android:textColor="@color/thickGrey"
                     android:textSize="16sp" />
+
+                <ProgressBar
+                    android:id="@+id/search_progress"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="30dp"
+                    android:visibility="gone" />
 
                 <!-- Searched Cryptos RecyclerView -->
                 <FrameLayout

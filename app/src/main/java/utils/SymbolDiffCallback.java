@@ -6,6 +6,13 @@ import java.util.List;
 
 import models.Symbol;
 
+import androidx.recyclerview.widget.DiffUtil;
+import java.util.List;
+import java.util.Objects;
+
+/**
+ * Efficiently compares two lists of Symbol items for RecyclerView updates.
+ */
 public class SymbolDiffCallback extends DiffUtil.Callback {
 
     private final List<Symbol> oldList;
@@ -18,22 +25,34 @@ public class SymbolDiffCallback extends DiffUtil.Callback {
 
     @Override
     public int getOldListSize() {
-        return oldList.size();
+        return oldList != null ? oldList.size() : 0;
     }
 
     @Override
     public int getNewListSize() {
-        return newList.size();
+        return newList != null ? newList.size() : 0;
     }
 
     @Override
     public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
-        return oldList.get(oldItemPosition).getSymbol().equals(newList.get(newItemPosition).getSymbol());
+        Symbol oldItem = oldList.get(oldItemPosition);
+        Symbol newItem = newList.get(newItemPosition);
+        return Objects.equals(oldItem.getSymbol(), newItem.getSymbol());
     }
 
     @Override
     public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
-        return oldList.get(oldItemPosition).equals(newList.get(newItemPosition));
+        Symbol oldItem = oldList.get(oldItemPosition);
+        Symbol newItem = newList.get(newItemPosition);
+
+        return Objects.equals(oldItem.getName(), newItem.getName()) &&
+                Objects.equals(oldItem.getPair(), newItem.getPair()) &&
+                Objects.equals(oldItem.getBaseCurrency(), newItem.getBaseCurrency()) &&
+                Double.compare(oldItem.getCurrentPrice(), newItem.getCurrentPrice()) == 0 &&
+                Double.compare(oldItem.get_24hChange(), newItem.get_24hChange()) == 0 &&
+                Double.compare(oldItem.get_24hVolume(), newItem.get_24hVolume()) == 0 &&
+                Objects.equals(oldItem.getSparkline(), newItem.getSparkline());
     }
 }
+
 

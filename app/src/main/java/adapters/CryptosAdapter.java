@@ -1,6 +1,9 @@
 package adapters;
 
 import android.content.Context;
+import android.content.Intent;
+import android.graphics.Typeface;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -23,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import market.SymbolMarketDataActivity;
 import models.Symbol;
 import utils.SymbolDiffCallback;
 
@@ -36,39 +40,41 @@ public class CryptosAdapter extends RecyclerView.Adapter<CryptosAdapter.ViewHold
 
     Context context;
     private List<Symbol> symbolList;
+    boolean isSearchAdapter;
 
     /**
      * Updates the dataset and calculates differences for efficient RecyclerView updates
      * @param newList The new list of cryptocurrency symbols to display
      */
     public void setData(List<Symbol> newList) {
+        if (newList == null) {
+            newList = new ArrayList<>();
+        }
+
         if (this.symbolList == null) {
             this.symbolList = new ArrayList<>();
         }
 
-        // Log data update for debugging
         Timber.d("Updating adapter with %d symbols", newList.size());
 
         List<Symbol> oldList = new ArrayList<>(this.symbolList);
         DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new SymbolDiffCallback(oldList, newList));
+
         this.symbolList.clear();
         this.symbolList.addAll(newList);
         diffResult.dispatchUpdatesTo(this);
-
-        // Notify that data has changed as a fallback
-        if (newList.size() != oldList.size()) {
-            notifyDataSetChanged();
-        }
     }
+
 
     /**
      * Constructs a CryptosAdapter with the specified context and initial symbol list
      * @param context The context used for resource access and inflation
      * @param symbolList Initial list of cryptocurrency symbols to display
      */
-    public CryptosAdapter(Context context, List<Symbol> symbolList) {
+    public CryptosAdapter(Context context, List<Symbol> symbolList, boolean isSearchAdapter) {
         this.context = context;
-        this.symbolList = symbolList != null ? new ArrayList<>(symbolList) : new ArrayList<>();
+        this.symbolList = symbolList;
+        this.isSearchAdapter = isSearchAdapter;
     }
 
     /**
@@ -99,30 +105,49 @@ public class CryptosAdapter extends RecyclerView.Adapter<CryptosAdapter.ViewHold
             holder.binding.textViewSymbol.setText(symbol.getSymbol());
             holder.binding.textViewName.setText(symbol.getName());
             holder.binding.textViewPrice.setText(String.format(Locale.US, "US$%.2f", symbol.getCurrentPrice()));
-            holder.binding.textViewChange.setText(String.format(Locale.US,"%.2f%%", symbol.get_24hChange()));
 
-            // Change color based on +/- change
-            boolean isNegative = symbol.get_24hChange() < 0;
-            int boxBackground = isNegative ? R.drawable.red_box : R.drawable.green_box;
-            holder.binding.changeBox.setBackgroundResource(boxBackground);
+            if (!isSearchAdapter){
+                // Change color based on +/- change
+                boolean isNegative = symbol.get_24hChange() < 0;
+                int boxBackground = isNegative ? R.drawable.red_box : R.drawable.green_box;
+                holder.binding.changeBox.setBackgroundResource(boxBackground);
 
-            // Sparkline chart
-            List<Entry> entries = new ArrayList<>();
-            List<Double> sparkline = symbol.getSparkline();
-            if (sparkline != null && !sparkline.isEmpty()) {
-                holder.binding.lineChart.setVisibility(View.VISIBLE);
-                for (int i = 0; i < sparkline.size(); i++) {
-                    entries.add(new Entry(i, sparkline.get(i).floatValue()));
+
+                holder.binding.textViewChange.setText(String.format(Locale.US,"%.2f%%", symbol.get_24hChange()));
+
+                // Sparkline chart
+                List<Entry> entries = new ArrayList<>();
+                List<Double> sparkline = symbol.getSparkline();
+                if (sparkline != null && !sparkline.isEmpty()) {
+                    holder.binding.lineChart.setVisibility(View.VISIBLE);
+                    for (int i = 0; i < sparkline.size(); i++) {
+                        entries.add(new Entry(i, sparkline.get(i).floatValue()));
+                    }
+
+                    setupChart(holder.binding.lineChart, entries);
+                } else {
+                    holder.binding.lineChart.setVisibility(View.GONE);
                 }
-
-                setupChart(holder.binding.lineChart, entries);
-            } else {
-                holder.binding.lineChart.setVisibility(View.GONE);
             }
 
+            else {
+                holder.binding.lineChart.setVisibility(View.GONE);
+                holder.binding.changeBox.setVisibility(View.GONE);
+                holder.binding.percentagePriceChange.setVisibility(View.VISIBLE);
+                // Change color based on +/- change
+                boolean isNegative = symbol.get_24hChange() < 0;
+                int textColor = isNegative ? R.color.crimson_red : R.color.green_chart_color;
 
+                holder.binding.percentagePriceChange.setTextColor(ContextCompat.getColor(context, textColor));
+                holder.binding.percentagePriceChange.setText(String.format(Locale.US,"%.2f%%", symbol.get_24hChange()));
+            }
 
-        } catch (Exception e) {
+            holder.binding.getRoot().setOnClickListener(v -> {
+                context.startActivity(new Intent(context, SymbolMarketDataActivity.class));
+            });
+        }
+
+        catch (Exception e) {
             Timber.e(e, "Error binding view at position %d", position);
         }
     }
