@@ -3,11 +3,9 @@
     android:shape="rectangle">
 
     <solid
-        android:color="@color/darkTheme"/>
-
+        android:color="@color/invincibleColor"/>
 
     <corners
-        android:topRightRadius="15dp"
-        android:topLeftRadius="15dp"/>
+        android:radius="5dp"/>
 
 </shape>

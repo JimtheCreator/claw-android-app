@@ -102,9 +102,11 @@
     <color name="darktransparency">#80000000</color>
     <color name="colorLight">#80FFFFFF</color>
     <color name="foreignBlack">#1D1D1D</color>
+    <color name="binance_color">#F0B90B</color>
 
     <!-- Widget Colors -->
     <color name="defaultCOLOR">#80CCCCCC</color>
+
 
     <!-- Solid Colors -->
     <color name="awesomeGreen">#8BC34A</color>

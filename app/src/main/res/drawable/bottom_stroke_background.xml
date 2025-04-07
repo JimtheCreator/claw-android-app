@@ -6,12 +6,8 @@
     <solid
         android:color="@color/darkTheme"/>
 
-    <stroke
-        android:width="0.5dp"
-        android:color="@color/off_white"/>
 
     <corners
-        android:bottomLeftRadius="20dp"
-        android:bottomRightRadius="20dp"/>
+        android:radius="15dp"/>
 
 </shape>
