@@ -4,9 +4,8 @@ import java.util.List;
 
 import com.google.gson.annotations.SerializedName;
 
-
 /**
- * Represents a cryptocurrency symbol with market data
+ * Represents a cryptocurrency symbol
  */
 public class Symbol {
     private String symbol;

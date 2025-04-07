@@ -49,45 +49,62 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:gravity="end"
-        android:orientation="vertical"
+        android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-
-        <!-- For price TextView -->
-        <TextView
-            android:id="@+id/textViewPrice"
+        <LinearLayout
+            android:layout_marginEnd="10dp"
             android:layout_width="wrap_content"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:fontFamily="@font/sf_pro_text_medium"
-            android:maxLines="1"
-            android:text="US$250.98"
-            android:textColor="@color/text_primary"
-            android:textSize="16sp" />
-
-        <RelativeLayout
-            android:id="@+id/changeBox"
-            android:layout_width="70dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="1.5dp"
-            android:background="@drawable/red_box">
+            android:gravity="end"
+            android:orientation="vertical">
 
+
+            <!-- For price TextView -->
             <TextView
-                android:id="@+id/textViewChange"
+                android:id="@+id/textViewPrice"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:layout_marginTop="1.5dp"
-                android:layout_marginEnd="5dp"
-                android:layout_marginBottom="1.5dp"
-                android:fontFamily="@font/sf_pro_text_regular"
-                android:text="-11.00"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:fontFamily="@font/sf_pro_text_medium"
+                android:maxLines="1"
+                android:text="US$250.98"
                 android:textColor="@color/text_primary"
-                android:textSize="13sp" />
-        </RelativeLayout>
+                android:textSize="16sp" />
+
+            <RelativeLayout
+                android:id="@+id/changeBox"
+                android:layout_width="70dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1.5dp"
+                android:background="@drawable/red_box">
+
+                <TextView
+                    android:id="@+id/textViewChange"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:layout_marginTop="1.5dp"
+                    android:layout_marginEnd="5dp"
+                    android:layout_marginBottom="1.5dp"
+                    android:fontFamily="@font/sf_pro_text_regular"
+                    android:text="-11.00"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp" />
+            </RelativeLayout>
+
+        </LinearLayout>
+
+        <ImageView
+            android:layout_width="15dp"
+            android:layout_height="15dp"
+            android:src="@drawable/white_forward_arrow"
+            android:layout_gravity="center_vertical"
+            app:tint="@color/white"
+            />
 
     </LinearLayout>
 

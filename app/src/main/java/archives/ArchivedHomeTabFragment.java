@@ -1,14 +1,6 @@
-package fragments;
+package archives;
 
 import android.os.Bundle;
-
-import androidx.activity.OnBackPressedCallback;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-import androidx.lifecycle.ViewModelProvider;
-import androidx.recyclerview.widget.LinearLayoutManager;
-
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.DisplayMetrics;
@@ -18,7 +10,14 @@ import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Toast;
 
-import com.claw.ai.databinding.FragmentHomeTabBinding;
+import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+
+import com.claw.ai.databinding.FragmentArchivedHomeTabBinding;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.tabs.TabLayoutMediator;
 
@@ -36,12 +35,26 @@ import utils.DateUtils;
 import utils.KeyboardQuickFunctions;
 import viewmodels.HomeViewModel;
 
-public class HomeTabFragment extends Fragment {
+
+/**
+ * This page is archived for the sole reason it has a tabLayout
+ *
+ * <p>It is not fully developed and these are what are available: The search works to the point you can only view cryptos.
+ * The TABLAYOUT DOES DISPLAY ANYTHING AT THIS MOMENT.
+ * Do not use this only use it if you willingly to add a changes which defeats the whole reason of archiving it.
+ * Reason it's archived is because i intend to use it in the future, just for the TabLayout design;
+ * <p>
+ * <p>
+ * NEW PAGE
+ *
+ * @see fragments.HomeTabFragment
+ */
+public class ArchivedHomeTabFragment extends Fragment {
 
     // Initialize a variable to store the previous slideOffset
     private float lastSlideOffset = -1;
     boolean isBottomSheetExpanded = false;
-    private FragmentHomeTabBinding binding;
+    private FragmentArchivedHomeTabBinding binding;
     private boolean isSearchExpanded = false;
     private BottomSheetBehavior<View> bottomSheetBehavior;
     private HomeViewModel homeViewModel;
@@ -57,12 +70,12 @@ public class HomeTabFragment extends Fragment {
     private boolean isLoadingPopular = false;
     private String currentQuery = "";
 
+    private final String[] tabTitles = {"Trending", "Top Gainers", "Top Losers", "New"};
 
+    // Lifecycle Methods
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-        // Inflate the layout for this fragment
-        binding = FragmentHomeTabBinding.inflate(inflater, container, false);
+    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        binding = FragmentArchivedHomeTabBinding.inflate(inflater, container, false);
         return binding.getRoot();
     }
 
@@ -80,8 +93,11 @@ public class HomeTabFragment extends Fragment {
         setupObservers();
     }
 
-
     private void initializeViews() {
+        binding.viewPager.setAdapter(new TabPagerAdapter(requireActivity()));
+
+        new TabLayoutMediator(binding.tabLayout, binding.viewPager,
+                (tab, position) -> tab.setText(tabTitles[position])).attach();
 
         popularSymbolList = new ArrayList<>();
         searchedSymbolList = new ArrayList<>();
@@ -172,7 +188,6 @@ public class HomeTabFragment extends Fragment {
         });
 
 
-
     }
 
     // Search Handling
@@ -236,9 +251,6 @@ public class HomeTabFragment extends Fragment {
 
     // Click Listeners
     private void setupClickListeners() {
-        binding.clearKeyboardText.setOnClickListener(v ->{
-            binding.searchBox.setText("");
-        });
         binding.searchBar.setOnClickListener(v -> {
             MotionAnimation.animateSmoothScrollToTop(binding.scrollView);
             searchBarStateWhenClicked();
@@ -329,12 +341,6 @@ public class HomeTabFragment extends Fragment {
             @Override
             public void afterTextChanged(Editable s) {
                 currentQuery = s.toString().trim();
-
-                if (currentQuery.isEmpty()){
-                    binding.clearKeyboardText.setVisibility(View.GONE);
-                }else{
-                    binding.clearKeyboardText.setVisibility(View.VISIBLE);
-                }
 
                 performSearch(currentQuery);
             }

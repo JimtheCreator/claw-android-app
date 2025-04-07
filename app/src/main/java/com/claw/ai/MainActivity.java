@@ -15,6 +15,7 @@ import com.claw.ai.databinding.ActivityMainBinding;
 
 import bottomsheets.PricingPackageSheetFragment;
 import fragments.AlertTabFragment;
+import archives.ArchivedHomeTabFragment;
 import fragments.HomeTabFragment;
 import fragments.MoreTabFragment;
 import recent_tabs.RecentTabsFragment;
@@ -36,13 +37,11 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-
         // Load default fragment
         if (savedInstanceState == null) {
             loadFragment(new HomeTabFragment());
             binding.bottomNavigation.setSelectedItemId(R.id.home);
         }
-
 
         // Set up bottom navigation with view binding
         binding.bottomNavigation.setOnItemSelectedListener(item -> {
@@ -64,7 +63,7 @@ public class MainActivity extends AppCompatActivity {
                 pricingPackageSheetFragment.show(getSupportFragmentManager(), "PricingPackageSheetFragment");
                 binding.bottomNavigation.setBackground(ContextCompat.getDrawable(MainActivity.this, R.color.black2_0));
             } else {
-                fragment = new HomeTabFragment();
+                fragment = new ArchivedHomeTabFragment();
             }
 
             loadFragment(fragment);

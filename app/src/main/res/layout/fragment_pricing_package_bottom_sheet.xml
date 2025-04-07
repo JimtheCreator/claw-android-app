@@ -6,7 +6,6 @@
     android:background="@drawable/upper_rounded"
     android:orientation="vertical">
 
-
     <RelativeLayout
         android:id="@+id/closebutton"
         android:layout_width="30dp"

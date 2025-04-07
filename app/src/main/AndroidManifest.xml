@@ -16,6 +16,9 @@
         android:theme="@style/Theme.Claw"
         tools:targetApi="31">
         <activity
+            android:name="market.SymbolMarketDataActivity"
+            android:exported="false" />
+        <activity
             android:name="search.SearchActivity"
             android:exported="false" />
         <activity
