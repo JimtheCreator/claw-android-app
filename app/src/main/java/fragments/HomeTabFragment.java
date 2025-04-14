@@ -54,20 +54,14 @@ public class HomeTabFragment extends Fragment {
     private String currentQuery = "";
     private BottomSheetBehavior<View> bottomSheetBehavior;
     private HomeViewModel homeViewModel;
-    private List<Symbol> popularSymbolList;
     int half_expanded_state_tag = 0;
     int expanded_state_tag = 0;
     int collapsed_state_tag = 0;
 
     private List<Symbol> searchedSymbolList;
-    private CryptosAdapter popularCryptosAdapter;
     private CryptosAdapter searchedCryptosAdapter;
 
     private DisplayMetrics metrics;
-
-    // Add these variables
-    private int currentPopularPage = 1;
-    private boolean isLoadingPopular = false;
 
 
     @Override
@@ -87,18 +81,14 @@ public class HomeTabFragment extends Fragment {
         initializeSearch();
         setupClickListeners();
         setupBackPressHandler();
-//        setupPopularCryptosList();
         setupSearchedCryptoList();
         setupObservers();
     }
 
 
     private void initializeViews() {
-
-        popularSymbolList = new ArrayList<>();
         searchedSymbolList = new ArrayList<>();
 
-        popularCryptosAdapter = new CryptosAdapter(requireContext(), popularSymbolList, false);
         searchedCryptosAdapter = new CryptosAdapter(requireContext(), searchedSymbolList, true);
 
         homeViewModel = new ViewModelProvider(this).get(HomeViewModel.class);
@@ -271,12 +261,6 @@ public class HomeTabFragment extends Fragment {
             bottomSheetBehavior.setFitToContents(false);
             bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
             MotionAnimation.animateSmoothScrollToBottom(binding.scrollView);
-
-//            binding.getRoot().post(() -> {
-//                bottomSheetBehavior.setPeekHeight((int) (metrics.heightPixels * 0.1));
-//                bottomSheetBehavior.setFitToContents(false);
-//                bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
-//            });
         });
     }
 
@@ -384,30 +368,11 @@ public class HomeTabFragment extends Fragment {
         searchedCryptosAdapter.notifyDataSetChanged();
     }
 
-    private void performSearch(String query) {
-        if (query.length() >= 3) {
-            homeViewModel.searchCryptos(query, 20);
-            binding.emptySearchState.setVisibility(View.GONE);
-        } else {
-            // Clear search results if query is too short
-            searchedSymbolList.clear();
-            searchedCryptosAdapter.notifyDataSetChanged();
-
-            if (query.isEmpty()) {
-                binding.emptySearchState.setVisibility(View.GONE);
-            } else {
-                binding.emptySearchState.setVisibility(View.VISIBLE);
-            }
-        }
-    }
-
 
     // Update setupObservers to handle both lists separately
     private void setupObservers() {
         // Handle errors
         homeViewModel.getErrorMessage().observe(getViewLifecycleOwner(), this::showErrorToast);
-
-
 
         homeViewModel.getIsLoading().observe(getViewLifecycleOwner(), isLoading -> {
             binding.searchProgress.setVisibility(isLoading ? View.VISIBLE : View.GONE);

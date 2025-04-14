@@ -4,12 +4,14 @@ import java.util.List;
 
 import com.google.gson.annotations.SerializedName;
 
+
 /**
  * Represents a cryptocurrency symbol
  */
 public class Symbol {
     private String symbol;
-    private String name;
+    @SerializedName("asset")
+    private String asset;
     private String pair;
 
     @SerializedName("base_currency")
@@ -28,7 +30,7 @@ public class Symbol {
 
     // Getters
     public String getSymbol() { return symbol; }
-    public String getName() { return name; }
+    public String getAsset() { return asset; }
     public String getPair() { return pair; }
     public String getBaseCurrency() { return baseCurrency; }
     public double getCurrentPrice() { return currentPrice; }

@@ -1,6 +1,5 @@
 package viewmodels;
 
-import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
@@ -9,14 +8,9 @@ import androidx.lifecycle.ViewModel;
 import java.util.ArrayList;
 import java.util.List;
 
-import backend.CryptoApiService;
-import backend.MainClient;
 import models.Symbol;
 import repositories.CryptoRepository;
 import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
-import timber.log.Timber;
 
 
 /**
@@ -96,9 +90,6 @@ public class HomeViewModel extends ViewModel {
 
 
     // LiveData getters
-    public LiveData<List<Symbol>> getCryptoList() {
-        return cryptoList;
-    }
 
     public LiveData<List<Symbol>> getSearchResults() {
         return searchResults;

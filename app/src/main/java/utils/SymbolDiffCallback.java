@@ -45,8 +45,8 @@ public class SymbolDiffCallback extends DiffUtil.Callback {
         Symbol oldItem = oldList.get(oldItemPosition);
         Symbol newItem = newList.get(newItemPosition);
 
-        return Objects.equals(oldItem.getName(), newItem.getName()) &&
-                Objects.equals(oldItem.getPair(), newItem.getPair()) &&
+        return Objects.equals(oldItem.getAsset(), newItem.getAsset()) &&
+                Objects.equals(oldItem.getSymbol(), newItem.getSymbol()) &&
                 Objects.equals(oldItem.getBaseCurrency(), newItem.getBaseCurrency()) &&
                 Double.compare(oldItem.getCurrentPrice(), newItem.getCurrentPrice()) == 0 &&
                 Double.compare(oldItem.get_24hChange(), newItem.get_24hChange()) == 0 &&

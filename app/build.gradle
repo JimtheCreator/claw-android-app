@@ -48,6 +48,7 @@ dependencies {
 
     //CHARTS LIBRARY
     implementation libs.mpandroidchart
+    implementation libs.lightweightcharts
     
     //Retrofit
     implementation libs.retrofit

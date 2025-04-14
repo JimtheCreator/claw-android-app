@@ -20,10 +20,6 @@
     </style>
 
     <style name="CustomTabLayout" parent="Widget.Design.TabLayout">
-        <item name="tabPaddingStart">4dp</item>
-        <item name="tabPaddingEnd">4dp</item>
-        <item name="tabPaddingTop">2dp</item>
-        <item name="tabPaddingBottom">2dp</item>
         <item name="tabTextAppearance">@style/CustomTabTextAppearance</item>
     </style>
 

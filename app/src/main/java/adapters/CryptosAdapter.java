@@ -103,7 +103,7 @@ public class CryptosAdapter extends RecyclerView.Adapter<CryptosAdapter.ViewHold
         try {
             // Texts
             holder.binding.textViewSymbol.setText(symbol.getSymbol());
-            holder.binding.textViewName.setText(symbol.getName());
+            holder.binding.textViewName.setText(symbol.getAsset());
             holder.binding.textViewPrice.setText(String.format(Locale.US, "US$%.2f", symbol.getCurrentPrice()));
 
             if (!isSearchAdapter){
@@ -111,7 +111,6 @@ public class CryptosAdapter extends RecyclerView.Adapter<CryptosAdapter.ViewHold
                 boolean isNegative = symbol.get_24hChange() < 0;
                 int boxBackground = isNegative ? R.drawable.red_box : R.drawable.green_box;
                 holder.binding.changeBox.setBackgroundResource(boxBackground);
-
 
                 holder.binding.textViewChange.setText(String.format(Locale.US,"%.2f%%", symbol.get_24hChange()));
 
@@ -143,7 +142,20 @@ public class CryptosAdapter extends RecyclerView.Adapter<CryptosAdapter.ViewHold
             }
 
             holder.binding.getRoot().setOnClickListener(v -> {
-                context.startActivity(new Intent(context, SymbolMarketDataActivity.class));
+                Intent intent = new Intent(context, SymbolMarketDataActivity.class);
+                intent.putExtra("SYMBOL", symbol.getSymbol());
+                intent.putExtra("ASSET", symbol.getAsset());
+                intent.putExtra("CURRENT_PRICE", symbol.getCurrentPrice());
+                intent.putExtra("CHANGE_24H", symbol.get_24hChange());
+
+                double[] sparklineArray = new double[symbol.getSparkline().size()];
+                for (int i = 0; i < symbol.getSparkline().size(); i++) {
+                    sparklineArray[i] = symbol.getSparkline().get(i);
+                }
+
+                intent.putExtra("SPARKLINE", sparklineArray);
+
+                context.startActivity(intent);
             });
         }
 

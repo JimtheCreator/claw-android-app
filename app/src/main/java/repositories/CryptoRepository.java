@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import backend.CryptoApiService;
+import backend.ApiEndpoints;
 import backend.MainClient;
 import models.Symbol;
 import retrofit2.Call;
@@ -17,12 +17,12 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class CryptoRepository {
-    private final CryptoApiService api;
+    private final ApiEndpoints api;
     private final Map<String, List<Symbol>> searchCache = new ConcurrentHashMap<>();
     private Call<List<Symbol>> currentSearchCall;
 
     public CryptoRepository() {
-        api = MainClient.getInstance().create(CryptoApiService.class);
+        api = MainClient.getInstance().create(ApiEndpoints.class);
     }
 
 
