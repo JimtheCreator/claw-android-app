@@ -32,6 +32,8 @@ import com.tradingview.lightweightcharts.api.chart.models.color.IntColor;
 import com.tradingview.lightweightcharts.api.chart.models.color.surface.SolidColor;
 import com.tradingview.lightweightcharts.api.interfaces.SeriesApi;
 import com.tradingview.lightweightcharts.api.options.models.CandlestickSeriesOptions;
+import com.tradingview.lightweightcharts.api.options.models.GridLineOptions;
+import com.tradingview.lightweightcharts.api.options.models.GridOptions;
 import com.tradingview.lightweightcharts.api.options.models.LayoutOptions;
 import com.tradingview.lightweightcharts.api.options.models.PriceScaleOptions;
 import com.tradingview.lightweightcharts.api.options.models.TimeScaleOptions;
@@ -39,10 +41,18 @@ import com.tradingview.lightweightcharts.api.series.models.CandlestickData;
 import com.tradingview.lightweightcharts.api.series.models.Time;
 import com.tradingview.lightweightcharts.view.ChartsView;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.TimeZone;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import backend.ApiEndpoints;
 import backend.MainClient;
@@ -50,7 +60,9 @@ import backend.WebSocketService;
 import data.remote.WebSocketServiceImpl;
 import factory.StreamViewModelFactory;
 import kotlin.Unit;
+import models.HistoricalState;
 import models.MarketDataEntity;
+import models.MarketDataResponse;
 import models.StreamMarketData;
 import okhttp3.OkHttpClient;
 import repositories.StreamRepository;
@@ -65,12 +77,20 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
     private StreamViewModel viewModel;
     double[] sparklineArray;
     String asset;
+    private final SimpleDateFormat apiDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US);
     String symbol;
+    private final HistoricalState historicalState = new HistoricalState();
 
     // TradingView chart components
     private ChartsView chartsView;
     private SeriesApi candleSeries;
     List<Long> timestampList = new ArrayList<>();
+
+    // For handling request timeouts and retries
+    private final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+    private final AtomicBoolean isRequestInProgress = new AtomicBoolean(false);
+    private final int MAX_RETRIES = 3;
+    private String currentInterval = "1m";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,6 +107,7 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
 
         // Get reference to TradingView chart
         chartsView = binding.marketChartLayout.candlesStickChart;
+        apiDateFormat.setTimeZone(TimeZone.getTimeZone("UTC")); // Use UTC, not default timezone
 
         initViewModel();
         globalInit();
@@ -101,9 +122,12 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
         viewModel = new ViewModelProvider(this, new StreamViewModelFactory(repository))
                 .get(StreamViewModel.class);
 
+        binding.marketChartLayout.progressBar.setVisibility(View.VISIBLE);
+        // Initial load with 1m interval using current time
+
         // Initialize TradingView chart
-        initializeTradingViewChart("1M");
-        fetchHistoricalData("1M"); // Initial load with 1m interval
+        initializeTradingViewChart();
+        fetchHistoricalData("1m", new Date(), null);
     }
 
     private void globalInit() {
@@ -114,7 +138,7 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
         double initialChange = getIntent().getDoubleExtra("CHANGE_24H", 0.0);
 
         if (symbol != null) {
-            viewModel.connect(symbol, "1m", true);
+            creatingViewModelConnection(currentInterval);
             binding.marketChartLayout.symbol.setText(symbol);
             binding.marketChartLayout.asset.setText(asset);
 
@@ -137,6 +161,8 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
             updateSparkline(sparklineArray);
         } else {
             Timber.e("Symbol is null");
+            Toast.makeText(this, "Error: Invalid symbol", Toast.LENGTH_SHORT).show();
+            finish(); // Close activity if symbol is null - critical error
         }
     }
 
@@ -189,28 +215,6 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
         viewModel.getMarketDataStream().observe(this, data -> {
             if (data != null) {
                 updateUI(data);
-
-                // Add null check for OHLCV data
-                if (data.getOhlcv() != null && candleSeries != null) {
-                    CandlestickData newCandle = new CandlestickData(
-                            new Time.Utc(System.currentTimeMillis() / 1000),
-                            (float) data.getOhlcv().getOpen(),
-                            (float) data.getOhlcv().getHigh(),
-                            (float) data.getOhlcv().getLow(),
-                            (float) data.getOhlcv().getClose(),
-                            null, null, null
-                    );
-
-                    candleSeries.update(newCandle);
-
-                    chartsView.getApi().getTimeScale().scrollToPosition(
-                            (System.currentTimeMillis() / 1000f),
-                            false
-                    );
-                }
-                else {
-                    Timber.w("Received null OHLCV data");
-                }
             }
         });
 
@@ -219,70 +223,334 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
         });
     }
 
-    // 4. Improved Historical Data Handling
-    private void fetchHistoricalData(String interval) {
-        binding.marketChartLayout.progressBar.setVisibility(View.VISIBLE);
 
+    /**
+     * Enhanced historical data fetching with proper handling of timeframes
+     *
+     * @param interval  The chart interval (e.g., "1m", "5m", "1h")
+     * @param startTime The end of the time window (typically current time for initial load)
+     * @param endTime   The start of the time window (null for initial load, otherwise used for pagination)
+     */
+    private void fetchHistoricalData(String interval, Date startTime, Date endTime) {
+        // Safeguard against concurrent requests
+        if (isRequestInProgress.getAndSet(true)) {
+            Timber.d("Request already in progress, skipping");
+            return;
+        }
+
+        // Reset state when interval changes
+        if (!interval.equals(currentInterval)) {
+            historicalState.reset();
+            currentInterval = interval;
+        }
+
+        try {
+            // Calculate time window based on interval
+            Date[] timeWindow = calculateTimeWindow(interval, startTime, endTime);
+            Date requestStart = timeWindow[0];
+            Date requestEnd = timeWindow[1];
+
+            // Update historical state
+            if (historicalState.oldestLoadedTimestamp == null ||
+                    (endTime != null && endTime.before(historicalState.oldestLoadedTimestamp))) {
+                historicalState.oldestLoadedTimestamp = endTime != null ? endTime : requestStart;
+            }
+
+            // Format dates for API call
+            String formattedStart = apiDateFormat.format(requestStart);
+            String formattedEnd = apiDateFormat.format(requestEnd);
+
+            Timber.d("Fetching market data: %s to %s (interval: %s, page: %d)",
+                    formattedStart, formattedEnd, interval, historicalState.currentPage);
+
+            // Make API call with retry mechanism
+            fetchDataWithRetry(interval, formattedStart, formattedEnd, 0);
+
+        } catch (Exception e) {
+            Timber.e(e, "Failed to prepare historical data request");
+            handleDataLoadError(e);
+            isRequestInProgress.set(false);
+        }
+    }
+
+    /**
+     * Handles the API call with automatic retry logic
+     */
+    private void fetchDataWithRetry(String interval, String start, String end, int retryCount) {
         MainClient.getInstance().create(ApiEndpoints.class)
-                .getMarketData(symbol, interval)
-                .enqueue(new Callback<List<MarketDataEntity>>() {
+                .getMarketData(symbol, interval, start, end, historicalState.currentPage,
+                        historicalState.CHUNK_SIZE).enqueue(new Callback<MarketDataResponse>() {
                     @Override
-                    public void onResponse(@NonNull Call<List<MarketDataEntity>> call,
-                                           @NonNull Response<List<MarketDataEntity>> response) {
-                        binding.marketChartLayout.progressBar.setVisibility(View.GONE);
+                    public void onResponse(@NonNull Call<MarketDataResponse> call,
+                                           @NonNull Response<MarketDataResponse> response) {
+                        try {
+                            if (response.isSuccessful() && response.body() != null) {
+                                // Hide loading indicator
+                                binding.marketChartLayout.progressBar.setVisibility(View.GONE);
 
-                        if (response.isSuccessful() && response.body() != null) {
-                            List<CandlestickData> candles = new ArrayList<>();
-                            for (MarketDataEntity entity : response.body()) {
-                                candles.add(convertToCandle(entity));
-                            }
+                                List<CandlestickData> candles = new ArrayList<>();
+                                // Process response data
+                                MarketDataResponse marketResponse = response.body(); // Get the single response object
 
-                            if (candleSeries != null) {
-                                // Clear previous data and set new
-                                candleSeries.setData(candles);
-                                chartsView.getApi().getTimeScale().fitContent();
+                                // Process response data
+                                if (marketResponse != null && marketResponse.getData() != null) {
+                                    for (MarketDataEntity entity : marketResponse.getData()) {
+                                        candles.add(convertToCandle(entity));
+                                    }
+                                }
+
+                                // Update UI with data
+                                if (!candles.isEmpty()) {
+                                    updateCandlestickChart(candles);
+                                    // Update page counter for pagination
+                                    historicalState.currentPage++;
+                                    historicalState.backfilledChunks++;
+                                } else {
+                                    // No data returned
+                                    Timber.d("No data returned for the specified range");
+                                    historicalState.noMoreData = true;
+                                }
+                            } else {
+                                // Handle API errors
+                                String errorMsg = "Error code: " + response.code();
+                                if (response.errorBody() != null) {
+                                    errorMsg += " - " + response.errorBody().string();
+                                }
+                                Timber.e("API error: %s", errorMsg);
+
+                                if (retryCount < MAX_RETRIES) {
+                                    // Schedule retry with exponential backoff
+                                    long delayMs = (long) Math.pow(2, retryCount) * 1000;
+                                    scheduleRetry(interval, start, end, retryCount, delayMs);
+                                } else {
+                                    handleDataLoadError(new Exception("Failed after " + MAX_RETRIES + " retries"));
+                                }
                             }
+                        } catch (Exception e) {
+                            Timber.e(e, "Error processing response");
+                            handleDataLoadError(e);
+                        } finally {
+                            isRequestInProgress.set(false);
                         }
                     }
 
                     @Override
-                    public void onFailure(@NonNull Call<List<MarketDataEntity>> call, @NonNull Throwable t) {
-                        handleDataLoadError(t);
+                    public void onFailure(@NonNull Call<MarketDataResponse> call, @NonNull Throwable t) {
+                        Timber.e(t, "API call failed");
+
+                        if (retryCount < MAX_RETRIES) {
+                            // Schedule retry with exponential backoff
+                            long delayMs = (long) Math.pow(2, retryCount) * 1000;
+                            scheduleRetry(interval, start, end, retryCount, delayMs);
+                        } else {
+                            handleDataLoadError(t);
+                            isRequestInProgress.set(false);
+                        }
                     }
                 });
+
     }
 
-    // 3. Enhanced Data Conversion
+    /**
+     * Schedules a retry of the API call with exponential backoff
+     */
+    private void scheduleRetry(String interval, String start, String end, int retryCount, long delayMs) {
+        Timber.d("Scheduling retry %d in %d ms", retryCount + 1, delayMs);
+        executorService.schedule(() -> {
+            runOnUiThread(() -> fetchDataWithRetry(interval, start, end, retryCount + 1));
+        }, delayMs, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * Updates the chart with new candle data
+     */
+    private void updateCandlestickChart(List<CandlestickData> candles) {
+        if (candleSeries != null && !candles.isEmpty()) {
+            // Add new data to chart
+            candleSeries.setData(candles);
+
+            // Fit content to view
+            chartsView.getApi().getTimeScale().fitContent();
+
+            Timber.d("Updated chart with %d candles", candles.size());
+        }
+    }
+
+    /**
+     * Calculates the appropriate time window based on interval and pagination
+     */
+    private Date[] calculateTimeWindow(String interval, Date startTime, Date endTime) {
+        Calendar calendar = Calendar.getInstance();
+
+        // Handle loading more historical data
+        if (endTime != null) {
+            // We're loading older data before endTime
+            calendar.setTime(endTime);
+
+            // How far back to go depends on the interval
+            switch (interval) {
+                case "1m":
+                    calendar.add(Calendar.HOUR, -24);
+                    break;
+                case "5m":
+                    calendar.add(Calendar.DAY_OF_WEEK, -1);
+                    break;
+                case "15m":
+                    calendar.add(Calendar.DAY_OF_MONTH, -1);
+                    break;
+                case "30m":
+                    calendar.add(Calendar.DAY_OF_MONTH, -2);
+                    break;
+                case "1h":
+                    calendar.add(Calendar.DAY_OF_MONTH, -5);
+                    break;
+                case "2h":
+                    calendar.add(Calendar.DAY_OF_MONTH, -10);
+                    break;
+                case "4h":
+                    calendar.add(Calendar.DAY_OF_MONTH, -20);
+                    break;
+                case "6h":
+                    calendar.add(Calendar.DAY_OF_MONTH, -30);
+                    break;
+                case "1d":
+                    calendar.add(Calendar.MONTH, -3);
+                    break;
+                case "3d":
+                    calendar.add(Calendar.MONTH, -6);
+                    break;
+                case "1w":
+                    calendar.add(Calendar.MONTH, -12);
+                    break;
+                case "1M":
+                    calendar.add(Calendar.YEAR, -2);
+                    break;
+                default:
+                    calendar.add(Calendar.DAY_OF_MONTH, -7);
+                    break;
+            }
+
+            Date requestStart = calendar.getTime();
+            return new Date[]{requestStart, endTime};
+        }
+        // Initial load - start from current time and go back
+        else if (startTime != null) {
+            calendar.setTime(startTime);
+
+            // How far back to show initially depends on interval
+            switch (interval) {
+                case "1m":
+                    calendar.add(Calendar.HOUR, -8);
+                    break;
+                case "5m":
+                    calendar.add(Calendar.DAY_OF_MONTH, -1);
+                    break;
+                case "15m":
+                    calendar.add(Calendar.DAY_OF_MONTH, -3);
+                    break;
+                case "30m":
+                    calendar.add(Calendar.DAY_OF_MONTH, -5);
+                    break;
+                case "1h":
+                    calendar.add(Calendar.DAY_OF_MONTH, -10);
+                    break;
+                case "2h":
+                    calendar.add(Calendar.DAY_OF_MONTH, -15);
+                    break;
+                case "4h":
+                    calendar.add(Calendar.MONTH, -1);
+                    break;
+                case "6h":
+                    calendar.add(Calendar.MONTH, -2);
+                    break;
+                case "1d":
+                    calendar.add(Calendar.MONTH, -6);
+                    break;
+                case "3d":
+                    calendar.add(Calendar.MONTH, -9);
+                    break;
+                case "1w":
+                    calendar.add(Calendar.YEAR, -1);
+                    break;
+                case "1M":
+                    calendar.add(Calendar.YEAR, -3);
+                    break;
+                default:
+                    calendar.add(Calendar.DAY_OF_MONTH, -30);
+                    break;
+            }
+
+            Date requestStart = calendar.getTime();
+            return new Date[]{requestStart, startTime};
+        }
+        // Fallback - shouldn't happen
+        else {
+            calendar.setTime(new Date());
+            Date now = calendar.getTime();
+            calendar.add(Calendar.DAY_OF_MONTH, -7);
+            return new Date[]{calendar.getTime(), now};
+        }
+    }
+
+    /**
+     * Converts a MarketDataEntity to TradingView CandlestickData
+     */
     private CandlestickData convertToCandle(MarketDataEntity entity) {
-        // Ensure timestamp is in seconds
-        long timestampSeconds = entity.getTimestamp().getTime() / 1000;
+        if (entity == null) {
+            Timber.w("Received null MarketDataEntity");
+            return null;
+        }
 
-        // In convertToCandle() method
-        return new CandlestickData(
-                new Time.Utc(timestampSeconds),
-                (float) entity.getOpen(),
-                (float) entity.getHigh(),
-                (float) entity.getLow(),
-                (float) entity.getClose(),
-                null, // Optional: bodyColor
-                null, // Optional: borderColor
-                null  // Optional: wickColor
-        );
+        try {
+            // Get UTC timestamp from backend
+            long localAdjustedSeconds = getLocalAdjustedSeconds(entity);
+
+            return new CandlestickData(
+                    new Time.Utc(localAdjustedSeconds), // Treat adjusted timestamp as UTC
+                    (float) entity.getOpen(),
+                    (float) entity.getHigh(),
+                    (float) entity.getLow(),
+                    (float) entity.getClose(),
+                    null, null, null
+            );
+        } catch (Exception e) {
+            Timber.e(e, "Error converting entity to candle");
+            return null;
+        }
     }
 
-    private void initializeTradingViewChart(String interval) {
+    private static long getLocalAdjustedSeconds(MarketDataEntity entity) {
+        long utcTimestampMs = entity.getTimestamp().getTime();
+
+        // Calculate device's timezone offset for this timestamp
+        TimeZone localTimeZone = TimeZone.getDefault();
+        int offsetMs = localTimeZone.getOffset(utcTimestampMs); // Offset in milliseconds
+
+        // Convert UTC timestamp to local timezone equivalent (for display purposes)
+        long localAdjustedTimestampMs = utcTimestampMs + offsetMs;
+        return localAdjustedTimestampMs / 1000;
+    }
+
+    /**
+     * Initializes the TradingView candlestick chart with appropriate options
+     */
+    private void initializeTradingViewChart() {
         chartsView = binding.marketChartLayout.candlesStickChart;
 
         chartsView.getApi().applyOptions(chartOptions -> {
             // Layout options
             LayoutOptions layout = new LayoutOptions();
-            layout.setBackground(new SolidColor(Color.BLACK));
+            layout.setBackground(new SolidColor(ContextCompat.getColor(getApplicationContext(), R.color.darkTheme)));
             layout.setTextColor(new IntColor(Color.WHITE));
             chartOptions.setLayout(layout);
 
             // Time scale options
             TimeScaleOptions timeScaleOptions = new TimeScaleOptions();
             timeScaleOptions.setBorderVisible(false);
+            // Enable handling of missing data points
+            timeScaleOptions.setTimeVisible(true);
+            timeScaleOptions.setFixLeftEdge(true);
+            timeScaleOptions.setRightBarStaysOnScroll(true);
             chartOptions.setTimeScale(timeScaleOptions);
 
             // Price scale options
@@ -290,14 +558,23 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
             priceScaleOptions.setBorderVisible(false);
             chartOptions.setRightPriceScale(priceScaleOptions);
 
+            // Grid options
+            GridLineOptions vertGrid = new GridLineOptions();
+            vertGrid.setColor(new IntColor(Color.parseColor("#1C1C1C")));
+            GridLineOptions horzGrid = new GridLineOptions();
+            horzGrid.setColor(new IntColor(Color.parseColor("#1C1C1C")));
+            GridOptions grid = new GridOptions();
+            grid.setVertLines(vertGrid);
+            grid.setHorzLines(horzGrid);
+            chartOptions.setGrid(grid);
+
             return Unit.INSTANCE; // Required for Kotlin interoperability
         });
 
-
-        // Candlestick series options
+        // Candlestick series options with trader-friendly colors
         CandlestickSeriesOptions options = new CandlestickSeriesOptions();
-        options.setUpColor(new IntColor(Color.parseColor("#26a69a")));
-        options.setDownColor(new IntColor(Color.parseColor("#ef5350")));
+        options.setUpColor(new IntColor(Color.parseColor("#26a69a")));     // Green for up candles
+        options.setDownColor(new IntColor(Color.parseColor("#ef5350"))); // Red for down candles
         options.setBorderUpColor(new IntColor(Color.parseColor("#26a69a")));
         options.setBorderDownColor(new IntColor(Color.parseColor("#ef5350")));
         options.setWickUpColor(new IntColor(Color.parseColor("#26a69a")));
@@ -305,14 +582,62 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
         options.setBorderVisible(true);
         options.setWickVisible(true);
 
+        // Create the series in the chart
         chartsView.getApi().addCandlestickSeries(options, series -> {
             candleSeries = series;
-            fetchHistoricalData(interval); // Initial interval
+
+            // Register for chart events
+            registerChartScrollEvents();
+
             return Unit.INSTANCE; // For Kotlin interop
         });
-
     }
 
+    /**
+     * Registers event handlers for chart navigation to load more data when needed
+     */
+    private void registerChartScrollEvents() {
+        // Handle chart scroll events to load more historical data when scrolling left
+        chartsView.getApi().getTimeScale().subscribeVisibleTimeRangeChange(range -> {
+            if (range != null && !historicalState.isLoading && !historicalState.noMoreData &&
+                    historicalState.backfilledChunks < historicalState.maxBackfillChunks) {
+
+                // Check if we're close to the left edge of the chart
+                // This logic may need refinement based on your specific UI requirements
+                if (historicalState.oldestLoadedTimestamp != null) {
+                    long fromTime = range.getFrom().getDate().getTime();
+                    long oldestTime = historicalState.oldestLoadedTimestamp.getTime() / 1000;
+
+                    // If within 10% of oldest loaded data, load more
+                    long rangeSize = range.getTo().getDate().getTime() - fromTime;
+                    if (Math.abs(fromTime - oldestTime) < (rangeSize * 0.1)) {
+                        Timber.d("Near left edge, loading more historical data");
+                        loadMoreHistoricalData();
+                    }
+                }
+            }
+            return Unit.INSTANCE;
+        });
+    }
+
+    /**
+     * Loads more historical data when scrolling back in time
+     */
+    private void loadMoreHistoricalData() {
+        if (historicalState.isLoading || historicalState.noMoreData) {
+            return;
+        }
+
+        historicalState.isLoading = true;
+
+        binding.marketChartLayout.progressBar.setVisibility(View.VISIBLE);
+        // Use the oldest timestamp we have as the end time for the next request
+        fetchHistoricalData(currentInterval, null, historicalState.oldestLoadedTimestamp);
+    }
+
+    /**
+     * Sets up the time interval tabs (1m, 5m, 15m, etc.)
+     */
     private void time_interval_tabs() {
         String[] intervals = {
                 "1m", "5m",
@@ -384,8 +709,10 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
                 tabHolder.setBackgroundResource(R.drawable.bg_selected);
                 text.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.white));
 
-                // Refresh chart here
+                // Reset historical state and update the current interval
                 String interval = ((TextView) tab.getCustomView().findViewById(R.id.tabTitle)).getText().toString();
+                currentInterval = interval;
+                historicalState.reset();
 
                 // Clear existing data before loading new
                 if (candleSeries != null) {
@@ -393,9 +720,12 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
                 }
 
                 // Reinitialize with new interval
-                viewModel.connect(symbol, interval, true);
-                fetchHistoricalData(interval);
-                initializeTradingViewChart(interval);
+                creatingViewModelConnection(interval);
+
+                binding.marketChartLayout.progressBar.setVisibility(View.VISIBLE);
+
+                // Load initial data for the new interval
+                fetchHistoricalData(interval, new Date(), null);
             }
 
             @Override
@@ -415,8 +745,23 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
         // After setting up tabs, select first tab
         TabLayout.Tab firstTab = binding.marketChartLayout.timeIntervalTabLayout.getTabAt(0);
         if (firstTab != null) {
-            firstTab.select();
+            // Select tab without triggering listener
+            binding.marketChartLayout.timeIntervalTabLayout.selectTab(firstTab, false);
+
+            // Then manually update the visual state
+            TextView text = Objects.requireNonNull(firstTab.getCustomView()).findViewById(R.id.tabTitle);
+            LinearLayout tabHolder = Objects.requireNonNull(firstTab.getCustomView()).findViewById(R.id.tab_holder);
+            tabHolder.setBackgroundResource(R.drawable.bg_selected);
+            text.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.white));
+
+            // And handle the initial connection in globalInit instead
+            binding.marketChartLayout.progressBar.setVisibility(View.VISIBLE);
         }
+
+    }
+
+    private void creatingViewModelConnection(String interval) {
+        viewModel.connect(symbol, interval, false);
     }
 
     @NonNull
@@ -523,9 +868,44 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
+    protected void onPause() {
+        super.onPause();
+        // Disconnect from WebSocket to avoid background data usage
+        if (viewModel != null && symbol != null) {
+            viewModel.disconnect();
+        }
+
+        // Cancel any pending tasks by resetting the request flag
+        // but DON'T shut down the executor service since it's final
+        isRequestInProgress.set(false);
+
+        Timber.d("Activity paused, WebSocket disconnected");
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Reconnect to WebSocket when activity becomes visible again
+        if (viewModel != null && symbol != null) {
+            creatingViewModelConnection(currentInterval);
+            Timber.d("Activity resumed, reconnected to WebSocket with interval: %s", currentInterval);
+        }
 
+        // Refresh chart data if needed
+        if (historicalState != null) {
+            historicalState.reset();
+            fetchHistoricalData(currentInterval, new Date(), null);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Ensure all resources are released
+        if (viewModel != null && symbol != null) {
+            viewModel.disconnect();
+        }
+
+        executorService.shutdownNow();
+    }
 }

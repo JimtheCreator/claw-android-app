@@ -9,6 +9,8 @@ import network.NetworkUtils;
 import okhttp3.Response;
 import okhttp3.WebSocket;
 import okhttp3.WebSocketListener;
+import timber.log.Timber;
+
 import org.json.JSONObject;
 import android.content.Context;
 
@@ -41,16 +43,24 @@ public class StreamRepository {
 
         webSocketService.connectToStream(symbol, interval, include_ohlcv, new WebSocketListener() {
             @Override
+            // In StreamRepository.java
             public void onMessage(@NonNull WebSocket webSocket, @NonNull String text) {
+                Timber.d("Raw message: %s", text); // Add for debugging
                 try {
                     Gson gson = new Gson();
                     StreamMarketData data = gson.fromJson(text, StreamMarketData.class);
-                    // Validate data (assuming timestamp is a required field)
-                    if (data != null && data.getTimestamp() != 0) {
+                    // Handle price updates
+                    if (data.getPrice() != 0) {
                         marketData.postValue(data);
+                        Timber.d("Received price update");
+                    }
+                    // Handle OHLCV updates
+                    if (data.getOhlcv() != null) {
+                        marketData.postValue(data);
+                        Timber.d("Received OHLCV update");
                     }
                 } catch (Exception e) {
-                    error.postValue("Failed to parse market data");
+                    error.postValue("Parse error: " + e.getMessage());
                 }
             }
 

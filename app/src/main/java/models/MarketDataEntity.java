@@ -4,6 +4,7 @@ import java.util.Date;
 
 public class MarketDataEntity {
     private Date timestamp;
+
     private double open;
     private double high;
     private double low;
