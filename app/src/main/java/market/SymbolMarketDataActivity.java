@@ -34,10 +34,16 @@ import com.tradingview.lightweightcharts.api.interfaces.SeriesApi;
 import com.tradingview.lightweightcharts.api.options.models.CandlestickSeriesOptions;
 import com.tradingview.lightweightcharts.api.options.models.GridLineOptions;
 import com.tradingview.lightweightcharts.api.options.models.GridOptions;
+import com.tradingview.lightweightcharts.api.options.models.HistogramSeriesOptions;
 import com.tradingview.lightweightcharts.api.options.models.LayoutOptions;
+import com.tradingview.lightweightcharts.api.options.models.PriceScaleMargins;
 import com.tradingview.lightweightcharts.api.options.models.PriceScaleOptions;
 import com.tradingview.lightweightcharts.api.options.models.TimeScaleOptions;
+import com.tradingview.lightweightcharts.api.series.enums.LineWidth;
 import com.tradingview.lightweightcharts.api.series.models.CandlestickData;
+import com.tradingview.lightweightcharts.api.series.models.HistogramData;
+import com.tradingview.lightweightcharts.api.series.models.PriceFormat;
+import com.tradingview.lightweightcharts.api.series.models.PriceScaleId;
 import com.tradingview.lightweightcharts.api.series.models.Time;
 import com.tradingview.lightweightcharts.view.ChartsView;
 
@@ -84,6 +90,7 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
     // TradingView chart components
     private ChartsView chartsView;
     private SeriesApi candleSeries;
+    private SeriesApi volumeSeries;
     List<Long> timestampList = new ArrayList<>();
 
     // For handling request timeouts and retries
@@ -274,84 +281,6 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
     }
 
     /**
-     * Handles the API call with automatic retry logic
-     */
-    private void fetchDataWithRetry(String interval, String start, String end, int retryCount) {
-        MainClient.getInstance().create(ApiEndpoints.class)
-                .getMarketData(symbol, interval, start, end, historicalState.currentPage,
-                        historicalState.CHUNK_SIZE).enqueue(new Callback<MarketDataResponse>() {
-                    @Override
-                    public void onResponse(@NonNull Call<MarketDataResponse> call,
-                                           @NonNull Response<MarketDataResponse> response) {
-                        try {
-                            if (response.isSuccessful() && response.body() != null) {
-                                // Hide loading indicator
-                                binding.marketChartLayout.progressBar.setVisibility(View.GONE);
-
-                                List<CandlestickData> candles = new ArrayList<>();
-                                // Process response data
-                                MarketDataResponse marketResponse = response.body(); // Get the single response object
-
-                                // Process response data
-                                if (marketResponse != null && marketResponse.getData() != null) {
-                                    for (MarketDataEntity entity : marketResponse.getData()) {
-                                        candles.add(convertToCandle(entity));
-                                    }
-                                }
-
-                                // Update UI with data
-                                if (!candles.isEmpty()) {
-                                    updateCandlestickChart(candles);
-                                    // Update page counter for pagination
-                                    historicalState.currentPage++;
-                                    historicalState.backfilledChunks++;
-                                } else {
-                                    // No data returned
-                                    Timber.d("No data returned for the specified range");
-                                    historicalState.noMoreData = true;
-                                }
-                            } else {
-                                // Handle API errors
-                                String errorMsg = "Error code: " + response.code();
-                                if (response.errorBody() != null) {
-                                    errorMsg += " - " + response.errorBody().string();
-                                }
-                                Timber.e("API error: %s", errorMsg);
-
-                                if (retryCount < MAX_RETRIES) {
-                                    // Schedule retry with exponential backoff
-                                    long delayMs = (long) Math.pow(2, retryCount) * 1000;
-                                    scheduleRetry(interval, start, end, retryCount, delayMs);
-                                } else {
-                                    handleDataLoadError(new Exception("Failed after " + MAX_RETRIES + " retries"));
-                                }
-                            }
-                        } catch (Exception e) {
-                            Timber.e(e, "Error processing response");
-                            handleDataLoadError(e);
-                        } finally {
-                            isRequestInProgress.set(false);
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(@NonNull Call<MarketDataResponse> call, @NonNull Throwable t) {
-                        Timber.e(t, "API call failed");
-
-                        if (retryCount < MAX_RETRIES) {
-                            // Schedule retry with exponential backoff
-                            long delayMs = (long) Math.pow(2, retryCount) * 1000;
-                            scheduleRetry(interval, start, end, retryCount, delayMs);
-                        } else {
-                            handleDataLoadError(t);
-                            isRequestInProgress.set(false);
-                        }
-                    }
-                });
-
-    }
-
-    /**
      * Schedules a retry of the API call with exponential backoff
      */
     private void scheduleRetry(String interval, String start, String end, int retryCount, long delayMs) {
@@ -359,21 +288,6 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
         executorService.schedule(() -> {
             runOnUiThread(() -> fetchDataWithRetry(interval, start, end, retryCount + 1));
         }, delayMs, TimeUnit.MILLISECONDS);
-    }
-
-    /**
-     * Updates the chart with new candle data
-     */
-    private void updateCandlestickChart(List<CandlestickData> candles) {
-        if (candleSeries != null && !candles.isEmpty()) {
-            // Add new data to chart
-            candleSeries.setData(candles);
-
-            // Fit content to view
-            chartsView.getApi().getTimeScale().fitContent();
-
-            Timber.d("Updated chart with %d candles", candles.size());
-        }
     }
 
     /**
@@ -558,6 +472,13 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
             priceScaleOptions.setBorderVisible(false);
             chartOptions.setRightPriceScale(priceScaleOptions);
 
+            // Add left price scale for volume histogram
+            // Use LEFT price scale for volume, but make it invisible or minimal
+            PriceScaleOptions leftPriceScale = new PriceScaleOptions();
+            leftPriceScale.setScaleMargins(new PriceScaleMargins(0.85F, 0.02F));
+            leftPriceScale.setVisible(false); // hide the price labels
+            chartOptions.setLeftPriceScale(leftPriceScale);
+
             // Grid options
             GridLineOptions vertGrid = new GridLineOptions();
             vertGrid.setColor(new IntColor(Color.parseColor("#1C1C1C")));
@@ -591,6 +512,150 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
 
             return Unit.INSTANCE; // For Kotlin interop
         });
+
+        addingHistogram();
+    }
+
+    private void addingHistogram() {
+        HistogramSeriesOptions volumeOptions = new HistogramSeriesOptions();
+        volumeOptions.setColor(new IntColor(Color.parseColor("#26a69a")));  // Green
+        volumeOptions.setBase(0.0F);  // Start from zero
+        volumeOptions.setBaseLineWidth(LineWidth.TWO);  // Replace with actual enum values if defined
+        volumeOptions.setPriceScaleId(new PriceScaleId("volume")); // if allowed
+        volumeOptions.setPriceScaleId(PriceScaleId.Companion.getLEFT()); // Use LEFT scale
+
+        chartsView.getApi().addHistogramSeries(volumeOptions, series -> {
+            volumeSeries = series;
+
+            return Unit.INSTANCE;
+        });
+    }
+
+
+    // 4. Create a new method to convert MarketDataEntity to histogram data for volume
+    private HistogramData convertToVolumeBar(MarketDataEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+
+        try {
+            // Get UTC timestamp from backend
+            long localAdjustedSeconds = getLocalAdjustedSeconds(entity);
+
+            // Determine color based on whether the candle is bullish (green) or bearish (red)
+            IntColor color = entity.getClose() >= entity.getOpen()
+                    ? new IntColor(Color.parseColor("#26a69a"))  // Green for bullish
+                    : new IntColor(Color.parseColor("#ef5350"));  // Red for bearish
+
+            return new com.tradingview.lightweightcharts.api.series.models.HistogramData(
+                    new Time.Utc(localAdjustedSeconds),
+                    (float) entity.getVolume(),
+                    color
+            );
+        } catch (Exception e) {
+            Timber.e(e, "Error converting entity to volume bar");
+            return null;
+        }
+    }
+
+    /**
+     * Updates the chart with new candle data
+     */
+    private void updateCandlestickChart(List<CandlestickData> candles, List<HistogramData> volumeBars) {
+        if (candleSeries != null && !candles.isEmpty()) {
+            // Add new data to chart
+            candleSeries.setData(candles);
+
+            // Add volume data if available
+            if (volumeSeries != null && !volumeBars.isEmpty()) {
+                volumeSeries.setData(volumeBars);
+            }
+
+            // Fit content to view
+            chartsView.getApi().getTimeScale().fitContent();
+
+            Timber.d("Updated chart with %d candles", candles.size());
+        }
+    }
+
+    /**
+     * Handles the API call with automatic retry logic
+     */
+    private void fetchDataWithRetry(String interval, String start, String end, int retryCount) {
+        MainClient.getInstance().create(ApiEndpoints.class)
+                .getMarketData(symbol, interval, start, end, historicalState.currentPage,
+                        historicalState.CHUNK_SIZE).enqueue(new Callback<MarketDataResponse>() {
+                    @Override
+                    public void onResponse(@NonNull Call<MarketDataResponse> call,
+                                           @NonNull Response<MarketDataResponse> response) {
+                        try {
+                            if (response.isSuccessful() && response.body() != null) {
+                                // Hide loading indicator
+                                binding.marketChartLayout.progressBar.setVisibility(View.GONE);
+
+                                List<CandlestickData> candles = new ArrayList<>();
+                                List<HistogramData> volumeBars = new ArrayList<>();
+                                // Process response data
+                                MarketDataResponse marketResponse = response.body(); // Get the single response object
+
+                                // Process response data
+                                if (marketResponse != null && marketResponse.getData() != null) {
+                                    for (MarketDataEntity entity : marketResponse.getData()) {
+                                        candles.add(convertToCandle(entity));
+                                        volumeBars.add(convertToVolumeBar(entity));
+                                    }
+                                }
+
+                                // Update UI with data
+                                if (!candles.isEmpty()) {
+                                    updateCandlestickChart(candles, volumeBars);
+                                    // Update page counter for pagination
+                                    historicalState.currentPage++;
+                                    historicalState.backfilledChunks++;
+                                } else {
+                                    // No data returned
+                                    Timber.d("No data returned for the specified range");
+                                    historicalState.noMoreData = true;
+                                }
+                            } else {
+                                // Handle API errors
+                                String errorMsg = "Error code: " + response.code();
+                                if (response.errorBody() != null) {
+                                    errorMsg += " - " + response.errorBody().string();
+                                }
+                                Timber.e("API error: %s", errorMsg);
+
+                                if (retryCount < MAX_RETRIES) {
+                                    // Schedule retry with exponential backoff
+                                    long delayMs = (long) Math.pow(2, retryCount) * 1000;
+                                    scheduleRetry(interval, start, end, retryCount, delayMs);
+                                } else {
+                                    handleDataLoadError(new Exception("Failed after " + MAX_RETRIES + " retries"));
+                                }
+                            }
+                        } catch (Exception e) {
+                            Timber.e(e, "Error processing response");
+                            handleDataLoadError(e);
+                        } finally {
+                            isRequestInProgress.set(false);
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<MarketDataResponse> call, @NonNull Throwable t) {
+                        Timber.e(t, "API call failed");
+
+                        if (retryCount < MAX_RETRIES) {
+                            // Schedule retry with exponential backoff
+                            long delayMs = (long) Math.pow(2, retryCount) * 1000;
+                            scheduleRetry(interval, start, end, retryCount, delayMs);
+                        } else {
+                            handleDataLoadError(t);
+                            isRequestInProgress.set(false);
+                        }
+                    }
+                });
+
     }
 
     /**
