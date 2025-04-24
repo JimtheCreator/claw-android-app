@@ -40,7 +40,8 @@
         android:id="@+id/topSection"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        >
 
         <include
             android:id="@+id/market_chart_layout"
@@ -72,6 +73,10 @@
         android:orientation="vertical"
         app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
 
+        <include
+            android:id="@+id/analysispagelayout"
+            layout="@layout/analysispage"
+            />
 
     </LinearLayout>
 

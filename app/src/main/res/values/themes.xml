@@ -27,6 +27,37 @@
         <item name="android:textSize">12sp</item>
     </style>
 
+    <!-- Add this to your styles.xml file in the res/values folder -->
+    <style name="AlertDialogTheme" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
+        <!-- Background color -->
+        <item name="android:windowBackground">@drawable/rounded_blackshade</item>
+        <item name="android:background">@color/black_shade</item>
+
+        <!-- Text color -->
+        <item name="colorOnSurface">@color/off_white</item>
+        <item name="android:textColorPrimary">@color/off_white</item>
+        <item name="android:textColor">@color/off_white</item>
+
+        <!-- Button colors -->
+        <item name="colorPrimary">@color/chip_selected</item>
+        <item name="colorAccent">@color/chip_selected</item>
+        <item name="buttonBarPositiveButtonStyle">@style/PositiveButtonStyle</item>
+        <item name="buttonBarNegativeButtonStyle">@style/NegativeButtonStyle</item>
+    </style>
+
+    <style name="PositiveButtonStyle" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/chip_selected</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="NegativeButtonStyle" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/gray_inactive</item>
+    </style>
+
+    <style name="DropdownMenu" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+        <item name="android:popupBackground">@color/black_shade</item>
+        <item name="android:textColor">@color/off_white</item>
+    </style>
 
     <style name="CustomSearchViewStyle" parent="Widget.Material3.SearchView">
         <!-- Customize text color -->
@@ -39,6 +70,7 @@
         <item name="android:textColorHint">@color/matteblack</item>
         <!-- Customize query text appearance -->
     </style>
+
 
     <!--    FOR THE HOMETABLAYOUT-->
     <style name="CustomTabText">

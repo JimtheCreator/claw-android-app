@@ -4,4 +4,11 @@
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="hug_emoji">🤗</string>
     <string name="strike_text"><strike>£4.99</strike></string>
+    <string-array name="time_units">
+        <item>Minutes</item>
+        <item>Hours</item>
+        <item>Days</item>
+        <item>Weeks</item>
+        <item>Months</item>
+    </string-array>
 </resources>

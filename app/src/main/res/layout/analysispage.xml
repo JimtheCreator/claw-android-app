@@ -1,0 +1,416 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/dark_upper_rounded"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="15dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginEnd="15dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/sf_pro_text_medium"
+            android:text="Timeframe"
+            android:textColor="@color/off_white"
+            android:textSize="17sp" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/timeframe_input_layout"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense.ExposedDropdownMenu"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Select Timeframe"
+            app:boxBackgroundColor="@color/black_shade"
+            app:endIconMode="dropdown_menu"
+            app:hintTextColor="@color/off_white">
+
+            <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                android:id="@+id/auto_complete_timeframe"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/DropdownMenu"
+                android:inputType="none"
+                android:textColor="@color/off_white" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:fontFamily="@font/sf_pro_text_medium"
+                android:text="Pattern of Interest"
+                android:textColor="@color/off_white"
+                android:textSize="17sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_marginStart="5dp"
+                android:fontFamily="@font/sf_pro_text_medium"
+                android:text="(Optional)"
+                android:textColor="@color/gray_inactive"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/pattern_chip_group"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:chipSpacingHorizontal="8dp"
+                    app:chipSpacingVertical="8dp"
+                    app:singleSelection="true">
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/pattern_double_top"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Double Top"
+                        android:textColor="@color/off_white"
+                        app:checkedIconEnabled="false"
+                        app:checkedIconTint="@color/off_white"
+                        app:chipBackgroundColor="@color/chip_unselected"
+                        app:chipStrokeColor="@color/chip_selected"
+                        app:chipStrokeWidth="1dp" />
+
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/pattern_double_bottom"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Double Bottom"
+                        android:textColor="@color/off_white"
+                        app:checkedIconEnabled="false"
+                        app:checkedIconTint="@color/off_white"
+                        app:chipBackgroundColor="@color/chip_unselected"
+                        app:chipStrokeColor="@color/chip_selected"
+                        app:chipStrokeWidth="1dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/pattern_head_shoulders"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Head and Shoulders"
+                        android:textColor="@color/off_white"
+                        app:checkedIconEnabled="false"
+                        app:checkedIconTint="@color/off_white"
+                        app:chipBackgroundColor="@color/chip_unselected"
+                        app:chipStrokeColor="@color/chip_selected"
+                        app:chipStrokeWidth="1dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/pattern_cup_handle"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Cup and Handle"
+                        android:textColor="@color/off_white"
+                        app:checkedIconEnabled="false"
+                        app:checkedIconTint="@color/off_white"
+                        app:chipBackgroundColor="@color/chip_unselected"
+                        app:chipStrokeColor="@color/chip_selected"
+                        app:chipStrokeWidth="1dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/pattern_rising_wedge"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Rising Wedge"
+                        android:textColor="@color/off_white"
+                        app:checkedIconEnabled="false"
+                        app:checkedIconTint="@color/off_white"
+                        app:chipBackgroundColor="@color/chip_unselected"
+                        app:chipStrokeColor="@color/chip_selected"
+                        app:chipStrokeWidth="1dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/pattern_falling_wedge"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Falling Wedge"
+                        android:textColor="@color/off_white"
+                        app:checkedIconEnabled="false"
+                        app:checkedIconTint="@color/off_white"
+                        app:chipBackgroundColor="@color/chip_unselected"
+                        app:chipStrokeColor="@color/chip_selected"
+                        app:chipStrokeWidth="1dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/pattern_flag"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Flag"
+                        android:textColor="@color/off_white"
+                        app:checkedIconEnabled="false"
+                        app:checkedIconTint="@color/off_white"
+                        app:chipBackgroundColor="@color/chip_unselected"
+                        app:chipStrokeColor="@color/chip_selected"
+                        app:chipStrokeWidth="1dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/pattern_triangle"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Triangle"
+                        android:textColor="@color/off_white"
+                        app:checkedIconEnabled="false"
+                        app:checkedIconTint="@color/off_white"
+                        app:chipBackgroundColor="@color/chip_unselected"
+                        app:chipStrokeColor="@color/chip_selected"
+                        app:chipStrokeWidth="1dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/pattern_rectangle"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Rectangle"
+                        android:textColor="@color/off_white"
+                        app:checkedIconEnabled="false"
+                        app:checkedIconTint="@color/off_white"
+                        app:chipBackgroundColor="@color/chip_unselected"
+                        app:chipStrokeColor="@color/chip_selected"
+                        app:chipStrokeWidth="1dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/pattern_doji"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Doji"
+                        android:textColor="@color/off_white"
+                        app:checkedIconEnabled="false"
+                        app:checkedIconTint="@color/off_white"
+                        app:chipBackgroundColor="@color/chip_unselected"
+                        app:chipStrokeColor="@color/chip_selected"
+                        app:chipStrokeWidth="1dp" />
+
+                </com.google.android.material.chip.ChipGroup>
+            </LinearLayout>
+
+        </ScrollView>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="30dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:fontFamily="@font/sf_pro_text_medium"
+                android:text="Analysis Goal"
+                android:textColor="@color/off_white"
+                android:textSize="17sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_marginStart="5dp"
+                android:fontFamily="@font/sf_pro_text_medium"
+                android:text="(Optional)"
+                android:textColor="@color/gray_inactive"
+                android:textSize="14sp" />
+
+        </LinearLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/goal_chip_group"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:chipSpacingHorizontal="8dp"
+                    app:chipSpacingVertical="8dp"
+                    app:singleSelection="true">
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/goal_entry_point"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Entry Point"
+                        android:textColor="@color/off_white"
+                        app:checkedIconEnabled="false"
+                        app:checkedIconTint="@color/off_white"
+                        app:chipBackgroundColor="@color/chip_unselected"
+                        app:chipStrokeColor="@color/chip_selected"
+                        app:chipStrokeWidth="1dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/goal_exit_point"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Exit Point"
+                        android:textColor="@color/off_white"
+                        app:checkedIconEnabled="false"
+                        app:checkedIconTint="@color/off_white"
+                        app:chipBackgroundColor="@color/chip_unselected"
+                        app:chipStrokeColor="@color/chip_selected"
+                        app:chipStrokeWidth="1dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/goal_trend_prediction"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Trend Prediction"
+                        android:textColor="@color/off_white"
+                        app:checkedIconEnabled="false"
+                        app:checkedIconTint="@color/off_white"
+                        app:chipBackgroundColor="@color/chip_unselected"
+                        app:chipStrokeColor="@color/chip_selected"
+                        app:chipStrokeWidth="1dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/goal_support_resistance"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Support/Resistance"
+                        android:textColor="@color/off_white"
+                        app:checkedIconEnabled="false"
+                        app:checkedIconTint="@color/off_white"
+                        app:chipBackgroundColor="@color/chip_unselected"
+                        app:chipStrokeColor="@color/chip_selected"
+                        app:chipStrokeWidth="1dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/goal_volatility"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Volatility Analysis"
+                        android:textColor="@color/off_white"
+                        app:checkedIconEnabled="false"
+                        app:checkedIconTint="@color/off_white"
+                        app:chipBackgroundColor="@color/chip_unselected"
+                        app:chipStrokeColor="@color/chip_selected"
+                        app:chipStrokeWidth="1dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/goal_momentum"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Momentum Analysis"
+                        android:textColor="@color/off_white"
+                        app:checkedIconEnabled="false"
+                        app:checkedIconTint="@color/off_white"
+                        app:chipBackgroundColor="@color/chip_unselected"
+                        app:chipStrokeColor="@color/chip_selected"
+                        app:chipStrokeWidth="1dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/goal_risk_reward"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Risk/Reward Ratio"
+                        android:textColor="@color/off_white"
+                        app:checkedIconEnabled="false"
+                        app:checkedIconTint="@color/off_white"
+                        app:chipBackgroundColor="@color/chip_unselected"
+                        app:chipStrokeColor="@color/chip_selected"
+                        app:chipStrokeWidth="1dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/goal_pivot_points"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Pivot Points"
+                        android:textColor="@color/off_white"
+                        app:checkedIconEnabled="false"
+                        app:checkedIconTint="@color/off_white"
+                        app:chipBackgroundColor="@color/chip_unselected"
+                        app:chipStrokeColor="@color/chip_selected"
+                        app:chipStrokeWidth="1dp" />
+
+                </com.google.android.material.chip.ChipGroup>
+            </LinearLayout>
+        </ScrollView>
+
+    </LinearLayout>
+
+    <RelativeLayout
+        android:id="@+id/analyze_button"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginStart="15dp"
+        android:layout_marginTop="50dp"
+        android:layout_marginEnd="15dp"
+        android:layout_marginBottom="20dp"
+        android:background="@drawable/ai_rectangle"
+        android:clickable="true"
+        android:focusable="true">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="25dp"
+                android:layout_height="25dp"
+                android:layout_gravity="center_vertical"
+                android:layout_marginEnd="5dp"
+                android:src="@drawable/ai_stars" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_marginStart="5dp"
+                android:fontFamily="@font/sf_pro_text_medium"
+                android:text="Analyze"
+                android:textColor="@color/black2_0"
+                android:textSize="15sp" />
+        </LinearLayout>
+    </RelativeLayout>
+</LinearLayout>

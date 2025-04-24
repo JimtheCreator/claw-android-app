@@ -10,6 +10,9 @@
     <color name="chart_color">#FF3CAC</color>
     <color name="green_chart_color">#4CAF50</color>
 
+    <!-- CHIPS COLOURS-->
+    <color name="chip_selected">#5856D6</color>
+    <color name="chip_unselected">#2A2A2A</color>
 
     <!-- Text Colors -->
     <color name="text_primary">#FFFFFF</color>

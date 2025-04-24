@@ -2,16 +2,22 @@ package market;
 
 import android.graphics.Color;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
+import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
@@ -27,7 +33,10 @@ import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.tabs.TabLayout;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.tradingview.lightweightcharts.api.chart.models.color.IntColor;
 import com.tradingview.lightweightcharts.api.chart.models.color.surface.SolidColor;
 import com.tradingview.lightweightcharts.api.interfaces.SeriesApi;
@@ -42,13 +51,13 @@ import com.tradingview.lightweightcharts.api.options.models.TimeScaleOptions;
 import com.tradingview.lightweightcharts.api.series.enums.LineWidth;
 import com.tradingview.lightweightcharts.api.series.models.CandlestickData;
 import com.tradingview.lightweightcharts.api.series.models.HistogramData;
-import com.tradingview.lightweightcharts.api.series.models.PriceFormat;
 import com.tradingview.lightweightcharts.api.series.models.PriceScaleId;
 import com.tradingview.lightweightcharts.api.series.models.Time;
 import com.tradingview.lightweightcharts.view.ChartsView;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -60,6 +69,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import adapters.TimeframeSpinnerAdapter;
 import backend.ApiEndpoints;
 import backend.MainClient;
 import backend.WebSocketService;
@@ -121,6 +131,8 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
         onClicksAndDrags();
         setupObservers();
         time_interval_tabs();
+        setupTimeframeSpinner();
+        setupChipGroups();
     }
 
     private void initViewModel() {
@@ -208,6 +220,25 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
                         return false;
                 }
             }
+        });
+
+        binding.marketChartLayout.aiButton.setOnClickListener(v -> {
+            // Show both the bottom section and drag handle
+            binding.bottomSection.setVisibility(View.VISIBLE);
+            binding.dragHandle.setVisibility(View.VISIBLE);
+
+            // Set initial heights (e.g., 70% top, 30% bottom)
+            int totalHeight = binding.main.getHeight() - binding.main.getPaddingTop() - binding.main.getPaddingBottom();
+            int actionBarHeight = ((RelativeLayout) binding.main.getChildAt(0)).getHeight();
+            int availableHeight = totalHeight - actionBarHeight;
+
+            ViewGroup.LayoutParams topParams = binding.topSection.getLayoutParams();
+            topParams.height = (int) (availableHeight * 0.7);
+            binding.topSection.setLayoutParams(topParams);
+
+            ViewGroup.LayoutParams bottomParams = binding.bottomSection.getLayoutParams();
+            bottomParams.height = (int) (availableHeight * 0.3);
+            binding.bottomSection.setLayoutParams(bottomParams);
         });
 
         binding.closePage.setOnClickListener(new View.OnClickListener() {
@@ -462,6 +493,7 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
             TimeScaleOptions timeScaleOptions = new TimeScaleOptions();
             timeScaleOptions.setBorderVisible(false);
             // Enable handling of missing data points
+
             timeScaleOptions.setTimeVisible(true);
             timeScaleOptions.setFixLeftEdge(true);
             timeScaleOptions.setRightBarStaysOnScroll(true);
@@ -973,4 +1005,162 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
 
         executorService.shutdownNow();
     }
+
+    private void setupTimeframeSpinner() {
+        MaterialAutoCompleteTextView autoComplete = findViewById(R.id.auto_complete_timeframe);
+        List<String> timeframeOptions = Arrays.asList(
+                "Last 30 minutes", "1 hour", "7 days", "Last 30 days", "Custom..."
+        );
+
+        // For timeframe spinner
+        TimeframeSpinnerAdapter adapter = new TimeframeSpinnerAdapter(
+                this,
+                timeframeOptions
+        );
+
+        autoComplete.setAdapter(adapter);
+
+        autoComplete.setOnItemClickListener((parent, view, position, id) -> {
+            String selectedTimeframe = timeframeOptions.get(position);
+            if (selectedTimeframe.equals("Custom...")) {
+                showCustomTimeframeDialog();
+            }
+            updatePatternsForTimeframe(selectedTimeframe);
+        });
+    }
+
+    private void showCustomTimeframeDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.AlertDialogTheme);
+        builder.setTitle("Enter Custom Timeframe");
+
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_custom_timeframe, null);
+        builder.setView(dialogView);
+
+        final EditText valueInput = dialogView.findViewById(R.id.edittext_value);
+        final AutoCompleteTextView unitAutoComplete = dialogView.findViewById(R.id.spinner_time_unit); // Changed to AutoCompleteTextView
+
+        // Set up adapter for time units
+        // In showCustomTimeframeDialog() for time units
+        ArrayAdapter<CharSequence> unitAdapter = ArrayAdapter.createFromResource(
+                this,
+                R.array.time_units,
+                R.layout.dark_dropdown_item  // Use the same dark layout
+        );
+
+        unitAutoComplete.setAdapter(unitAdapter);
+
+        builder.setPositiveButton("Apply", (dialog, which) -> {
+            String value = valueInput.getText().toString();
+            String unit = unitAutoComplete.getText().toString();
+
+            if (!value.isEmpty()) {
+                String customTimeframe = value + " " + unit;
+                // Handle custom timeframe
+            }
+        });
+
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
+        builder.show();
+    }
+
+    private void updatePatternsForTimeframe(String timeframe) {
+        ChipGroup patternChipGroup = findViewById(R.id.pattern_chip_group);
+
+        // First, make all chips visible
+        for (int i = 0; i < patternChipGroup.getChildCount(); i++) {
+            patternChipGroup.getChildAt(i).setVisibility(View.VISIBLE);
+        }
+
+        // Then, hide patterns that don't apply to the selected timeframe
+        if (timeframe.equals("Last 30 minutes") || timeframe.equals("1 hour")) {
+            // Short timeframe - hide patterns that need longer periods
+            findViewById(R.id.pattern_head_shoulders).setVisibility(View.GONE);
+            findViewById(R.id.pattern_cup_handle).setVisibility(View.GONE);
+            // Other patterns that need longer periods can be hidden here
+        } else if (timeframe.equals("7 days")) {
+            // Medium timeframe - adjust visibility as needed
+            // For example, maybe some very long-term patterns still need to be hidden
+        }
+        // For "Last 30 days" and "Custom..." longer than 30 days, all patterns could be relevant
+    }
+
+    private void setupChipGroups() {
+        setupToggleChipGroup(R.id.pattern_chip_group);
+        setupToggleChipGroup(R.id.goal_chip_group);
+    }
+
+    private void setupToggleChipGroup(int chipGroupId) {
+        ChipGroup chipGroup = findViewById(chipGroupId);
+        chipGroup.setSelectionRequired(false);
+        chipGroup.setSingleSelection(true);
+
+        chipGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            for (int i = 0; i < group.getChildCount(); i++) {
+                Chip chip = (Chip) group.getChildAt(i);
+                // Update text color based on selection state
+                chip.setTextColor(chip.isChecked() ?
+                        ContextCompat.getColor(this, R.color.off_white) :
+                        ContextCompat.getColor(this, R.color.gray_inactive));
+                chip.setBackgroundColor(chip.isChecked() ?
+                        ContextCompat.getColor(this, R.color.chip_selected) :
+                        ContextCompat.getColor(this, R.color.chip_unselected));
+            }
+
+            if (!checkedIds.isEmpty()) {
+                int checkedId = checkedIds.get(0);
+                Chip selectedChip = group.findViewById(checkedId);
+                if (chipGroupId == R.id.pattern_chip_group) {
+                    // Enforce max 2 selections
+                    if (checkedIds.size() > 2) {
+                        // Remove the oldest selection
+                        int oldestId = checkedIds.get(0);
+                        group.check(oldestId); // This will toggle it off
+                    }
+
+                    // Update UI for all chips
+                    for (int i = 0; i < group.getChildCount(); i++) {
+                        Chip chip = (Chip) group.getChildAt(i);
+                        chip.setCheckedIconVisible(chip.isChecked());
+                        chip.setChipBackgroundColorResource(chip.isChecked() ?
+                                R.color.chip_selected : R.color.chip_unselected);
+                    }
+
+                    // Handle selections
+                    List<String> selectedPatterns = new ArrayList<>();
+
+                    for (int id : checkedIds) {
+                        Chip chip = group.findViewById(id);
+                        selectedPatterns.add(chip.getText().toString());
+                    }
+
+                    handlePatternSelection(selectedPatterns, selectedChip.isChecked());
+                } else {
+                    chipGroup.setSingleSelection(true);
+                    handleGoalSelection(selectedChip.getText().toString(), selectedChip.isChecked());
+                }
+            }
+        });
+    }
+
+    private void handlePatternSelection(List<String> patternName, boolean isSelected) {
+        if (isSelected) {
+            Log.d("PatternSelected", patternName + " selected");
+            // Handle pattern selection
+
+        } else {
+            Log.d("PatternSelected", patternName + " deselected");
+            // Handle pattern deselection
+        }
+    }
+
+    private void handleGoalSelection(String goalName, boolean isSelected) {
+        if (isSelected) {
+            Log.d("GoalSelected", goalName + " selected");
+            // Handle goal selection
+        } else {
+            Log.d("GoalSelected", goalName + " deselected");
+            // Handle goal deselection
+        }
+    }
+
 }
