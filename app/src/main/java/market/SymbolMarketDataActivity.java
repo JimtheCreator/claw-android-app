@@ -33,8 +33,6 @@ import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
-import com.google.android.material.chip.Chip;
-import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.tradingview.lightweightcharts.api.chart.models.color.IntColor;
@@ -70,7 +68,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import adapters.TimeframeSpinnerAdapter;
-import backend.ApiEndpoints;
+import backend.SymbolMarketEndpoints;
 import backend.MainClient;
 import backend.WebSocketService;
 import data.remote.WebSocketServiceImpl;
@@ -96,7 +94,6 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
     private final SimpleDateFormat apiDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US);
     String symbol;
     private final HistoricalState historicalState = new HistoricalState();
-
     // TradingView chart components
     private ChartsView chartsView;
     private SeriesApi candleSeries;
@@ -132,7 +129,6 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
         setupObservers();
         time_interval_tabs();
         setupTimeframeSpinner();
-        setupChipGroups();
     }
 
     private void initViewModel() {
@@ -563,8 +559,9 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
         });
     }
 
-
-    // 4. Create a new method to convert MarketDataEntity to histogram data for volume
+    /**
+     * Create a new method to convert MarketDataEntity to histogram data for volume
+     */
     private HistogramData convertToVolumeBar(MarketDataEntity entity) {
         if (entity == null) {
             return null;
@@ -614,7 +611,7 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
      * Handles the API call with automatic retry logic
      */
     private void fetchDataWithRetry(String interval, String start, String end, int retryCount) {
-        MainClient.getInstance().create(ApiEndpoints.class)
+        MainClient.getInstance().create(SymbolMarketEndpoints.class)
                 .getMarketData(symbol, interval, start, end, historicalState.currentPage,
                         historicalState.CHUNK_SIZE).enqueue(new Callback<MarketDataResponse>() {
                     @Override
@@ -1025,7 +1022,6 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
             if (selectedTimeframe.equals("Custom...")) {
                 showCustomTimeframeDialog();
             }
-            updatePatternsForTimeframe(selectedTimeframe);
         });
     }
 
@@ -1061,85 +1057,6 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
 
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
         builder.show();
-    }
-
-    private void updatePatternsForTimeframe(String timeframe) {
-        ChipGroup patternChipGroup = findViewById(R.id.pattern_chip_group);
-
-        // First, make all chips visible
-        for (int i = 0; i < patternChipGroup.getChildCount(); i++) {
-            patternChipGroup.getChildAt(i).setVisibility(View.VISIBLE);
-        }
-
-        // Then, hide patterns that don't apply to the selected timeframe
-        if (timeframe.equals("Last 30 minutes") || timeframe.equals("1 hour")) {
-            // Short timeframe - hide patterns that need longer periods
-            findViewById(R.id.pattern_head_shoulders).setVisibility(View.GONE);
-            findViewById(R.id.pattern_cup_handle).setVisibility(View.GONE);
-            // Other patterns that need longer periods can be hidden here
-        } else if (timeframe.equals("7 days")) {
-            // Medium timeframe - adjust visibility as needed
-            // For example, maybe some very long-term patterns still need to be hidden
-        }
-        // For "Last 30 days" and "Custom..." longer than 30 days, all patterns could be relevant
-    }
-
-    private void setupChipGroups() {
-        setupToggleChipGroup(R.id.pattern_chip_group);
-        setupToggleChipGroup(R.id.goal_chip_group);
-    }
-
-    private void setupToggleChipGroup(int chipGroupId) {
-        ChipGroup chipGroup = findViewById(chipGroupId);
-        chipGroup.setSelectionRequired(false);
-        chipGroup.setSingleSelection(true);
-
-        chipGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
-            for (int i = 0; i < group.getChildCount(); i++) {
-                Chip chip = (Chip) group.getChildAt(i);
-                // Update text color based on selection state
-                chip.setTextColor(chip.isChecked() ?
-                        ContextCompat.getColor(this, R.color.off_white) :
-                        ContextCompat.getColor(this, R.color.gray_inactive));
-                chip.setBackgroundColor(chip.isChecked() ?
-                        ContextCompat.getColor(this, R.color.chip_selected) :
-                        ContextCompat.getColor(this, R.color.chip_unselected));
-            }
-
-            if (!checkedIds.isEmpty()) {
-                int checkedId = checkedIds.get(0);
-                Chip selectedChip = group.findViewById(checkedId);
-                if (chipGroupId == R.id.pattern_chip_group) {
-                    // Enforce max 2 selections
-                    if (checkedIds.size() > 2) {
-                        // Remove the oldest selection
-                        int oldestId = checkedIds.get(0);
-                        group.check(oldestId); // This will toggle it off
-                    }
-
-                    // Update UI for all chips
-                    for (int i = 0; i < group.getChildCount(); i++) {
-                        Chip chip = (Chip) group.getChildAt(i);
-                        chip.setCheckedIconVisible(chip.isChecked());
-                        chip.setChipBackgroundColorResource(chip.isChecked() ?
-                                R.color.chip_selected : R.color.chip_unselected);
-                    }
-
-                    // Handle selections
-                    List<String> selectedPatterns = new ArrayList<>();
-
-                    for (int id : checkedIds) {
-                        Chip chip = group.findViewById(id);
-                        selectedPatterns.add(chip.getText().toString());
-                    }
-
-                    handlePatternSelection(selectedPatterns, selectedChip.isChecked());
-                } else {
-                    chipGroup.setSingleSelection(true);
-                    handleGoalSelection(selectedChip.getText().toString(), selectedChip.isChecked());
-                }
-            }
-        });
     }
 
     private void handlePatternSelection(List<String> patternName, boolean isSelected) {

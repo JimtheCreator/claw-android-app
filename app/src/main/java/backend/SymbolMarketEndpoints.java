@@ -4,7 +4,6 @@ import androidx.annotation.Nullable;
 
 import java.util.List;
 
-import models.MarketDataEntity;
 import models.MarketDataResponse;
 import models.Symbol;
 import retrofit2.Call;
@@ -12,7 +11,7 @@ import retrofit2.http.GET;
 import retrofit2.http.Path;
 import retrofit2.http.Query;
 
-public interface ApiEndpoints {
+public interface SymbolMarketEndpoints {
 
     @GET("cryptos/search")
     Call<List<Symbol>> searchCrypto(

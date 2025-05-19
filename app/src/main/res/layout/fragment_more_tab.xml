@@ -1,4 +1,5 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -7,47 +8,23 @@
     android:orientation="vertical"
     tools:context="fragments.MoreTabFragment">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="15dp"
-        android:layout_marginTop="40dp"
-        android:fontFamily="@font/sf_pro_text_bold"
-        android:text="Profile card"
-        android:textColor="@color/white"
-        android:textSize="22.5sp" />
-
-    <!--  Profile Card-->
-    <androidx.cardview.widget.CardView
-        android:layout_width="match_parent"
-        android:layout_height="90dp"
-        android:layout_marginStart="15dp"
-        android:layout_marginTop="10dp"
-        android:layout_marginEnd="15dp"
-        app:cardBackgroundColor="@color/darkTheme"
-        app:cardCornerRadius="15dp"
-        app:cardElevation="0dp">
+    <ProgressBar
+        android:layout_centerInParent="true"
+        android:id="@+id/progress_bar"
+        android:visibility="gone"
+        android:layout_width="35dp"
+        android:layout_height="35dp"/>
 
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="90dp"
-            android:layout_marginTop="10dp">
+    <include
+        android:id="@+id/login_page"
+        layout="@layout/login_page"
+        />
+
+    <include
+        android:visibility="gone"
+        android:id="@+id/profile_page"
+        layout="@layout/profile_page"/>
 
 
-        </LinearLayout>
-
-    </androidx.cardview.widget.CardView>
-
-
-    <!--  Test Drive-->
-
-
-    <!--  Subscription Plan-->
-
-
-    <!--  Sign-In Drive-->
-
-    <!--  Logout Drive-->
-
-</LinearLayout>
+</RelativeLayout>

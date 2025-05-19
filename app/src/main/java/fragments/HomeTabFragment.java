@@ -39,6 +39,7 @@ import timber.log.Timber;
 import utils.DateUtils;
 import utils.KeyboardQuickFunctions;
 import viewmodels.HomeViewModel;
+import viewmodels.google_login.AuthViewModel;
 
 public class HomeTabFragment extends Fragment {
 
@@ -62,10 +63,11 @@ public class HomeTabFragment extends Fragment {
     private CryptosAdapter searchedCryptosAdapter;
 
     private DisplayMetrics metrics;
+    private AuthViewModel authViewModel;
 
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
         binding = FragmentHomeTabBinding.inflate(inflater, container, false);
@@ -87,6 +89,10 @@ public class HomeTabFragment extends Fragment {
 
 
     private void initializeViews() {
+        authViewModel = new ViewModelProvider(requireActivity()).get(AuthViewModel.class);
+        // Ensure web_client_id is correctly defined in your strings.xml
+        authViewModel.initialize(requireActivity(), getString(R.string.web_client_id));
+
         searchedSymbolList = new ArrayList<>();
 
         searchedCryptosAdapter = new CryptosAdapter(requireContext(), searchedSymbolList, true);
@@ -368,7 +374,6 @@ public class HomeTabFragment extends Fragment {
         searchedCryptosAdapter.notifyDataSetChanged();
     }
 
-
     // Update setupObservers to handle both lists separately
     private void setupObservers() {
         // Handle errors
@@ -389,6 +394,48 @@ public class HomeTabFragment extends Fragment {
                 searchedCryptosAdapter.setData(results);
             }
         });
+
+        authViewModel.getAuthState().observe(getViewLifecycleOwner(), authState -> {
+            switch (authState) {
+                case AUTHENTICATED:
+                    if (isAdded() && !isStateSaved()) {
+                        showSymbolWatchlist();
+                    }
+                    break;
+                case UNAUTHENTICATED:
+                    showNoSymbolWatchlist();
+                    break;
+                case ERROR:
+                    // Error message is handled by its own observer.
+                    // Ensure UI is in a reasonable state, e.g., show login page if not authenticated.
+                    if (!authViewModel.isUserSignedIn()) {
+                        showNoSymbolWatchlist();
+                    }
+                    break;
+            }
+        });
+
+        authViewModel.getErrorMessage().observe(getViewLifecycleOwner(), errorMessage -> {
+            if (errorMessage != null && !errorMessage.isEmpty()) {
+                Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_LONG).show();
+            }
+        });
+
+    }
+
+    private void showNoSymbolWatchlist() {
+        binding.whenNotSignedInWatchlistLayout.setVisibility(View.VISIBLE);
+        binding.symbolWatchlistRecyclerview.setVisibility(View.GONE);
+    }
+
+    private void showSymbolWatchlist() {
+        binding.whenNotSignedInWatchlistLayout.setVisibility(View.GONE);
+        binding.symbolWatchlistRecyclerview.setVisibility(View.VISIBLE);
+
+        loadSymbolWatchListFromServer();
+    }
+
+    private void loadSymbolWatchListFromServer() {
 
     }
 

@@ -65,7 +65,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import backend.ApiEndpoints;
+import backend.SymbolMarketEndpoints;
 import backend.MainClient;
 import backend.WebSocketService;
 import data.remote.WebSocketServiceImpl;
@@ -915,7 +915,7 @@ public class ArchivedSymbolMarketDataActivity extends AppCompatActivity {
                         apiDateFormat.format(requestStart),
                         apiDateFormat.format(requestEnd));
 
-                ApiEndpoints api = MainClient.getInstance().create(ApiEndpoints.class);
+                SymbolMarketEndpoints api = MainClient.getInstance().create(SymbolMarketEndpoints.class);
                 Response<MarketDataResponse> response = api.getMarketData(
                         symbol,
                         interval,

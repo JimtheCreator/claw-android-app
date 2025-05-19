@@ -33,5 +33,9 @@ public class MainClient {
 
         return retrofit;
     }
+
+    public static ApiService getApiService() {
+        return getInstance().create(ApiService.class);
+    }
 }
 

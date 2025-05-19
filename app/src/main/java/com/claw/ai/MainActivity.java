@@ -12,8 +12,9 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
 
 import com.claw.ai.databinding.ActivityMainBinding;
+import com.google.firebase.analytics.FirebaseAnalytics;
 
-import bottomsheets.PricingPackageSheetFragment;
+import pricing.SubscriptionPlanSheetFragment;
 import fragments.AlertTabFragment;
 import archives.ArchivedHomeTabFragment;
 import fragments.HomeTabFragment;
@@ -27,6 +28,7 @@ public class MainActivity extends AppCompatActivity {
     private final Fragment recentTabsFragment = new RecentTabsFragment();
     private final Fragment alertTabFragment = new AlertTabFragment();
     private final Fragment moreTabFragment = new MoreTabFragment();
+    private FirebaseAnalytics mFirebaseAnalytics;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,6 +45,8 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
+        googleAnalytics();
+
         // Load default fragment
         if (savedInstanceState == null) {
             loadFragment(homeFragment);
@@ -56,10 +60,7 @@ public class MainActivity extends AppCompatActivity {
             int itemId = item.getItemId();
 
             // Select the appropriate fragment based on the item clicked
-            if (itemId == R.id.recent_tabs) {
-                selectedFragment = recentTabsFragment;
-                binding.bottomNavigation.setBackground(ContextCompat.getDrawable(MainActivity.this, R.color.black2_0));
-            } else if (itemId == R.id.home) {
+            if (itemId == R.id.home) {
                 selectedFragment = homeFragment;
                 binding.bottomNavigation.setBackground(ContextCompat.getDrawable(MainActivity.this, R.color.black_shade));
             } else if (itemId == R.id.alert_signals) {
@@ -67,8 +68,6 @@ public class MainActivity extends AppCompatActivity {
                 binding.bottomNavigation.setBackground(ContextCompat.getDrawable(MainActivity.this, R.color.black2_0));
             } else if (itemId == R.id.more) {
                 selectedFragment = moreTabFragment;
-                PricingPackageSheetFragment pricingPackageSheetFragment = PricingPackageSheetFragment.newInstance();
-                pricingPackageSheetFragment.show(getSupportFragmentManager(), "PricingPackageSheetFragment");
                 binding.bottomNavigation.setBackground(ContextCompat.getDrawable(MainActivity.this, R.color.black2_0));
             } else {
                 selectedFragment = homeFragment;
@@ -77,6 +76,11 @@ public class MainActivity extends AppCompatActivity {
             loadFragment(selectedFragment);
             return true;
         });
+    }
+
+    private void googleAnalytics() {
+        // Obtain the FirebaseAnalytics instance.
+        mFirebaseAnalytics = FirebaseAnalytics.getInstance(this);
     }
 
     private void loadFragment(Fragment fragment) {

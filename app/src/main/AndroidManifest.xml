@@ -16,6 +16,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Claw"
         tools:targetApi="31">
+
         <activity
             android:name="market.TimeframeActivity"
             android:exported="false" />
