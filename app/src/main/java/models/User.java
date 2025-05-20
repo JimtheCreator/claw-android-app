@@ -10,14 +10,13 @@ public class User {
     private String displayName;
     private String subscriptionType;
     private boolean isUsingTestDrive;
+    private boolean isUserPaid;
 
     // Empty constructor required for Firebase
     public User() {
     }
 
-    public User(String uuid, String email, String firstname, String secondname,
-                String avatarUrl, String createdTime, String displayName,
-                String subscriptionType, boolean isUsingTestDrive) {
+    public User(String uuid, String email, String firstname, String secondname, String avatarUrl, String createdTime, String displayName, String subscriptionType, boolean isUsingTestDrive, boolean isUserPaid) {
         this.uuid = uuid;
         this.email = email;
         this.firstname = firstname;
@@ -27,6 +26,7 @@ public class User {
         this.displayName = displayName;
         this.subscriptionType = subscriptionType;
         this.isUsingTestDrive = isUsingTestDrive;
+        this.isUserPaid = isUserPaid;
     }
 
     public String getUuid() {
@@ -99,5 +99,13 @@ public class User {
 
     public void setUsingTestDrive(boolean usingTestDrive) {
         isUsingTestDrive = usingTestDrive;
+    }
+
+    public boolean isUserPaid() {
+        return isUserPaid;
+    }
+
+    public void setUserPaid(boolean userPaid) {
+        isUserPaid = userPaid;
     }
 }

@@ -16,6 +16,7 @@ import com.claw.ai.databinding.FragmentMoreTabBinding;
 
 import accounts.SignUpBottomSheet;
 import pricing.OnboardingPricingPageSheetFragment;
+import pricing.SubscriptionPlanSheetFragment;
 import viewmodels.google_login.AuthViewModel;
 
 
@@ -167,8 +168,8 @@ public class MoreTabFragment extends Fragment {
     }
 
     private void testingPayment() {
-        OnboardingPricingPageSheetFragment onboardingPricingPageSheetFragment = OnboardingPricingPageSheetFragment.newInstance();
-        onboardingPricingPageSheetFragment.show(getParentFragmentManager(), onboardingPricingPageSheetFragment.getTag());
+        SubscriptionPlanSheetFragment sub_page = SubscriptionPlanSheetFragment.newInstance();
+        sub_page.show(getParentFragmentManager(), sub_page.getTag());
     }
 
     private void signInWithGoogle() {

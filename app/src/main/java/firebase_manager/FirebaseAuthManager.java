@@ -288,6 +288,7 @@ public class FirebaseAuthManager {
                     User newUser = new User();
                     newUser.setUuid(firebaseUser.getUid());
                     newUser.setEmail(firebaseUser.getEmail());
+
                     if (firebaseUser.getDisplayName() != null) {
                         String[] names = firebaseUser.getDisplayName().split(" ", 2);
                         newUser.setFirstname(names[0]);
@@ -299,6 +300,7 @@ public class FirebaseAuthManager {
                     newUser.setCreatedTime(String.valueOf(new Date().getTime()));
                     newUser.setSubscriptionType("free");
                     newUser.setUsingTestDrive(false);
+                    newUser.setUserPaid(false);
 
                     userRef.setValue(newUser).addOnCompleteListener(saveTask -> {
                         if (saveTask.isSuccessful()) {

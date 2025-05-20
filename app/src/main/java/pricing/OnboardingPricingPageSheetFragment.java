@@ -26,6 +26,7 @@ import com.stripe.android.PaymentConfiguration;
 import com.stripe.android.paymentsheet.PaymentSheet;
 import com.stripe.android.paymentsheet.PaymentSheetResult;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -250,6 +251,7 @@ public class OnboardingPricingPageSheetFragment extends BottomSheetDialogFragmen
         viewModel.getSubscriptionStatus().observe(getViewLifecycleOwner(), status -> {
             if (status != null) {
                 if (!status.equals("free") && !status.equals("payment_failed")) {
+                    enableAllInteractiveElements();
                     if (activeProgressBar != null) {
                         activeProgressBar.setVisibility(View.GONE); // Hide when status is received
                     }
@@ -264,6 +266,7 @@ public class OnboardingPricingPageSheetFragment extends BottomSheetDialogFragmen
                     Toast.makeText(getContext(), "Subscription successful!", Toast.LENGTH_SHORT).show();
                     viewModel.stopListeningToSubscriptionStatus();
                 } else if (status.equals("payment_failed")) {
+                    enableAllInteractiveElements();
                     if (activeProgressBar != null) {
                         activeProgressBar.setVisibility(View.GONE); // Hide when status is received
                     }
@@ -287,6 +290,7 @@ public class OnboardingPricingPageSheetFragment extends BottomSheetDialogFragmen
             // Show processing UI and start listening to Firebase
             viewModel.startListeningToSubscriptionStatus();
         } else {
+            enableAllInteractiveElements();
             if (activeProgressBar != null) {
                 activeProgressBar.setVisibility(View.GONE); // Hide on failure or cancellation
             }
@@ -362,6 +366,7 @@ public class OnboardingPricingPageSheetFragment extends BottomSheetDialogFragmen
             if (testDrive != null) {
                 viewModel.selectPlan(testDrive.getId());
                 selectPlanCard(binding.testDrivePlan);
+                disableAllInteractiveElements();
                 viewModel.initiatePaymentSheetFlow();
             } else {
                 Toast.makeText(getContext(), "Test Drive plan not available.", Toast.LENGTH_SHORT).show();
@@ -382,6 +387,7 @@ public class OnboardingPricingPageSheetFragment extends BottomSheetDialogFragmen
             List<Plan> starterPlans = viewModel.starterPlansLiveData.getValue();
             if (selectedPlanId != null && starterPlans != null && starterPlans.stream()
                     .anyMatch(p -> p.getId().equals(selectedPlanId))) {
+                disableAllInteractiveElements();
                 viewModel.initiatePaymentSheetFlow();
             } else {
                 Toast.makeText(getContext(), "Please select a Starter plan option.", Toast.LENGTH_SHORT).show();
@@ -404,6 +410,7 @@ public class OnboardingPricingPageSheetFragment extends BottomSheetDialogFragmen
             String proWeeklyId = getPlanIdByType(viewModel.proPlansLiveData.getValue(), "pro_weekly");
             String proMonthlyId = getPlanIdByType(viewModel.proPlansLiveData.getValue(), "pro_monthly");
             if (selectedPlanId != null && (selectedPlanId.equals(proWeeklyId) || selectedPlanId.equals(proMonthlyId))) {
+                disableAllInteractiveElements();
                 viewModel.initiatePaymentSheetFlow();
             } else {
                 Toast.makeText(getContext(), "Please select a Pro plan option.", Toast.LENGTH_SHORT).show();
@@ -448,6 +455,50 @@ public class OnboardingPricingPageSheetFragment extends BottomSheetDialogFragmen
     @Override
     public void onDetach() {
         super.onDetach();
+    }
+
+    private void disableAllInteractiveElements() {
+        List<RelativeLayout> payButtons = Arrays.asList(
+                binding.initiateTestDrivePay,
+                binding.initiateStarterPay,
+                binding.initiateProPay
+        );
+        for (RelativeLayout button : payButtons) {
+            button.setClickable(false);
+        }
+        List<CardView> planCards = Arrays.asList(
+                binding.testDrivePlan,
+                binding.starterWeeklyPlan,
+                binding.starterMonthlyPlan,
+                binding.proWeeklyPlan,
+                binding.proMonthlyPlan
+        );
+        for (CardView card : planCards) {
+            card.setClickable(false);
+            card.setAlpha(0.5f); // Visually indicate disabled state
+        }
+    }
+
+    private void enableAllInteractiveElements() {
+        List<RelativeLayout> payButtons = Arrays.asList(
+                binding.initiateTestDrivePay,
+                binding.initiateStarterPay,
+                binding.initiateProPay
+        );
+        for (RelativeLayout button : payButtons) {
+            button.setClickable(true);
+        }
+        List<CardView> planCards = Arrays.asList(
+                binding.testDrivePlan,
+                binding.starterWeeklyPlan,
+                binding.starterMonthlyPlan,
+                binding.proWeeklyPlan,
+                binding.proMonthlyPlan
+        );
+        for (CardView card : planCards) {
+            card.setClickable(true);
+            card.setAlpha(1.0f); // Restore normal appearance
+        }
     }
 
     @Override
