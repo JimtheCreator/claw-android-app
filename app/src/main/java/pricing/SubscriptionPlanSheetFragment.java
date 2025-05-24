@@ -29,8 +29,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import bottomsheets.PlanChangeWarningBottomSheetFragment;
 import models.NativeCheckoutResponse;
 import models.Plan;
+import models.User;
 import viewmodels.stripe_payments.SubscriptionViewModel;
 
 public class SubscriptionPlanSheetFragment extends BottomSheetDialogFragment {
@@ -39,12 +41,14 @@ public class SubscriptionPlanSheetFragment extends BottomSheetDialogFragment {
     private PaymentSheet paymentSheet;
     private ProgressBar activeProgressBar;
     private TextView buttonText;
+    private static final String TAG = "SubscriptionPlanSheetFragment";
     private RelativeLayout initiatedPayButton;
     private ProgressBar testDriveProgressBar, starterProgressBar, proProgressBar;
     private TextView getTestDrivePlan, getStarterPlan, getProPlan;
     private final Map<CardView, RadioButton> planCardToRadioMap = new HashMap<>();
     private final Map<CardView, RelativeLayout> planCardToRadioHolderMap = new HashMap<>();
     private CardView currentlySelectedCard = null;
+    private User currentUser; // Store the user data here
 
     public static SubscriptionPlanSheetFragment newInstance() {
         Bundle args = new Bundle();
@@ -64,6 +68,14 @@ public class SubscriptionPlanSheetFragment extends BottomSheetDialogFragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         viewModel = new ViewModelProvider(this).get(SubscriptionViewModel.class);
+
+        // Observe the LiveData
+        viewModel.getCurrentUser().observe(getViewLifecycleOwner(), user -> {
+            if (user != null) {
+                currentUser = user; // Update the stored user when it changes
+            }
+        });
+
         setupPlanCardMappings();
         paymentSheet = new PaymentSheet(this, this::onPaymentSheetResult);
 
@@ -79,38 +91,60 @@ public class SubscriptionPlanSheetFragment extends BottomSheetDialogFragment {
         observeViewModel();
     }
 
+    // In SubscriptionPlanSheetFragment.java, update setupClickListeners()
     private void setupClickListeners() {
-        // Test Drive Pay Button
         binding.initiateTestDrivePay.setOnClickListener(v -> {
-            resetState();
-            activeProgressBar = testDriveProgressBar;
-            buttonText = getTestDrivePlan;
-            initiatedPayButton = binding.initiateTestDrivePay;
-            initiatedPayButton.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.grey_rounded_view));
-            buttonText.setVisibility(View.GONE);
-            activeProgressBar.setVisibility(View.VISIBLE);
-            selectPlanCard(binding.testDrivePlan);
-            disableAllInteractiveElements();
+            if (currentUser != null){
+                User user = currentUser;
+                boolean shouldShowWarning = (user.isUserPaid() || !"free".equals(user.getSubscriptionType()));
+                resetState();
+                activeProgressBar = testDriveProgressBar;
+                buttonText = getTestDrivePlan;
+                initiatedPayButton = binding.initiateTestDrivePay;
+                initiatedPayButton.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.grey_rounded_view));
+                buttonText.setVisibility(View.GONE);
+                activeProgressBar.setVisibility(View.VISIBLE);
+                selectPlanCard(binding.testDrivePlan);
+                disableAllInteractiveElements();
 
-            if (viewModel.testDrivePlanLiveData.getValue() != null) {
-                viewModel.selectPlan(viewModel.testDrivePlanLiveData.getValue().getId());
-                viewModel.initiatePaymentSheetFlow();
+                if (viewModel.testDrivePlanLiveData.getValue() != null) {
+                    String selectedPlanId = viewModel.testDrivePlanLiveData.getValue().getId();
+                    viewModel.selectPlan(selectedPlanId);
+                    if (shouldShowWarning) {
+                        String changeType = viewModel.getChangeType(selectedPlanId);
+                        PlanChangeWarningBottomSheetFragment dialog = PlanChangeWarningBottomSheetFragment.newInstance(changeType);
+                        dialog.setOnConfirmListener(() -> viewModel.initiatePaymentSheetFlow());
+                        dialog.show(getChildFragmentManager(), "warning");
+                    } else {
+                        viewModel.initiatePaymentSheetFlow();
+                    }
+                }
             }
         });
 
-        // Starter Plans Pay Button
         binding.initiateStarterPay.setOnClickListener(v -> {
             List<Plan> starterPlans = viewModel.starterPlansLiveData.getValue();
+            User user = viewModel.getCurrentUser().getValue();
+            boolean shouldShowWarning = user != null && (user.isUserPaid() || !"free".equals(user.getSubscriptionType()));
             if (starterPlans != null) {
+                String selectedPlanId;
                 if (starterPlans.size() == 1) {
                     Plan plan = starterPlans.get(0);
                     viewModel.selectPlan(plan.getId());
+                    selectedPlanId = plan.getId();
                     if (plan.getType().equals("starter_weekly")) {
                         selectPlanCard(binding.starterWeeklyPlan);
-                    } else if (plan.getType().equals("starter_monthly")) {
+                    } else {
                         selectPlanCard(binding.starterMonthlyPlan);
                     }
-
+                } else {
+                    selectedPlanId = viewModel.selectedPlanId.getValue();
+                    if (selectedPlanId == null || !starterPlans.stream().anyMatch(p -> p.getId().equals(selectedPlanId))) {
+                        Toast.makeText(getContext(), "Please select a Starter plan.", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                }
+                Runnable proceed = () -> {
                     resetState();
                     activeProgressBar = starterProgressBar;
                     buttonText = getStarterPlan;
@@ -120,38 +154,52 @@ public class SubscriptionPlanSheetFragment extends BottomSheetDialogFragment {
                     activeProgressBar.setVisibility(View.VISIBLE);
                     disableAllInteractiveElements();
                     viewModel.initiatePaymentSheetFlow();
+                };
+
+                String currentPlan = user != null ? user.getSubscriptionType() : "free";
+                String selectedPlanType = viewModel.getPlanTypeFromId(selectedPlanId);
+                Log.d(TAG, "Current Plan: " + currentPlan + ", Selected Plan Type: " + selectedPlanType + ", Selected Plan ID: " + selectedPlanId);
+                if ("pro_weekly".equals(currentPlan) && "starter_monthly".equals(selectedPlanType)) {
+                    Log.d(TAG, "Triggering special_downgrade_expensive for pro_weekly to starter_monthly");
+                    PlanChangeWarningBottomSheetFragment dialog = PlanChangeWarningBottomSheetFragment.newInstance("special_downgrade_expensive");
+                    dialog.setOnConfirmListener(proceed);
+                    dialog.show(getChildFragmentManager(), "warning");
+                } else if (shouldShowWarning) {
+                    String changeType = viewModel.getChangeType(selectedPlanId);
+                    Log.d(TAG, "Fallback changeType: " + changeType);
+                    PlanChangeWarningBottomSheetFragment dialog = PlanChangeWarningBottomSheetFragment.newInstance(changeType);
+                    dialog.setOnConfirmListener(proceed);
+                    dialog.show(getChildFragmentManager(), "warning");
                 } else {
-                    String selectedId = viewModel.selectedPlanId.getValue();
-                    if (selectedId != null && starterPlans.stream().anyMatch(p -> p.getId().equals(selectedId))) {
-                        resetState();
-                        activeProgressBar = starterProgressBar;
-                        buttonText = getStarterPlan;
-                        initiatedPayButton = binding.initiateStarterPay;
-                        initiatedPayButton.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.grey_rounded_view));
-                        buttonText.setVisibility(View.GONE);
-                        activeProgressBar.setVisibility(View.VISIBLE);
-                        disableAllInteractiveElements();
-                        viewModel.initiatePaymentSheetFlow();
-                    } else {
-                        Toast.makeText(getContext(), "Please select a Starter plan.", Toast.LENGTH_SHORT).show();
-                    }
+                    Log.d(TAG, "No warning needed, proceeding directly");
+                    proceed.run();
                 }
             }
         });
 
-        // Pro Plans Pay Button
         binding.initiateProPay.setOnClickListener(v -> {
             List<Plan> proPlans = viewModel.proPlansLiveData.getValue();
+            User user = viewModel.getCurrentUser().getValue();
+            boolean shouldShowWarning = user != null && (user.isUserPaid() || !"free".equals(user.getSubscriptionType()));
             if (proPlans != null) {
+                String selectedPlanId;
                 if (proPlans.size() == 1) {
                     Plan plan = proPlans.get(0);
                     viewModel.selectPlan(plan.getId());
+                    selectedPlanId = plan.getId();
                     if (plan.getType().equals("pro_weekly")) {
                         selectPlanCard(binding.proWeeklyPlan);
-                    } else if (plan.getType().equals("pro_monthly")) {
+                    } else {
                         selectPlanCard(binding.proMonthlyPlan);
                     }
-
+                } else {
+                    selectedPlanId = viewModel.selectedPlanId.getValue();
+                    if (selectedPlanId == null || proPlans.stream().noneMatch(p -> p.getId().equals(selectedPlanId))) {
+                        Toast.makeText(getContext(), "Please select a Pro plan.", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                }
+                Runnable proceed = () -> {
                     resetState();
                     activeProgressBar = proProgressBar;
                     buttonText = getProPlan;
@@ -161,25 +209,27 @@ public class SubscriptionPlanSheetFragment extends BottomSheetDialogFragment {
                     activeProgressBar.setVisibility(View.VISIBLE);
                     disableAllInteractiveElements();
                     viewModel.initiatePaymentSheetFlow();
+                };
+
+                String currentPlan = user != null ? user.getSubscriptionType() : "free";
+                String selectedPlanType = viewModel.getPlanTypeFromId(selectedPlanId);
+                if ("starter_monthly".equals(currentPlan) && "pro_weekly".equals(selectedPlanType)) {
+                    // Special case: starter_monthly to pro_weekly
+                    PlanChangeWarningBottomSheetFragment dialog = PlanChangeWarningBottomSheetFragment.newInstance("special_downgrade");
+                    dialog.setOnConfirmListener(proceed);
+                    dialog.show(getChildFragmentManager(), "warning");
+                } else if (shouldShowWarning) {
+                    String changeType = viewModel.getChangeType(selectedPlanId);
+                    PlanChangeWarningBottomSheetFragment dialog = PlanChangeWarningBottomSheetFragment.newInstance(changeType);
+                    dialog.setOnConfirmListener(proceed);
+                    dialog.show(getChildFragmentManager(), "warning");
                 } else {
-                    String selectedId = viewModel.selectedPlanId.getValue();
-                    if (selectedId != null && proPlans.stream().anyMatch(p -> p.getId().equals(selectedId))) {
-                        resetState();
-                        activeProgressBar = proProgressBar;
-                        buttonText = getProPlan;
-                        initiatedPayButton = binding.initiateProPay;
-                        initiatedPayButton.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.grey_rounded_view));
-                        buttonText.setVisibility(View.GONE);
-                        activeProgressBar.setVisibility(View.VISIBLE);
-                        disableAllInteractiveElements();
-                        viewModel.initiatePaymentSheetFlow();
-                    } else {
-                        Toast.makeText(getContext(), "Please select a Pro plan.", Toast.LENGTH_SHORT).show();
-                    }
+                    proceed.run();
                 }
             }
         });
     }
+
 
     private void observeViewModel() {
         viewModel.testDrivePlanLiveData.observe(getViewLifecycleOwner(), plan -> {
@@ -246,11 +296,23 @@ public class SubscriptionPlanSheetFragment extends BottomSheetDialogFragment {
         viewModel.paymentSheetParametersEvent.observe(getViewLifecycleOwner(), event -> {
             NativeCheckoutResponse response = event.getContentIfNotHandled();
             if (response != null) {
-                paymentSheet.presentWithPaymentIntent(
-                        response.getClientSecret(),
-                        new PaymentSheet.Configuration(getString(R.string.app_name),
-                                new PaymentSheet.CustomerConfiguration(response.getCustomerId(), response.getEphemeralKeySecret()))
-                );
+                if (response.isPaymentRequired()) {
+                    paymentSheet.presentWithPaymentIntent(
+                            response.getClientSecret(),
+                            new PaymentSheet.Configuration(getString(R.string.app_name),
+                                    new PaymentSheet.CustomerConfiguration(response.getCustomerId(), response.getEphemeralKeySecret()))
+                    );
+                } else if (!response.isPaymentRequired()){
+                    // No payment required, handle success directly
+                    Toast.makeText(getContext(), response.getMessage(), Toast.LENGTH_SHORT).show();
+                    enableAllInteractiveElements();
+                    if (activeProgressBar != null) activeProgressBar.setVisibility(View.GONE);
+                    if (buttonText != null) buttonText.setVisibility(View.VISIBLE);
+                    if (initiatedPayButton != null) {
+                        initiatedPayButton.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.rounded_beige));
+                    }
+                    dismiss(); // Close the sheet
+                }
             }
         });
 
@@ -419,8 +481,6 @@ public class SubscriptionPlanSheetFragment extends BottomSheetDialogFragment {
             card.setAlpha(1.0f); // Restore normal appearance
         }
     }
-
-
 
     @Override
     public void onDestroyView() {

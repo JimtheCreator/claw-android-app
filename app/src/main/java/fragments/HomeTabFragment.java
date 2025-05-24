@@ -20,6 +20,7 @@ import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Toast;
 
+import com.claw.ai.MainActivity;
 import com.claw.ai.R;
 import com.claw.ai.databinding.FragmentHomeTabBinding;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
@@ -247,6 +248,12 @@ public class HomeTabFragment extends Fragment {
 
     // Click Listeners
     private void setupClickListeners() {
+        binding.signup.setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).switchToTab(R.id.more);
+            }
+        });
+
         binding.clearKeyboardText.setOnClickListener(v ->{
             binding.searchBox.setText("");
             KeyboardQuickFunctions.showKeyboard(binding.searchBox, requireContext());
@@ -296,7 +303,6 @@ public class HomeTabFragment extends Fragment {
                 }
         );
     }
-
 
     // Helper Methods
     private DisplayMetrics getDisplayMetrics() {

@@ -1,6 +1,7 @@
 package fragments;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,28 +14,91 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.claw.ai.R;
 import com.claw.ai.databinding.FragmentMoreTabBinding;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import accounts.SignUpBottomSheet;
+import bottomsheets.DisclaimerBottomSheetFragment;
+import firebase_manager.FirebaseAuthManager;
+import models.CancellationResponseSchema;
+import models.User;
 import pricing.OnboardingPricingPageSheetFragment;
 import pricing.SubscriptionPlanSheetFragment;
 import viewmodels.google_login.AuthViewModel;
-
+import viewmodels.stripe_payments.SubscriptionViewModel;
 
 public class MoreTabFragment extends Fragment {
-
     private FragmentMoreTabBinding binding;
     private AuthViewModel authViewModel;
+    private SubscriptionViewModel subscriptionViewModel;
+    private User currentUser;
+
+    private static final Map<String, Map<String, Object>> PLAN_LIMITS = new HashMap<>() {{
+        put("free", new HashMap<>() {{
+            put("price_alerts_limit", 1);
+            put("pattern_detection_limit", 1);
+            put("watchlist_limit", 1);
+            put("market_analysis_limit", 3);
+            put("journaling_enabled", false);
+            put("video_download_limit", 0);
+        }});
+        put("test_drive", new HashMap<>() {{
+            put("price_alerts_limit", 5);
+            put("pattern_detection_limit", 2);
+            put("watchlist_limit", 1);
+            put("market_analysis_limit", 7);
+            put("journaling_enabled", false);
+            put("video_download_limit", 1);
+        }});
+        put("starter_weekly", new HashMap<>() {{
+            put("price_alerts_limit", -1);
+            put("pattern_detection_limit", 7);
+            put("watchlist_limit", 3);
+            put("market_analysis_limit", 49);
+            put("journaling_enabled", false);
+            put("video_download_limit", 0);
+        }});
+        put("starter_monthly", new HashMap<>() {{
+            put("price_alerts_limit", -1);
+            put("pattern_detection_limit", 60);
+            put("watchlist_limit", 6);
+            put("market_analysis_limit", 300);
+            put("journaling_enabled", false);
+            put("video_download_limit", 0);
+        }});
+        put("pro_weekly", new HashMap<>() {{
+            put("price_alerts_limit", -1);
+            put("pattern_detection_limit", -1);
+            put("watchlist_limit", -1);
+            put("market_analysis_limit", -1);
+            put("journaling_enabled", true);
+            put("video_download_limit", -1);
+        }});
+        put("pro_monthly", new HashMap<>() {{
+            put("price_alerts_limit", -1);
+            put("pattern_detection_limit", -1);
+            put("watchlist_limit", -1);
+            put("market_analysis_limit", -1);
+            put("journaling_enabled", true);
+            put("video_download_limit", -1);
+        }});
+    }};
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
     }
 
-
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        // Inflate the layout for this fragment
         binding = FragmentMoreTabBinding.inflate(inflater, container, false);
         return binding.getRoot();
     }
@@ -43,8 +107,8 @@ public class MoreTabFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         authViewModel = new ViewModelProvider(requireActivity()).get(AuthViewModel.class);
-        // Ensure web_client_id is correctly defined in your strings.xml
         authViewModel.initialize(requireActivity(), getString(R.string.web_client_id));
+        subscriptionViewModel = new ViewModelProvider(this).get(SubscriptionViewModel.class);
         setupObservers();
         initializeViews();
         setupClickListeners();
@@ -53,31 +117,35 @@ public class MoreTabFragment extends Fragment {
     private void setupObservers() {
         authViewModel.getAuthState().observe(getViewLifecycleOwner(), authState -> {
             AuthViewModel.LoadingContext context = authViewModel.getLoadingContext().getValue();
-
             if (authState == AuthViewModel.AuthState.LOADING) {
-                // Only show MoreTabFragment's progress bar if the loading context is not for the bottom sheet
-                if (context == AuthViewModel.LoadingContext.BOTTOM_SHEET_SIGN_UP) {
-                    showLoadingState(false); // Explicitly hide MoreTabFragment's progress bar
-                } else {
-                    // General loading (e.g., from MoreTabFragment's own sign-in button or sign-out)
-                    showLoadingState(true);
-                }
+                // Using the loading logic from your provided snippet
+                showLoadingState(context != AuthViewModel.LoadingContext.BOTTOM_SHEET_SIGN_UP);
             } else {
-                // For AUTHENTICATED, UNAUTHENTICATED, ERROR states, hide the loading progress.
                 showLoadingState(false);
                 switch (authState) {
                     case AUTHENTICATED:
                         if (isAdded() && !isStateSaved()) {
-                            // Check if this is a new user
-                            Boolean isNew = authViewModel.getIsNewUser().getValue();
-                            if (isNew != null && isNew) {
+                            Log.d("MoreTabFragment", "User is authenticated (from AuthState observer).");
+                            // Attempt to get the user directly from the ViewModel's LiveData current value
+                            User authenticatedUser = authViewModel.getCurrentUser().getValue();
+
+                            if (authenticatedUser != null) {
+                                this.currentUser = authenticatedUser; // Update the fragment's currentUser
+                                Log.d("MoreTabFragment", "User data retrieved from ViewModel: " + this.currentUser.getUuid() + ". Showing profile and updating limits.");
+
                                 showProfilePage();
-                                // Only show onboarding for new users
-                                openOnboardingPricingPage();
-                                // updateProfileUI(user); // Your existing method to populate user details
+                                updateUsageLimits(this.currentUser);
+
+                                Boolean isNew = authViewModel.getIsNewUser().getValue(); //
+                                if (isNew != null && isNew) {
+                                    openOnboardingPricingPage();
+                                }
                             } else {
-                                showProfilePage();
-                                // updateProfileUI(user); // Your existing method to populate user details
+                                // This case means AuthState is AUTHENTICATED, but getCurrentUser().getValue() is null.
+                                // This could be a timing issue where currentUser LiveData in AuthViewModel hasn't been updated yet,
+                                // or the user data is genuinely not available.
+                                Log.w("MoreTabFragment", "User is authenticated, but user data is currently null in ViewModel. Usage limits might not be updated immediately by this block.");
+                                // The authViewModel.getCurrentUser().observe block below might still pick it up if it fires later.
                             }
                         }
                         break;
@@ -85,9 +153,7 @@ public class MoreTabFragment extends Fragment {
                         showLoginPage();
                         break;
                     case ERROR:
-                        // Error message is handled by its own observer.
-                        // Ensure UI is in a reasonable state, e.g., show login page if not authenticated.
-                        if (!authViewModel.isUserSignedIn()) {
+                        if (!authViewModel.isUserSignedIn()) { //
                             showLoginPage();
                         }
                         break;
@@ -95,36 +161,195 @@ public class MoreTabFragment extends Fragment {
             }
         });
 
-//        authViewModel.getCurrentUser().observe(getViewLifecycleOwner(), user -> {
-//            if (user != null && authViewModel.getAuthState().getValue() == AuthViewModel.AuthState.AUTHENTICATED) {
-//                // Update UI with user data, ensure profile page is shown
-//                showProfilePage(); // Might be redundant if AuthState observer handles it, but good for direct user updates
-////                updateProfileUI(user); // Your existing method to populate user details
-//            }
-//        });
-
-        authViewModel.getErrorMessage().observe(getViewLifecycleOwner(), errorMessage -> {
+        authViewModel.getErrorMessage().observe(getViewLifecycleOwner(), errorMessage -> { //
             if (errorMessage != null && !errorMessage.isEmpty()) {
                 Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_LONG).show();
             }
         });
+
+        subscriptionViewModel.isSubscriptionLoading.observe(getViewLifecycleOwner(), isLoading -> { //
+            binding.profilePage.progressBar.setVisibility(isLoading ? View.VISIBLE : View.GONE);
+            binding.profilePage.cancelSubscriptionLayout.setEnabled(!isLoading);
+        });
+
+        subscriptionViewModel.cancellationResultEvent.observe(getViewLifecycleOwner(), event -> { //
+            CancellationResponseSchema response = event.getContentIfNotHandled();
+            if (response != null) {
+                Toast.makeText(requireContext(), response.isSuccess() ? response.getMessage() : "Cancellation failed: " + response.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        });
+
+        subscriptionViewModel.error.observe(getViewLifecycleOwner(), error -> { //
+            if (error != null) {
+                Toast.makeText(requireContext(), error, Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    private void updateUsageLimits(User user) {
+        if (user == null){
+            Log.d("MoreTabFragment", "User is null in updateUsageLimits.");
+
+            FirebaseAuth firebaseAuth = FirebaseAuth.getInstance();
+            FirebaseUser firebaseUser = firebaseAuth.getCurrentUser();
+
+            if (firebaseUser == null) return;
+            FirebaseDatabase.getInstance().getReference().child("users").child(firebaseUser.getUid()).addValueEventListener(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot snapshot) {
+                    User currentUser = snapshot.getValue(User.class);
+                    if (currentUser == null) return;
+                    String subscriptionType = currentUser.getSubscriptionType();
+                    Map<String, Object> limits = PLAN_LIMITS.get(subscriptionType);
+                    if (limits == null) {
+                        Toast.makeText(requireContext(), "Unknown subscription type", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    binding.profilePage.usageLimitsProgress.setVisibility(View.VISIBLE);
+                    binding.profilePage.usageLimitsList.setVisibility(View.GONE);
+
+                    authViewModel.fetchUsageCounts(currentUser.getUuid(), subscriptionType);
+
+                    authViewModel.getUsageData().observe(getViewLifecycleOwner(), usageData -> {
+                        binding.profilePage.usageLimitsProgress.setVisibility(View.GONE);
+                        binding.profilePage.usageLimitsList.setVisibility(View.VISIBLE);
+
+                        int priceAlertsLimit = (int) limits.get("price_alerts_limit");
+                        if (priceAlertsLimit == -1) {
+                            binding.profilePage.priceAlertsText.setText("Price Alerts: Unlimited");
+                        } else {
+                            binding.profilePage.priceAlertsText.setText("Price Alerts: " + usageData.getPriceAlertsUsed() + "/" + priceAlertsLimit);
+                        }
+
+                        int patternDetectionLimit = (int) limits.get("pattern_detection_limit");
+                        if (patternDetectionLimit == -1) {
+                            binding.profilePage.patternDetectionText.setText("Pattern Detections: Unlimited");
+                        } else {
+                            binding.profilePage.patternDetectionText.setText("Pattern Detections: " + usageData.getPatternDetectionUsed() + "/" + patternDetectionLimit);
+                        }
+
+                        int watchlistLimit = (int) limits.get("watchlist_limit");
+                        if (watchlistLimit == -1) {
+                            binding.profilePage.watchlistText.setText("Watchlist: Unlimited");
+                        } else {
+                            binding.profilePage.watchlistText.setText("Watchlist: " + usageData.getWatchlistUsed() + "/" + watchlistLimit);
+                        }
+
+                        int marketAnalysisLimit = (int) limits.get("market_analysis_limit");
+                        if (marketAnalysisLimit == -1) {
+                            binding.profilePage.marketAnalysisText.setText("Market Analysis: Unlimited");
+                        } else {
+                            binding.profilePage.marketAnalysisText.setText("Market Analysis: " + usageData.getMarketAnalysisUsed() + "/" + marketAnalysisLimit);
+                        }
+
+                        boolean journalingEnabled = (boolean) limits.get("journaling_enabled");
+                        binding.profilePage.journalingText.setText("Journaling: " + (journalingEnabled ? "Enabled" : "Disabled"));
+
+                        int videoDownloadLimit = (int) limits.get("video_download_limit");
+                        if (videoDownloadLimit == -1) {
+                            binding.profilePage.videoDownloadsText.setText("Video Downloads: Unlimited");
+                        } else if (videoDownloadLimit == 0) {
+                            binding.profilePage.videoDownloadsText.setText("Video Downloads: Not Available");
+                        } else {
+                            binding.profilePage.videoDownloadsText.setText("Video Downloads: " + usageData.getVideoDownloadsUsed() + "/" + videoDownloadLimit);
+                        }
+                    });
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {
+
+                }
+            });
+
+           return;
+        }
+
+        Log.d("MoreTabFragment", "User is not null in updateUsageLimits.");
+
+        String subscriptionType = user.getSubscriptionType();
+        Map<String, Object> limits = PLAN_LIMITS.get(subscriptionType);
+        if (limits == null) {
+            Toast.makeText(requireContext(), "Unknown subscription type", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        binding.profilePage.usageLimitsProgress.setVisibility(View.VISIBLE);
+        binding.profilePage.usageLimitsList.setVisibility(View.GONE);
+
+        authViewModel.fetchUsageCounts(user.getUuid(), subscriptionType);
+
+        authViewModel.getUsageData().observe(getViewLifecycleOwner(), usageData -> {
+            binding.profilePage.usageLimitsProgress.setVisibility(View.GONE);
+            binding.profilePage.usageLimitsList.setVisibility(View.VISIBLE);
+
+            int priceAlertsLimit = (int) limits.get("price_alerts_limit");
+            if (priceAlertsLimit == -1) {
+                binding.profilePage.priceAlertsText.setText("Price Alerts: Unlimited");
+            } else {
+                binding.profilePage.priceAlertsText.setText("Price Alerts: " + usageData.getPriceAlertsUsed() + "/" + priceAlertsLimit);
+            }
+
+            int patternDetectionLimit = (int) limits.get("pattern_detection_limit");
+            if (patternDetectionLimit == -1) {
+                binding.profilePage.patternDetectionText.setText("Pattern Detections: Unlimited");
+            } else {
+                binding.profilePage.patternDetectionText.setText("Pattern Detections: " + usageData.getPatternDetectionUsed() + "/" + patternDetectionLimit);
+            }
+
+            int watchlistLimit = (int) limits.get("watchlist_limit");
+            if (watchlistLimit == -1) {
+                binding.profilePage.watchlistText.setText("Watchlist: Unlimited");
+            } else {
+                binding.profilePage.watchlistText.setText("Watchlist: " + usageData.getWatchlistUsed() + "/" + watchlistLimit);
+            }
+
+            int marketAnalysisLimit = (int) limits.get("market_analysis_limit");
+            if (marketAnalysisLimit == -1) {
+                binding.profilePage.marketAnalysisText.setText("Market Analysis: Unlimited");
+            } else {
+                binding.profilePage.marketAnalysisText.setText("Market Analysis: " + usageData.getMarketAnalysisUsed() + "/" + marketAnalysisLimit);
+            }
+
+            boolean journalingEnabled = (boolean) limits.get("journaling_enabled");
+            binding.profilePage.journalingText.setText("Journaling: " + (journalingEnabled ? "Enabled" : "Disabled"));
+
+            int videoDownloadLimit = (int) limits.get("video_download_limit");
+            if (videoDownloadLimit == -1) {
+                binding.profilePage.videoDownloadsText.setText("Video Downloads: Unlimited");
+            } else if (videoDownloadLimit == 0) {
+                binding.profilePage.videoDownloadsText.setText("Video Downloads: Not Available");
+            } else {
+                binding.profilePage.videoDownloadsText.setText("Video Downloads: " + usageData.getVideoDownloadsUsed() + "/" + videoDownloadLimit);
+            }
+        });
+
     }
 
     private void showLoadingState(boolean isLoading) {
-        if (binding == null) return; // Guard against calls after onDestroyView
+        if (binding == null) return;
         if (isLoading) {
             binding.progressBar.setVisibility(View.VISIBLE);
             binding.loginPage.getRoot().setVisibility(View.GONE);
             binding.profilePage.getRoot().setVisibility(View.GONE);
         } else {
             binding.progressBar.setVisibility(View.GONE);
-            // Visibility of loginPage/profilePage will be handled by AuthState changes
         }
     }
 
+    private void showDisclaimerBottomSheet() {
+        DisclaimerBottomSheetFragment bottomSheet = DisclaimerBottomSheetFragment.newInstance();
+        bottomSheet.setOnConfirmListener(() -> {
+            subscriptionViewModel.cancelSubscription(true);
+            bottomSheet.dismiss();
+        });
+        bottomSheet.show(getParentFragmentManager(), "DisclaimerBottomSheet");
+    }
+
     private void openOnboardingPricingPage() {
-        OnboardingPricingPageSheetFragment onboardingPricingPageSheetFragment = OnboardingPricingPageSheetFragment.newInstance();
-        onboardingPricingPageSheetFragment.show(getParentFragmentManager(), onboardingPricingPageSheetFragment.getTag());
+        OnboardingPricingPageSheetFragment fragment = OnboardingPricingPageSheetFragment.newInstance();
+        fragment.show(getParentFragmentManager(), fragment.getTag());
     }
 
     private void showLoginPage() {
@@ -139,32 +364,12 @@ public class MoreTabFragment extends Fragment {
         binding.profilePage.getRoot().setVisibility(View.VISIBLE);
     }
 
-//    private void updateProfileUI(models.User user) {
-//        // Update profile UI with user data
-//        binding.profilePage.displayName.setText(user.getDisplayName());
-//        binding.profilePage.email.setText(user.getEmail());
-//
-//        // Load profile image with Glide
-//        if (user.getAvatarUrl() != null && !user.getAvatarUrl().isEmpty()) {
-//            Glide.with(this)
-//                    .load(user.getAvatarUrl())
-//                    .placeholder(R.drawable.default_avatar)
-//                    .into(binding.profilePage.profileImage);
-//        }
-//
-//        // Update subscription info
-//        binding.profilePage.subscriptionType.setText(user.getSubscriptionType());
-//    }
-
     private void setupClickListeners() {
-        // Login page click listeners
         binding.loginPage.signInWithGoogle.setOnClickListener(v -> signInWithGoogle());
         binding.loginPage.signup.setOnClickListener(v -> openSignUpBottomSheet());
-
-        // Profile page click listeners
         binding.profilePage.signOut.setOnClickListener(v -> signOut());
-
         binding.profilePage.subscribe.setOnClickListener(v -> testingPayment());
+        binding.profilePage.cancelSubscriptionLayout.setOnClickListener(v -> showDisclaimerBottomSheet());
     }
 
     private void testingPayment() {
@@ -173,7 +378,6 @@ public class MoreTabFragment extends Fragment {
     }
 
     private void signInWithGoogle() {
-        // Call the general sign-in method from MoreTabFragment
         authViewModel.signInWithGoogleFromGeneral(this);
     }
 
@@ -189,9 +393,9 @@ public class MoreTabFragment extends Fragment {
     }
 
     private void initializeViews() {
-        // Check if user is already authenticated
         if (authViewModel.isUserSignedIn()) {
             showProfilePage();
+            updateUsageLimits(authViewModel.getCurrentUser().getValue());
         } else {
             showLoginPage();
         }
@@ -200,7 +404,6 @@ public class MoreTabFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        // Clean up view binding
         binding = null;
     }
 }

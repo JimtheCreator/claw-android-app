@@ -43,7 +43,7 @@ public class CryptoRepository {
 
         // 3. Make new network request
         currentSearchCall = api.searchCrypto(query, limit);
-        currentSearchCall.enqueue(new Callback<List<Symbol>>() {
+        currentSearchCall.enqueue(new Callback<>() {
             @Override
             public void onResponse(@NonNull Call<List<Symbol>> call, @NonNull Response<List<Symbol>> response) {
                 if (response.isSuccessful() && response.body() != null) {

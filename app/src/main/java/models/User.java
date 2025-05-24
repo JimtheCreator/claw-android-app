@@ -1,6 +1,9 @@
 package models;
 
+import com.google.gson.annotations.SerializedName;
+
 public class User {
+
     private String uuid;
     private String email;
     private String firstname;

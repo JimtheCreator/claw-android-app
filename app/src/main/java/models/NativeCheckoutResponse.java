@@ -32,6 +32,10 @@ public class NativeCheckoutResponse {
 
     @SerializedName("mode")
     private String mode;
+    @SerializedName("payment_required")
+    private boolean paymentRequired;
+    @SerializedName("message")
+    private String message;
 
     // Getters
     public String getClientSecret() { return clientSecret; }
@@ -44,4 +48,6 @@ public class NativeCheckoutResponse {
     public String getSubscriptionId() { return subscriptionId; }
     public String getPlanType() { return planType; }
     public String getMode() { return mode; }
+    public boolean isPaymentRequired() { return paymentRequired; }
+    public String getMessage() { return message; }
 }

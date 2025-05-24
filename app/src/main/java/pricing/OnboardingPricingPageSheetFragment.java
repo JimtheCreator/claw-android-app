@@ -172,67 +172,24 @@ public class OnboardingPricingPageSheetFragment extends BottomSheetDialogFragmen
 
         viewModel.paymentSheetParametersEvent.observe(getViewLifecycleOwner(), event -> {
             NativeCheckoutResponse response = event.getContentIfNotHandled();
-            if (response != null && getActivity() != null && response.getClientSecret() != null && response.getIntentType() != null) {
-                try {
-                    PaymentConfiguration.init(requireActivity().getApplicationContext(), response.getPublishableKey());
-                    PaymentSheet.CustomerConfiguration customerConfig = null;
-                    if (response.getCustomerId() != null && response.getEphemeralKeySecret() != null) {
-                        customerConfig = new PaymentSheet.CustomerConfiguration(
-                                response.getCustomerId(),
-                                response.getEphemeralKeySecret()
-                        );
-                    }
-
-                    PaymentSheet.Configuration paymentSheetConfiguration = new PaymentSheet.Configuration.Builder(getString(R.string.app_name))
-                            .merchantDisplayName(getString(R.string.app_name))
-                            .customer(customerConfig)
-                            .allowsDelayedPaymentMethods(true)
-                            .build();
-                    currentPaymentClientSecret = response.getClientSecret();
-                    if (activeProgressBar != null) {
-                        activeProgressBar.setVisibility(View.VISIBLE); // Show the active progress bar
-                    }
-
-                    if (global_initiated_pay_button != null)
-                        global_initiated_pay_button.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.grey_rounded_view));
-                    if (button_text != null)
-                        button_text.setVisibility(View.GONE);
-
-
-                    if ("payment_intent".equalsIgnoreCase(response.getIntentType())) {
-                        paymentSheet.presentWithPaymentIntent(response.getClientSecret(), paymentSheetConfiguration);
-                    } else if ("setup_intent".equalsIgnoreCase(response.getIntentType())) {
-                        paymentSheet.presentWithSetupIntent(response.getClientSecret(), paymentSheetConfiguration);
-                    } else {
-                        Log.e(TAG, "Unknown intent_type: " + response.getIntentType());
-                        Toast.makeText(getContext(), "Payment configuration error.", Toast.LENGTH_SHORT).show();
-                        viewModel.handlePaymentResult("Configuration error: Unknown intent type", false);
-                    }
-                } catch (Exception e) {
-                    Log.e(TAG, "Error preparing PaymentSheet: " + e.getMessage(), e);
-                    Toast.makeText(getContext(), "Could not start payment.", Toast.LENGTH_LONG).show();
-                    viewModel.handlePaymentResult("Preparation error: " + e.getMessage(), false);
-                    if (activeProgressBar != null) {
-                        activeProgressBar.setVisibility(View.GONE); // Hide on error
-                    }
-
-                    if (global_initiated_pay_button != null)
+            if (response != null) {
+                if (response.isPaymentRequired()) {
+                    paymentSheet.presentWithPaymentIntent(
+                            response.getClientSecret(),
+                            new PaymentSheet.Configuration(getString(R.string.app_name),
+                                    new PaymentSheet.CustomerConfiguration(response.getCustomerId(), response.getEphemeralKeySecret()))
+                    );
+                } else {
+                    // No payment required, handle success directly
+                    Toast.makeText(getContext(), response.getMessage(), Toast.LENGTH_SHORT).show();
+                    enableAllInteractiveElements();
+                    if (activeProgressBar != null) activeProgressBar.setVisibility(View.GONE);
+                    if (button_text != null) button_text.setVisibility(View.VISIBLE);
+                    if (global_initiated_pay_button != null) {
                         global_initiated_pay_button.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.rounded_beige));
-                    if (button_text != null)
-                        button_text.setVisibility(View.VISIBLE);
-
+                    }
+                    dismiss(); // Close the sheet
                 }
-            } else {
-                Toast.makeText(getContext(), "Failed to get payment details.", Toast.LENGTH_LONG).show();
-                viewModel.handlePaymentResult("Incomplete payment details", false);
-                if (activeProgressBar != null) {
-                    activeProgressBar.setVisibility(View.GONE); // Hide if response is invalid
-                }
-
-                if (global_initiated_pay_button != null)
-                    global_initiated_pay_button.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.rounded_beige));
-                if (button_text != null)
-                    button_text.setVisibility(View.VISIBLE);
             }
         });
 

@@ -1,21 +1,31 @@
 package viewmodels.google_login;
 
 import android.app.Activity;
+import android.util.Log;
 
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModel;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import firebase_manager.FirebaseAuthManager;
+import models.UsageData;
 import models.User;
+import repositories.plan_usage_limits.SupabaseRepository;
 
 public class AuthViewModel extends ViewModel {
     private final FirebaseAuthManager firebaseAuthManager;
     private final MutableLiveData<AuthState> authState = new MutableLiveData<>(AuthState.UNAUTHENTICATED);
     private final MutableLiveData<User> currentUser = new MutableLiveData<>();
+    private static final String TAG = "AuthViewModel";
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
+    private final MutableLiveData<UsageData> usageData = new MutableLiveData<>();
     private String googleWebClientIdCache;
+    private SupabaseRepository supabaseRepository;
 
     private final MutableLiveData<Boolean> isNewUser = new MutableLiveData<>(false);
 
@@ -48,6 +58,8 @@ public class AuthViewModel extends ViewModel {
         firebaseAuthManager.initialize(activity, googleWebClientId);
         if (firebaseAuthManager.isUserSignedIn()) {
             authState.setValue(AuthState.AUTHENTICATED);
+            supabaseRepository = new SupabaseRepository();
+            currentUser.setValue(firebaseAuthManager.getUserData());
         }
     }
 
@@ -73,6 +85,10 @@ public class AuthViewModel extends ViewModel {
                 loadingContext.postValue(LoadingContext.NONE); // Reset context
             }
         });
+    }
+
+    public LiveData<UsageData> getUsageData() {
+        return usageData;
     }
 
     public LiveData<User> getCurrentUser() {
@@ -139,4 +155,90 @@ public class AuthViewModel extends ViewModel {
             firebaseAuthManager.cancelAuthentication();
         }
     }
+
+    public void fetchUsageCounts(String userId, String subscriptionType) {
+        Log.d(TAG, "Method called");
+        if ("free".equals(subscriptionType)) {
+            Log.d(TAG, "Fetching free tier usage counts");
+            // Handle free tier locally
+            UsageData data = new UsageData();
+            data.setPriceAlertsUsed(0);
+            data.setPatternDetectionUsed(0);
+            data.setWatchlistUsed(0);
+            data.setMarketAnalysisUsed(0);
+            data.setVideoDownloadsUsed(0);
+            usageData.setValue(data);
+        } else {
+            Log.d(TAG, "Fetching paid tier usage counts");
+            // Fetch from Supabase via API
+            LiveData<UsageData> repoResponseLiveData = supabaseRepository.getSubscriptionLimits(userId); //
+            // Observe the LiveData returned by the repository.
+            // Since the LiveData from getSubscriptionLimits is new for each call and emits once,
+            // this observer will update usageData and then remove itself.
+            repoResponseLiveData.observeForever(new Observer<>() {
+                @Override
+                public void onChanged(UsageData dataFromRepo) {
+                    Log.d(TAG, "Fetching...");
+                    usageData.setValue(dataFromRepo);
+                    // Clean up the observer from this specific LiveData instance
+                    // to prevent potential leaks or multiple observations on the same temporary LiveData.
+                    Log.d(TAG, "Fetched...");
+                    repoResponseLiveData.removeObserver(this);
+                }
+            });
+        }
+    }
+
+    // PLAN_LIMITS as a static map (simplified; in practice, sync with backend)
+    private static final Map<String, Map<String, Object>> PLAN_LIMITS = new HashMap<>() {{
+        put("free", new HashMap<>() {{
+            put("price_alerts_limit", 1);
+            put("pattern_detection_limit", 1);
+            put("watchlist_limit", 1);
+            put("market_analysis_limit", 3);
+            put("journaling_enabled", false);
+            put("video_download_limit", 0);
+        }});
+        // Add other plans similarly...
+        put("test_drive", new HashMap<>() {{
+            put("price_alerts_limit", 5);
+            put("pattern_detection_limit", 2);
+            put("watchlist_limit", 1);
+            put("market_analysis_limit", 7);
+            put("journaling_enabled", false);
+            put("video_download_limit", 1);
+        }});
+        put("starter_weekly", new HashMap<>() {{
+            put("price_alerts_limit", -1);
+            put("pattern_detection_limit", 7);
+            put("watchlist_limit", 3);
+            put("market_analysis_limit", 49);
+            put("journaling_enabled", false);
+            put("video_download_limit", 0);
+        }});
+        put("starter_monthly", new HashMap<>() {{
+            put("price_alerts_limit", -1);
+            put("pattern_detection_limit", 60);
+            put("watchlist_limit", 6);
+            put("market_analysis_limit", 300);
+            put("journaling_enabled", false);
+            put("video_download_limit", 0);
+        }});
+        put("pro_weekly", new HashMap<>() {{
+            put("price_alerts_limit", -1);
+            put("pattern_detection_limit", -1);
+            put("watchlist_limit", -1);
+            put("market_analysis_limit", -1);
+            put("journaling_enabled", true);
+            put("video_download_limit", -1);
+        }});
+        put("pro_monthly", new HashMap<>() {{
+            put("price_alerts_limit", -1);
+            put("pattern_detection_limit", -1);
+            put("watchlist_limit", -1);
+            put("market_analysis_limit", -1);
+            put("journaling_enabled", true);
+            put("video_download_limit", -1);
+        }});
+    }};
 }

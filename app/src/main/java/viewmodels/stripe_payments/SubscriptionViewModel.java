@@ -1,39 +1,19 @@
 package viewmodels.stripe_payments;
 
+import repositories.plan_usage_limits.SupabaseRepository;
+
 import android.app.Application;
 import android.icu.text.NumberFormat;
 import android.icu.util.Currency;
 import android.util.Log;
-import androidx.annotation.NonNull;
-import androidx.lifecycle.AndroidViewModel;
-import androidx.lifecycle.LiveData;
-import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.Transformations;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.stream.Collectors;
-import models.NativeCheckoutResponse;
-import models.Plan;
-import models.StripePrice;
-import models.User;
-import repositories.stripe_payments.StripeRepository;
-import android.app.Application;
-import android.icu.text.NumberFormat;
-import android.icu.util.Currency;
-import android.util.Log;
+
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MediatorLiveData;
 import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Observer;
+
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -41,32 +21,39 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+
+import models.CancellationResponseSchema;
 import models.NativeCheckoutResponse;
 import models.Plan;
 import models.StripePrice;
+import models.UsageData;
 import models.User;
 import repositories.stripe_payments.StripeRepository;
 
 public class SubscriptionViewModel extends AndroidViewModel {
     private static final String TAG = "SubscriptionViewModel";
     private final StripeRepository stripeRepository;
-    private final MutableLiveData<User> currentUser = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> _isLoading = new MutableLiveData<>(false);
+    public LiveData<Boolean> isLoading = _isLoading;
+
+    private final MutableLiveData<Boolean> _isSubscriptionLoading = new MutableLiveData<>(false);
+    public LiveData<Boolean> isSubscriptionLoading = _isSubscriptionLoading;
+    private final MutableLiveData<String> _error = new MutableLiveData<>();
+    public LiveData<String> error = _error;
     private final MutableLiveData<List<StripePrice>> rawPricesLiveData = new MutableLiveData<>();
     public final LiveData<Plan> testDrivePlanLiveData;
     public final LiveData<List<Plan>> starterPlansLiveData;
     public final LiveData<List<Plan>> proPlansLiveData;
     private final MutableLiveData<String> _selectedPlanId = new MutableLiveData<>();
     public final LiveData<String> selectedPlanId = _selectedPlanId;
-
-    private final MutableLiveData<Boolean> _isLoading = new MutableLiveData<>(false);
-    public final LiveData<Boolean> isLoading = _isLoading;
-    private final MutableLiveData<String> _error = new MutableLiveData<>();
-    public final LiveData<String> error = _error;
     private final MutableLiveData<Event<NativeCheckoutResponse>> _paymentSheetParametersEvent = new MutableLiveData<>();
     public final LiveData<Event<NativeCheckoutResponse>> paymentSheetParametersEvent = _paymentSheetParametersEvent;
     private final MutableLiveData<Event<String>> _paymentResultEvent = new MutableLiveData<>();
@@ -78,9 +65,20 @@ public class SubscriptionViewModel extends AndroidViewModel {
 
     private final FirebaseAuth firebaseAuth;
 
+    private final MutableLiveData<User> currentUser = new MutableLiveData<>();
+
+    private final MutableLiveData<Event<CancellationResponseSchema>> _cancellationResultEvent = new MutableLiveData<>();
+    public final LiveData<Event<CancellationResponseSchema>> cancellationResultEvent = _cancellationResultEvent;
+
+    public LiveData<User> getCurrentUser() {
+        return currentUser;
+    }
+
     public SubscriptionViewModel(@NonNull Application application) {
         super(application);
         stripeRepository = new StripeRepository();
+        // Initialize repository (e.g., via dependency injection)
+
         firebaseAuth = FirebaseAuth.getInstance();
         fetchUserData();
         fetchPricesFromRepository();
@@ -88,6 +86,26 @@ public class SubscriptionViewModel extends AndroidViewModel {
         testDrivePlanLiveData = createPlanLiveData(this::filterAndMapTestDrive);
         starterPlansLiveData = createPlanLiveData(this::filterAndMapStarterPlans);
         proPlansLiveData = createPlanLiveData(this::filterAndMapProPlans);
+    }
+
+
+    public void cancelSubscription(Boolean cancelAtPeriodEnd) {
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser == null) {
+            _error.setValue("User not signed in.");
+            return;
+        }
+
+        String userId = currentUser.getUid();
+        _isSubscriptionLoading.setValue(true);
+        stripeRepository.cancelSubscription(userId, null, cancelAtPeriodEnd).observeForever(response -> {
+            _isSubscriptionLoading.setValue(false);
+            if (response != null) {
+                _cancellationResultEvent.setValue(new Event<>(response));
+            } else {
+                _error.setValue("Failed to cancel subscription.");
+            }
+        });
     }
 
     private <T> LiveData<T> createPlanLiveData(BiFunction<List<StripePrice>, User, T> mapper) {
@@ -247,9 +265,10 @@ public class SubscriptionViewModel extends AndroidViewModel {
         _isLoading.setValue(true);
         stripeRepository.getPaymentSheetParameters(userId, planId).observeForever(response -> {
             _isLoading.setValue(false);
-            if (response != null && response.getClientSecret() != null) {
+            if (response != null) {
                 _paymentSheetParametersEvent.setValue(new Event<>(response));
             } else {
+                _isLoading.setValue(false);
                 _error.setValue("Failed to initiate payment.");
             }
         });
@@ -296,6 +315,81 @@ public class SubscriptionViewModel extends AndroidViewModel {
         }
     }
 
+    // In SubscriptionViewModel.java, add these methods
+    public String getChangeType(String selectedPlanId) {
+        String currentPlan = currentUser.getValue() != null ? currentUser.getValue().getSubscriptionType() : "free";
+        if (currentPlan == null) currentPlan = "free";
+        String selectedPlanType = getPlanTypeFromId(selectedPlanId);
+
+        // Get price details
+        List<StripePrice> prices = rawPricesLiveData.getValue();
+        long currentPlanAmount = 0;
+        long selectedPlanAmount = 0;
+        if (prices != null) {
+            for (StripePrice price : prices) {
+                if (price.getPlanType().equals(currentPlan)) {
+                    currentPlanAmount = price.getAmount();
+                }
+                if (price.getId().equals(selectedPlanId)) {
+                    selectedPlanAmount = price.getAmount();
+                }
+            }
+        }
+
+        int currentRank = getPlanRank(currentPlan);
+        int selectedRank = getPlanRank(selectedPlanType);
+
+        // Special case: pro_weekly to starter_monthly
+        if ("pro_weekly".equals(currentPlan) && "starter_monthly".equals(selectedPlanType)) {
+            return "special_downgrade_expensive";
+        }
+        // Special case: starter_monthly to pro_weekly
+        else if ("starter_monthly".equals(currentPlan) && "pro_weekly".equals(selectedPlanType)) {
+            return "special_upgrade";
+        } else {
+            // General logic considering rank and price
+            if (selectedRank > currentRank && selectedPlanAmount >= currentPlanAmount) {
+                return "upgrade";
+            } else if (selectedRank < currentRank || selectedPlanAmount < currentPlanAmount) {
+                return "downgrade";
+            } else {
+                return "lateral";
+            }
+
+        }
+    }
+
+    private int getPlanRank(String planType) {
+        switch (planType != null ? planType : "free") {
+            case "free":
+                return 0;
+            case "test_drive":
+                return 1;
+            case "starter_weekly":
+                return 2;
+            case "starter_monthly":
+                return 3;
+            case "pro_weekly":
+                return 4;
+            case "pro_monthly":
+                return 5;
+            default:
+                return 0; // Default to free if unknown
+        }
+    }
+
+    public String getPlanTypeFromId(String planId) {
+        List<StripePrice> prices = rawPricesLiveData.getValue();
+        if (prices != null) {
+            for (StripePrice price : prices) {
+                if (price.getId().equals(planId)) {
+                    return price.getPlanType();
+                }
+            }
+        }
+        return "free"; // Fallback
+    }
+
     public LiveData<String> getSubscriptionStatus() {
         return subscriptionStatus;
     }
@@ -318,4 +412,5 @@ public class SubscriptionViewModel extends AndroidViewModel {
             return content;
         }
     }
+
 }
