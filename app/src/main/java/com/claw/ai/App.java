@@ -5,8 +5,7 @@ import android.app.Application;
 import java.util.Arrays;
 import java.util.List;
 
-import repositories.CryptoRepository;
-import timber.log.Timber;
+import repositories.SymbolRepository;
 
 public class App extends Application {
 
@@ -19,7 +18,7 @@ public class App extends Application {
     private void preloadPopularSearches() {
         new Thread(() -> {
             List<String> popular = Arrays.asList("BTC", "ETH", "BNB");
-            CryptoRepository repo = new CryptoRepository();
+            SymbolRepository repo = new SymbolRepository();
             for (String term : popular) {
                 repo.searchCrypto(term, 10);
             }

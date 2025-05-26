@@ -8,15 +8,26 @@ import androidx.lifecycle.ViewModel;
 import java.util.ArrayList;
 import java.util.List;
 
+import backend.requests.AddWatchlistRequest;
+import backend.results.WatchlistUpdateResult;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.schedulers.Schedulers;
 import models.Symbol;
-import repositories.CryptoRepository;
+import repositories.SymbolRepository;
 import retrofit2.Call;
+import timber.log.Timber;
 
 
 /**
  * ViewModel for handling cryptocurrency data operations and exposing data to the UI.
  */
 public class HomeViewModel extends ViewModel {
+    private final MutableLiveData<WatchlistUpdateResult> watchlistUpdateResult = new MutableLiveData<>();
+
+    public LiveData<WatchlistUpdateResult> getWatchlistUpdateResult() {
+        return watchlistUpdateResult;
+    }
+
     private final MutableLiveData<List<Symbol>> cryptoList = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
@@ -28,12 +39,14 @@ public class HomeViewModel extends ViewModel {
 
     // Add these class variables
     private Call<List<Symbol>> currentSearchCall;
-    private final CryptoRepository repository; // Add this
+    private final SymbolRepository repository; // Add this
 
     private final MutableLiveData<List<Symbol>> searchResults = new MutableLiveData<>();
 
+    private final MutableLiveData<List<Symbol>> watchlist = new MutableLiveData<>();
+
     public HomeViewModel() {
-        repository = new CryptoRepository();
+        repository = new SymbolRepository();
     }
 
     private List<Symbol> getPaginatedData() {
@@ -87,6 +100,45 @@ public class HomeViewModel extends ViewModel {
 
         liveData.observeForever(observer);
     }
+
+    public void addToWatchlist(String userID, Symbol symbol, String source) {
+        AddWatchlistRequest request = new AddWatchlistRequest(
+                userID,
+                symbol.getSymbol(),
+                symbol.getBaseCurrency(),
+                symbol.getAsset(),
+                source
+        );
+
+        repository.addToWatchlist(request)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        () -> {
+                            Timber.d("Added %s to watchlist", symbol.getSymbol());
+                            watchlistUpdateResult.setValue(new WatchlistUpdateResult(symbol, true, true, null));
+                        },
+                        throwable -> {
+                            Timber.e(throwable, "Failed to add %s to watchlist", symbol.getSymbol());
+                            watchlistUpdateResult.setValue(new WatchlistUpdateResult(symbol, false, true, throwable));
+                        }
+                );
+    }
+
+    public void removeFromWatchlist(String userID, String symbol) {
+        repository.removeFromWatchlist(userID, symbol)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        () -> {
+                            Timber.d("Removed %s from watchlist", symbol);
+                        },
+                        throwable -> {
+                            Timber.e(throwable, "Failed to remove %s from watchlist", symbol);
+                        }
+                );
+    }
+
 
 
     // LiveData getters

@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.google.gms.google.services)
     alias(libs.plugins.google.firebase.crashlytics)
+    alias(libs.plugins.kotlin.android)
 }
 
 android {
@@ -37,6 +38,9 @@ android {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
+    kotlinOptions {
+        jvmTarget = '11'
+    }
 }
 
 dependencies {
@@ -53,6 +57,7 @@ dependencies {
     implementation libs.googleid
     implementation libs.firebase.crashlytics
     implementation libs.firebase.database
+    implementation libs.core.ktx
 
 
     testImplementation libs.junit
@@ -81,4 +86,9 @@ dependencies {
 
     //Timber for Logs
     implementation libs.timber
+
+    //RXJAVA
+    implementation libs.rxandroid
+    implementation libs.rxjava
+    implementation libs.adapter.rxjava2
 }

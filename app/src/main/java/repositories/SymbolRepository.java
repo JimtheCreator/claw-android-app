@@ -11,17 +11,19 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import backend.SymbolMarketEndpoints;
 import backend.MainClient;
+import backend.requests.AddWatchlistRequest;
+import io.reactivex.Completable;
 import models.Symbol;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class CryptoRepository {
+public class SymbolRepository {
     private final SymbolMarketEndpoints api;
     private final Map<String, List<Symbol>> searchCache = new ConcurrentHashMap<>();
     private Call<List<Symbol>> currentSearchCall;
 
-    public CryptoRepository() {
+    public SymbolRepository() {
         api = MainClient.getInstance().create(SymbolMarketEndpoints.class);
     }
 
@@ -62,5 +64,14 @@ public class CryptoRepository {
 
         return liveData;
     }
+
+    public Completable addToWatchlist(AddWatchlistRequest request) {
+        return api.addToWatchlist(request);
+    }
+
+    public Completable removeFromWatchlist(String user_id, String symbol) {
+        return api.removeFromWatchlist(user_id, symbol);
+    }
+
 }
 

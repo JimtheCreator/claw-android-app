@@ -27,6 +27,19 @@ public class Symbol {
     private double _24hVolume;
 
     private List<Double> sparkline;
+    private boolean isInWatchlist;
+
+    public Symbol(String symbol, String asset, String pair, String baseCurrency, double currentPrice, double _24hChange, double _24hVolume, List<Double> sparkline, boolean isInWatchlist) {
+        this.symbol = symbol;
+        this.asset = asset;
+        this.pair = pair;
+        this.baseCurrency = baseCurrency;
+        this.currentPrice = currentPrice;
+        this._24hChange = _24hChange;
+        this._24hVolume = _24hVolume;
+        this.sparkline = sparkline;
+        this.isInWatchlist = false;
+    }
 
     // Getters
     public String getSymbol() { return symbol; }
@@ -37,5 +50,13 @@ public class Symbol {
     public double get_24hChange() { return _24hChange; }
     public double get_24hVolume() { return _24hVolume; }
     public List<Double> getSparkline() { return sparkline; }
+
+    public boolean isInWatchlist() {
+        return isInWatchlist;
+    }
+
+    public void setInWatchlist(boolean inWatchlist) {
+        this.isInWatchlist = inWatchlist;
+    }
 }
 

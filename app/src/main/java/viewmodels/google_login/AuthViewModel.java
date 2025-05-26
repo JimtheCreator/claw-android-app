@@ -172,6 +172,8 @@ public class AuthViewModel extends ViewModel {
             Log.d(TAG, "Fetching paid tier usage counts");
             // Fetch from Supabase via API
             LiveData<UsageData> repoResponseLiveData = supabaseRepository.getSubscriptionLimits(userId); //
+
+            if (repoResponseLiveData == null) return;
             // Observe the LiveData returned by the repository.
             // Since the LiveData from getSubscriptionLimits is new for each call and emits once,
             // this observer will update usageData and then remove itself.

@@ -15,6 +15,7 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <RelativeLayout
+            android:id="@+id/add_to_watchlist"
             android:layout_gravity="center_vertical"
             android:background="@drawable/cool_black_circle"
             android:layout_width="20dp"
@@ -27,6 +28,16 @@
                 android:src="@drawable/beige_add"/>
 
         </RelativeLayout>
+
+        <!-- symbol_watchlist_item.xml (partial) -->
+        <ImageView
+            android:visibility="gone"
+            android:id="@+id/remove_from_watchlist"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_trash"
+            android:contentDescription="Remove from watchlist"
+            android:layout_gravity="center_vertical" />
 
         <LinearLayout
             android:layout_marginStart="15dp"
@@ -58,15 +69,6 @@
 
     </LinearLayout>
 
-    <!-- Chart -->
-    <com.github.mikephil.charting.charts.LineChart
-        android:id="@+id/lineChart"
-        android:layout_width="95dp"
-        android:layout_height="wrap_content"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/price_group"
-        app:layout_constraintTop_toTopOf="parent" />
-
     <!-- Price/Change Group -->
     <LinearLayout
         android:id="@+id/price_group"
@@ -96,28 +98,6 @@
                 android:textColor="@color/text_primary"
                 android:textSize="16sp" />
 
-            <RelativeLayout
-                android:visibility="gone"
-                android:id="@+id/changeBox"
-                android:layout_width="70dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="1.5dp"
-                android:background="@drawable/red_box">
-
-                <TextView
-                    android:id="@+id/textViewChange"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_alignParentEnd="true"
-                    android:layout_centerVertical="true"
-                    android:layout_marginTop="1.5dp"
-                    android:layout_marginEnd="5dp"
-                    android:layout_marginBottom="1.5dp"
-                    android:fontFamily="@font/sf_pro_text_regular"
-                    android:text="-11.00"
-                    android:textColor="@color/text_primary" />
-            </RelativeLayout>
-
 
             <TextView
                 android:id="@+id/percentage_price_change"
@@ -125,7 +105,6 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/sanfrans__semibold"
                 android:maxLines="1"
-                android:visibility="gone"
                 android:textSize="16sp" />
 
         </LinearLayout>

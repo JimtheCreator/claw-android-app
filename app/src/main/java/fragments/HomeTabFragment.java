@@ -24,16 +24,15 @@ import com.claw.ai.MainActivity;
 import com.claw.ai.R;
 import com.claw.ai.databinding.FragmentHomeTabBinding;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
-import com.google.android.material.tabs.TabLayoutMediator;
 
 import java.util.ArrayList;
 import java.util.List;
 
 
-import adapters.CryptosAdapter;
+import adapters.SymbolAdapter;
 import animations.BounceEdgeEffectFactory;
 import animations.MotionAnimation;
-import home_tabs.TabPagerAdapter;
+import model_interfaces.OnWatchlistActionListener;
 import models.Symbol;
 import space.SpacebetweenItems;
 import timber.log.Timber;
@@ -61,7 +60,7 @@ public class HomeTabFragment extends Fragment {
     int collapsed_state_tag = 0;
 
     private List<Symbol> searchedSymbolList;
-    private CryptosAdapter searchedCryptosAdapter;
+    private SymbolAdapter searchedSymbolAdapter, watchlistAdapter;
 
     private DisplayMetrics metrics;
     private AuthViewModel authViewModel;
@@ -96,7 +95,22 @@ public class HomeTabFragment extends Fragment {
 
         searchedSymbolList = new ArrayList<>();
 
-        searchedCryptosAdapter = new CryptosAdapter(requireContext(), searchedSymbolList, true);
+        searchedSymbolAdapter = new SymbolAdapter(
+                getContext(),
+                searchedSymbolList,
+                true,  // isSearchAdapter
+                new OnWatchlistActionListener() {
+                    @Override
+                    public void onAddToWatchlist(String user_id, Symbol symbol, String source) {
+                        homeViewModel.addToWatchlist(user_id, symbol,source);
+                    }
+
+                    @Override
+                    public void onRemoveFromWatchlist(String user_id, String symbol) {
+                        homeViewModel.removeFromWatchlist(user_id, symbol);
+                    }
+                }
+        );
 
         homeViewModel = new ViewModelProvider(this).get(HomeViewModel.class);
         binding.dateText.setText(DateUtils.getFormattedDate());
@@ -118,7 +132,6 @@ public class HomeTabFragment extends Fragment {
             }
             return false;
         });
-
     }
 
     @Override
@@ -284,7 +297,7 @@ public class HomeTabFragment extends Fragment {
             binding.searchBox.setText("");
             // Clear search results
             searchedSymbolList.clear();
-            searchedCryptosAdapter.notifyDataSetChanged();
+            searchedSymbolAdapter.notifyDataSetChanged();
             searchBarStateBeforeClicked();
         } else {
             requireActivity().finishAffinity();
@@ -316,11 +329,11 @@ public class HomeTabFragment extends Fragment {
      * Initializes the RecyclerView that displays the search results for cryptocurrencies.
      *
      * <p>This method sets up a vertically scrolling list using {@link LinearLayoutManager},
-     * attaches an instance of {@link CryptosAdapter} to provide the data and views,
+     * attaches an instance of {@link SymbolAdapter} to provide the data and views,
      * and applies a custom {@link BounceEdgeEffectFactory} to give the RecyclerView
      * an iOS-style bouncy overscroll effect.</p>
      *
-     * @see CryptosAdapter
+     * @see SymbolAdapter
      * @see BounceEdgeEffectFactory
      */
     private void setupSearchedCryptoList() {
@@ -329,7 +342,7 @@ public class HomeTabFragment extends Fragment {
 
         binding.searchedCryptosList.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.searchedCryptosList.setHasFixedSize(true);
-        binding.searchedCryptosList.setAdapter(searchedCryptosAdapter);
+        binding.searchedCryptosList.setAdapter(searchedSymbolAdapter);
         binding.searchedCryptosList.addItemDecoration(new SpacebetweenItems(gap, thick, ContextCompat.getColor(requireContext(), R.color.searchbar_colour)));
         binding.searchedCryptosList.setEdgeEffectFactory(new BounceEdgeEffectFactory(requireContext()));
         binding.searchedCryptosList.setNestedScrollingEnabled(false);
@@ -377,7 +390,7 @@ public class HomeTabFragment extends Fragment {
     private void clearSearch() {
         showLoading(false);
         searchedSymbolList.clear();
-        searchedCryptosAdapter.notifyDataSetChanged();
+        searchedSymbolAdapter.notifyDataSetChanged();
     }
 
     // Update setupObservers to handle both lists separately
@@ -397,7 +410,7 @@ public class HomeTabFragment extends Fragment {
                 binding.emptySearchState.setVisibility(View.GONE);
                 binding.searchedCryptosList.setVisibility(View.VISIBLE);
                 // Update adapter data
-                searchedCryptosAdapter.setData(results);
+                searchedSymbolAdapter.setData(results);
             }
         });
 
@@ -432,11 +445,22 @@ public class HomeTabFragment extends Fragment {
     private void showNoSymbolWatchlist() {
         binding.whenNotSignedInWatchlistLayout.setVisibility(View.VISIBLE);
         binding.symbolWatchlistRecyclerview.setVisibility(View.GONE);
+
     }
 
     private void showSymbolWatchlist() {
         binding.whenNotSignedInWatchlistLayout.setVisibility(View.GONE);
         binding.symbolWatchlistRecyclerview.setVisibility(View.VISIBLE);
+
+        // Initialize watchlist adapter
+//        watchlistAdapter = new SymbolAdapter(requireContext(), new ArrayList<>(), false, symbol -> {
+//            homeViewModel.removeFromWatchlist(symbol);
+//        });
+
+        binding.symbolWatchlistRecyclerview.setLayoutManager(new LinearLayoutManager(requireContext()));
+        binding.symbolWatchlistRecyclerview.setAdapter(watchlistAdapter);
+        binding.symbolWatchlistRecyclerview.addItemDecoration(new SpacebetweenItems(30, 1.4, ContextCompat.getColor(requireContext(), R.color.searchbar_colour)));
+        binding.symbolWatchlistRecyclerview.setEdgeEffectFactory(new BounceEdgeEffectFactory(requireContext()));
 
         loadSymbolWatchListFromServer();
     }
@@ -444,6 +468,7 @@ public class HomeTabFragment extends Fragment {
     private void loadSymbolWatchListFromServer() {
 
     }
+
 
     private void showErrorToast(String message) {
         if (getContext() != null && message != null && !message.isEmpty()) {
