@@ -23,6 +23,8 @@ public class SupabaseRepository {
     }
 
     public LiveData<UsageData> getSubscriptionLimits(String userId) {
+        if (userId == null || userId.isEmpty()) return null;
+
         MutableLiveData<UsageData> usageDataLiveData = new MutableLiveData<>();
         apiService.getSubscriptionLimits(userId).enqueue(new Callback<>() {
             @Override

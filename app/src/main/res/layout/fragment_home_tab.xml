@@ -41,6 +41,7 @@
         </LinearLayout>
 
         <androidx.core.widget.NestedScrollView
+            android:id="@+id/watchlist_scroll_view"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_marginTop="1.5dp"
@@ -67,7 +68,16 @@
                     android:textSize="17.5sp"
                     />
 
+                <ProgressBar
+                    android:id="@+id/home_progress_bar"
+                    android:layout_marginTop="70dp"
+                    android:layout_gravity="center"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    />
+
                 <androidx.recyclerview.widget.RecyclerView
+                    android:visibility="gone"
                     android:id="@+id/symbol_watchlist_recyclerview"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
@@ -75,6 +85,41 @@
                     android:layout_marginEnd="12dp"
                     android:overScrollMode="ifContentScrolls"
                     />
+
+                <LinearLayout
+                    android:id="@+id/emptyWatchlistLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginStart="15dp"
+                    android:layout_marginTop="35dp"
+                    android:layout_marginEnd="15dp"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="270dp"
+                        android:contentDescription="@string/empty_watchlist"
+                        android:src="@drawable/no_watchlist"
+                        />
+
+                    <Button
+                        android:id="@+id/add_symbol_button"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="50dp"
+                        android:layout_marginTop="40dp"
+                        android:layout_marginEnd="50dp"
+                        android:fontFamily="@font/sf_pro_text_medium"
+                        android:text="Add symbols"
+                        android:textColor="@color/black_shade"
+                        android:textSize="15sp"
+                        app:backgroundTint="@color/dark_beige" />
+
+                </LinearLayout>
+
 
                 <LinearLayout
                     android:id="@+id/whenNotSignedInWatchlistLayout"

@@ -2,6 +2,7 @@ package adapters;
 
 import android.content.Context;
 import android.content.Intent;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,9 +29,8 @@ import java.util.Locale;
 import market.SymbolMarketDataActivity;
 import model_interfaces.OnWatchlistActionListener;
 import models.Symbol;
-import utils.SymbolDiffCallback;
-
 import timber.log.Timber;
+import utils.SymbolDiffCallback;
 
 /**
  * A RecyclerView adapter that displays cryptocurrency symbol data, including price information
@@ -112,23 +112,30 @@ public class SymbolAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
 
                 // Conditional visibility of add/remove buttons
                 //Timber.d("Binding SearchVH for %s, isInWatchlist: %s", symbol.getSymbol(), symbol.isInWatchlist());
-                vh.binding.addToWatchlist.setVisibility(symbol.isInWatchlist() ? View.GONE : View.VISIBLE);
-                vh.binding.removeFromWatchlist.setVisibility(symbol.isInWatchlist() ? View.VISIBLE : View.GONE);
+                if (userId == null){
+                    vh.binding.addToWatchlist.setVisibility(View.GONE);
+                    vh.binding.removeFromWatchlist.setVisibility(View.GONE);
+                }else {
+                    vh.binding.addToWatchlist.setVisibility(symbol.isInWatchlist() ? View.GONE : View.VISIBLE);
+                    vh.binding.removeFromWatchlist.setVisibility(symbol.isInWatchlist() ? View.VISIBLE : View.GONE);
+                }
 
                 vh.binding.getRoot().setOnClickListener(v -> startSymbolDetail(true, symbol));
 
                 vh.binding.addToWatchlist.setOnClickListener(v -> {
-                    // The Fragment will provide the userId when calling the listener method.
+                    vh.binding.addToWatchlist.setEnabled(false); // Disable button
                     if (listener != null) {
-                        // Log.d("CLICKED", "Add to Watchlist initiated for " + symbol.getSymbol());
-                        listener.onAddToWatchlist(userId, symbol, "Binance"); // Pass null for userId, Fragment fills it
+                        Log.d("CLICKED", "Add to Watchlist initiated for " + symbol.getSymbol());
+                        listener.onAddToWatchlist(userId, symbol, "Binance");
                     }
+                    // Re-enable button when operation completes (via LiveData observation)
                 });
 
                 // vh.removeButton is from SearchViewHolder, maps to binding.removeFromWatchlist
-                vh.removeButton.setOnClickListener(v -> { // Or vh.binding.removeFromWatchlist.setOnClickListener
+                vh.removeButton.setOnClickListener(v -> {
+                    vh.binding.removeFromWatchlist.setVisibility(View.GONE);
                     if (listener != null) {
-                        // Log.d("CLICKED", "Remove from Watchlist initiated for " + symbol.getSymbol());
+                        Log.d("CLICKED", "Remove from Watchlist initiated for " + symbol.getSymbol());
                         listener.onRemoveFromWatchlist(userId, symbol.getSymbol()); // Pass null for userId
                     }
                 });
@@ -177,10 +184,11 @@ public class SymbolAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
     }
 
     private void startSymbolDetail(boolean isFromSearch, Symbol symbol) {
-        if (isFromSearch){
+        if (isFromSearch) {
             // ... (your existing implementation is fine, ensure symbol.getSparkline() is handled if null)
             Intent intent = new Intent(context, SymbolMarketDataActivity.class);
             intent.putExtra("SYMBOL", symbol.getSymbol());
+            intent.putExtra("BASE_CURRENCY", symbol.getBaseCurrency());
             intent.putExtra("ASSET", symbol.getAsset());
             intent.putExtra("CURRENT_PRICE", symbol.getCurrentPrice());
             intent.putExtra("CHANGE_24H", symbol.get_24hChange());
@@ -194,7 +202,7 @@ public class SymbolAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
                 intent.putExtra("SPARKLINE", sparklineArray);
             }
             context.startActivity(intent);
-        }else {
+        } else {
             // ... (your existing implementation is fine, ensure symbol.getSparkline() is handled if null)
             Intent intent = new Intent(context, SymbolMarketDataActivity.class);
             intent.putExtra("SYMBOL", symbol.getSymbol());

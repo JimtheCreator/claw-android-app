@@ -257,7 +257,8 @@
 
 
             <RelativeLayout
-                android:id="@+id/showBottomSectionButton"
+                android:visibility="gone"
+                android:id="@+id/add_to_watchlist"
                 android:layout_width="30dp"
                 android:layout_height="30dp"
                 android:layout_gravity="center_vertical"

@@ -35,6 +35,8 @@ import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.tradingview.lightweightcharts.api.chart.models.color.IntColor;
 import com.tradingview.lightweightcharts.api.chart.models.color.surface.SolidColor;
 import com.tradingview.lightweightcharts.api.interfaces.SeriesApi;
@@ -68,28 +70,33 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import adapters.TimeframeSpinnerAdapter;
-import backend.SymbolMarketEndpoints;
 import backend.MainClient;
+import backend.SymbolMarketEndpoints;
 import backend.WebSocketService;
 import data.remote.WebSocketServiceImpl;
 import factory.StreamViewModelFactory;
 import kotlin.Unit;
+import model_interfaces.OnWatchlistActionListener;
 import models.HistoricalState;
 import models.MarketDataEntity;
 import models.MarketDataResponse;
 import models.StreamMarketData;
+import models.Symbol;
 import okhttp3.OkHttpClient;
 import repositories.StreamRepository;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 import timber.log.Timber;
+import viewmodels.HomeViewModel;
 import viewmodels.StreamViewModel;
 
 public class SymbolMarketDataActivity extends AppCompatActivity {
     ActivitySymbolMarketDataBinding binding;
     private StreamViewModel viewModel;
     double[] sparklineArray;
+    private HomeViewModel homeViewModel;
+    OnWatchlistActionListener commonWatchlistListener;
     String asset;
     private final SimpleDateFormat apiDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US);
     String symbol;
@@ -123,12 +130,22 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
         chartsView = binding.marketChartLayout.candlesStickChart;
         apiDateFormat.setTimeZone(TimeZone.getTimeZone("UTC")); // Use UTC, not default timezone
 
+        initializeView();
         initViewModel();
         globalInit();
         onClicksAndDrags();
         setupObservers();
         time_interval_tabs();
         setupTimeframeSpinner();
+    }
+
+    private void initializeView() {
+        homeViewModel = new ViewModelProvider(this).get(HomeViewModel.class);
+    }
+
+    private String getCurrentUserId() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        return (user != null) ? user.getUid() : null;
     }
 
     private void initViewModel() {
@@ -146,6 +163,7 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
     }
 
     private void globalInit() {
+        addButtonSwitch();
         symbol = getIntent().getStringExtra("SYMBOL");
         asset = getIntent().getStringExtra("ASSET");
         sparklineArray = getIntent().getDoubleArrayExtra("SPARKLINE");
@@ -179,6 +197,34 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
             Toast.makeText(this, "Error: Invalid symbol", Toast.LENGTH_SHORT).show();
             finish(); // Close activity if symbol is null - critical error
         }
+    }
+
+    private void addButtonSwitch() {
+        // Retrieve necessary data from intent extras
+        String symbol = getIntent().getStringExtra("SYMBOL");
+        String asset = getIntent().getStringExtra("ASSET");
+        String base_currency = getIntent().getStringExtra("BASE_CURRENCY");
+        double currentPrice = getIntent().getDoubleExtra("CURRENT_PRICE", 0.0);
+        double change24h = getIntent().getDoubleExtra("CHANGE_24H", 0.0);
+        double[] sparklineArray = getIntent().getDoubleArrayExtra("SPARKLINE");
+
+        // Convert sparkline array to List<Double>
+        List<Double> sparkline = new ArrayList<>();
+        if (sparklineArray != null) {
+            for (double value : sparklineArray) {
+                sparkline.add(value);
+            }
+        }
+
+        // Load watchlist if user is logged in
+        String userId = getCurrentUserId();
+        if (userId != null) {
+            homeViewModel.loadWatchlist(userId);
+        } else {
+            binding.marketChartLayout.addToWatchlist.setVisibility(View.GONE);
+        }
+
+
     }
 
     private void onClicksAndDrags() {
@@ -237,15 +283,75 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
             binding.bottomSection.setLayoutParams(bottomParams);
         });
 
-        binding.closePage.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                finish();
+        binding.closePage.setOnClickListener(v -> finish());
+
+        binding.marketChartLayout.addToWatchlist.setOnClickListener(v -> {
+            String userId = getCurrentUserId();
+            if (userId == null) {
+                Toast.makeText(this, "Please log in to add to watchlist", Toast.LENGTH_SHORT).show();
+                return;
             }
+
+            // Retrieve necessary data from intent extras
+            String symbol = getIntent().getStringExtra("SYMBOL");
+            String asset = getIntent().getStringExtra("ASSET");
+            String base_currency = getIntent().getStringExtra("BASE_CURRENCY");
+            double currentPrice = getIntent().getDoubleExtra("CURRENT_PRICE", 0.0);
+            double change24h = getIntent().getDoubleExtra("CHANGE_24H", 0.0);
+            double[] sparklineArray = getIntent().getDoubleArrayExtra("SPARKLINE");
+
+            // Convert sparkline array to List<Double>
+            List<Double> sparkline = new ArrayList<>();
+            if (sparklineArray != null) {
+                for (double value : sparklineArray) {
+                    sparkline.add(value);
+                }
+            }
+
+            // Create Symbol object with available data (default values for missing fields)
+            Symbol symbolObj = new Symbol(
+                    symbol,
+                    asset,
+                    "", // pair (not available, set empty)
+                    base_currency,
+                    currentPrice,
+                    change24h,
+                    currentPrice, // price (same as currentPrice)
+                    change24h, // change (same as 24h change)
+                    0.0, // 24h volume (default 0)
+                    sparkline,
+                    false // isInWatchlist (default false)
+            );
+
+            // Add to watchlist
+            homeViewModel.addToWatchlist(userId, symbolObj, "Binance");
         });
     }
 
     private void setupObservers() {
+        // Observe watchlist to update button visibility
+        homeViewModel.getWatchlist().observe(this, symbols -> {
+            if (symbols != null) {
+                boolean isInWatchlist = false;
+                for (Symbol s : symbols) {
+                    if (s.getSymbol().equals(symbol)) {
+                        isInWatchlist = true;
+                        break;
+                    }
+                }
+                binding.marketChartLayout.addToWatchlist.setVisibility(
+                        isInWatchlist ? View.GONE : View.VISIBLE
+                );
+            }
+        });
+
+        // Observe errors
+        homeViewModel.getErrorMessage().observe(this, error -> {
+            if (error != null) {
+                Toast.makeText(this, error, Toast.LENGTH_SHORT).show();
+            }
+        });
+
         viewModel.getMarketDataStream().observe(this, data -> {
             if (data != null) {
                 updateUI(data);

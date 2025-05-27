@@ -58,7 +58,10 @@ public class AuthViewModel extends ViewModel {
         firebaseAuthManager.initialize(activity, googleWebClientId);
         if (firebaseAuthManager.isUserSignedIn()) {
             authState.setValue(AuthState.AUTHENTICATED);
-            supabaseRepository = new SupabaseRepository();
+            // Ensure repository exists even if user was already signed in
+            if (supabaseRepository == null) {
+                supabaseRepository = new SupabaseRepository();
+            }
             currentUser.setValue(firebaseAuthManager.getUserData());
         }
     }
@@ -76,6 +79,7 @@ public class AuthViewModel extends ViewModel {
                 isNewUser.postValue(FirebaseAuthManager.wasUserNewlyCreated());
                 authState.postValue(AuthState.AUTHENTICATED);
                 loadingContext.postValue(LoadingContext.NONE); // Reset context
+                supabaseRepository = new SupabaseRepository(); // Already in your code
             }
 
             @Override
@@ -170,6 +174,11 @@ public class AuthViewModel extends ViewModel {
             usageData.setValue(data);
         } else {
             Log.d(TAG, "Fetching paid tier usage counts");
+            if (supabaseRepository == null) {
+                supabaseRepository = new SupabaseRepository();
+                Log.d(TAG, "SupabaseRepository initialized in fetchUsageCounts");
+            }
+
             // Fetch from Supabase via API
             LiveData<UsageData> repoResponseLiveData = supabaseRepository.getSubscriptionLimits(userId); //
 

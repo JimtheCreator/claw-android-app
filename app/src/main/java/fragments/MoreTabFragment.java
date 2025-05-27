@@ -194,7 +194,8 @@ public class MoreTabFragment extends Fragment {
             FirebaseUser firebaseUser = firebaseAuth.getCurrentUser();
 
             if (firebaseUser == null) return;
-            FirebaseDatabase.getInstance().getReference().child("users").child(firebaseUser.getUid()).addValueEventListener(new ValueEventListener() {
+            FirebaseDatabase.getInstance().getReference().child("users")
+                    .child(firebaseUser.getUid()).addValueEventListener(new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot snapshot) {
                     User currentUser = snapshot.getValue(User.class);

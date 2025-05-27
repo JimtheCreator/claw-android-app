@@ -1,15 +1,6 @@
 package fragments;
 
 import android.os.Bundle;
-
-import androidx.activity.OnBackPressedCallback;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
-import androidx.fragment.app.Fragment;
-import androidx.lifecycle.ViewModelProvider;
-import androidx.recyclerview.widget.LinearLayoutManager;
-
 import android.os.Handler;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -21,6 +12,14 @@ import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+
 import com.claw.ai.MainActivity;
 import com.claw.ai.R;
 import com.claw.ai.databinding.FragmentHomeTabBinding;
@@ -31,7 +30,6 @@ import com.google.firebase.auth.FirebaseUser;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
 
 import adapters.SymbolAdapter;
 import animations.BounceEdgeEffectFactory;
@@ -89,6 +87,16 @@ public class HomeTabFragment extends Fragment {
         setupBackPressHandler();
         setupSearchedCryptoList();
         setupObservers();
+
+        if (bottomSheetBehavior != null) {
+            int peekHeight = bottomSheetBehavior.getPeekHeight();
+            binding.watchlistScrollView.setPadding(
+                    binding.watchlistScrollView.getPaddingLeft(),
+                    binding.watchlistScrollView.getPaddingTop(),
+                    binding.watchlistScrollView.getPaddingRight(),
+                    peekHeight // Add padding to the bottom
+            );
+        }
     }
 
 
@@ -126,7 +134,6 @@ public class HomeTabFragment extends Fragment {
         });
     }
 
-
     // Bottom Sheet Configuration
     private void setupBottomSheet() {
         bottomSheetBehavior = BottomSheetBehavior.from(binding.nest);
@@ -151,7 +158,7 @@ public class HomeTabFragment extends Fragment {
                     isBottomSheetExpanded = true;
                     imeKeyboardSearch(bottomSheet);
 
-                    if (half_expanded_state_tag == 0){
+                    if (half_expanded_state_tag == 0) {
                         searchBarStateWhenClicked();
                     }
 
@@ -253,7 +260,7 @@ public class HomeTabFragment extends Fragment {
             }
         });
 
-        binding.clearKeyboardText.setOnClickListener(v ->{
+        binding.clearKeyboardText.setOnClickListener(v -> {
             binding.searchBox.setText("");
             KeyboardQuickFunctions.showKeyboard(binding.searchBox, requireContext());
             clearSearch();
@@ -275,6 +282,10 @@ public class HomeTabFragment extends Fragment {
             MotionAnimation.animateSmoothScrollToBottom(binding.scrollView);
         });
 
+        binding.addSymbolButton.setOnClickListener(v -> {
+            MotionAnimation.animateSmoothScrollToTop(binding.scrollView);
+            searchBarStateWhenClicked();
+        });
 
         // Handle back press
         requireActivity().getOnBackPressedDispatcher().addCallback(requireActivity(), new OnBackPressedCallback(true) {
@@ -399,7 +410,15 @@ public class HomeTabFragment extends Fragment {
     // Update setupObservers to handle both lists separately
     private void setupObservers() {
         homeViewModel.getIsLoading().observe(getViewLifecycleOwner(), isLoading -> {
-            if (binding != null) binding.searchProgress.setVisibility(isLoading ? View.VISIBLE : View.GONE);
+            if (binding != null)
+                binding.searchProgress.setVisibility(isLoading ? View.VISIBLE : View.GONE);
+        });
+
+        homeViewModel.getIsWatchlistLoading().observe(getViewLifecycleOwner(), isWatchlistLoading -> {
+            if (binding != null) {
+                binding.homeProgressBar.setVisibility(isWatchlistLoading ? View.VISIBLE : View.GONE);
+                binding.symbolWatchlistRecyclerview.setVisibility(isWatchlistLoading ? View.GONE : View.VISIBLE);
+            }
         });
 
         homeViewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
@@ -445,14 +464,14 @@ public class HomeTabFragment extends Fragment {
             Log.d("HomeTabFragment", "RecyclerView visibility: " + binding.symbolWatchlistRecyclerview.getVisibility());
             Log.d("HomeTabFragment", "RecyclerView adapter: " + (binding.symbolWatchlistRecyclerview.getAdapter() != null ? "attached" : "null"));
 
-            updateWatchlistVisibility(symbols);
-
             if (symbols != null) {
                 watchlistAdapter.setData(symbols);
                 Log.d("HomeTabFragment", "After setData - adapter item count: " + watchlistAdapter.getItemCount());
                 watchlistAdapter.notifyDataSetChanged();
                 Log.d("HomeTabFragment", "notifyDataSetChanged() called");
             }
+
+            updateWatchlistVisibility(symbols);
 
             Log.d("HomeTabFragment", "=== END WATCHLIST OBSERVER DEBUG ===");
         });
@@ -529,6 +548,7 @@ public class HomeTabFragment extends Fragment {
     private void showNoSymbolWatchlist() {
         binding.whenNotSignedInWatchlistLayout.setVisibility(View.VISIBLE);
         binding.symbolWatchlistRecyclerview.setVisibility(View.GONE);
+        binding.emptyWatchlistLayout.setVisibility(View.GONE);
 
     }
 
@@ -536,7 +556,6 @@ public class HomeTabFragment extends Fragment {
         binding.whenNotSignedInWatchlistLayout.setVisibility(View.GONE);
         binding.symbolWatchlistRecyclerview.setVisibility(View.VISIBLE);
     }
-
 
     private void setupRecyclerViews() {
         // Searched Cryptos List
@@ -553,7 +572,6 @@ public class HomeTabFragment extends Fragment {
         binding.symbolWatchlistRecyclerview.setEdgeEffectFactory(new BounceEdgeEffectFactory(requireContext()));
         binding.symbolWatchlistRecyclerview.setNestedScrollingEnabled(false); // Important if inside ScrollView
     }
-
 
     private void initializeAdapters() {
         OnWatchlistActionListener commonWatchlistListener = new OnWatchlistActionListener() {
@@ -592,18 +610,24 @@ public class HomeTabFragment extends Fragment {
         boolean isSignedIn = (authViewModel.getAuthState().getValue() == AuthViewModel.AuthState.AUTHENTICATED && getCurrentUserId() != null);
         Log.d("HomeTabFragment", "updateWatchlistVisibility: isSignedIn=" + isSignedIn + ", watchlistSymbols=" + (watchlistSymbols != null ? watchlistSymbols.size() : "null"));
 
+        if (watchlistSymbols == null) {
+            // Data is still loading, do not update empty state or RecyclerView visibility here
+            return;
+        }
+
         if (isSignedIn) {
             binding.whenNotSignedInWatchlistLayout.setVisibility(View.GONE);
-            if (watchlistSymbols != null && !watchlistSymbols.isEmpty()) {
-                Log.d("HomeTabFragment", "Showing RecyclerView with " + watchlistSymbols.size() + " items");
-                binding.symbolWatchlistRecyclerview.setVisibility(View.VISIBLE);
-            } else {
-                Log.d("HomeTabFragment", "Hiding RecyclerView, showing empty state");
+            if (watchlistSymbols.isEmpty()) {
+                // Show empty state only after data is loaded and it's empty
+                binding.emptyWatchlistLayout.setVisibility(View.VISIBLE);
                 binding.symbolWatchlistRecyclerview.setVisibility(View.GONE);
-                Toast.makeText(getContext(), "Your watchlist is empty.", Toast.LENGTH_SHORT).show();
+                binding.homeProgressBar.setVisibility(View.GONE); // Ensure progress bar is hidden
+            } else {
+                // Show RecyclerView with data
+                binding.emptyWatchlistLayout.setVisibility(View.GONE);
+                binding.symbolWatchlistRecyclerview.setVisibility(View.VISIBLE);
             }
         } else {
-            Log.d("HomeTabFragment", "Showing not signed in layout");
             showNoSymbolWatchlist();
         }
     }
@@ -621,5 +645,22 @@ public class HomeTabFragment extends Fragment {
         if (getContext() != null && message != null && !message.isEmpty()) {
             Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
         }
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (authViewModel.getAuthState().getValue() == AuthViewModel.AuthState.AUTHENTICATED) {
+            String currentUid = getCurrentUserId();
+            if (currentUid != null) {
+                homeViewModel.connectToWatchlistWebSocket(currentUid);
+            }
+        }
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        homeViewModel.disconnectWebSocket();
     }
 }

@@ -9,6 +9,12 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModel;
 
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -36,7 +42,6 @@ import repositories.SymbolRepository;
 import retrofit2.Call;
 import timber.log.Timber;
 
-
 /**
  * ViewModel for handling cryptocurrency data operations and exposing data to the UI.
  */
@@ -47,19 +52,22 @@ public class HomeViewModel extends ViewModel {
     private final Set<String> watchlistSymbolTickers = new HashSet<>(); // For quick lookup
     private final MutableLiveData<List<Symbol>> cryptoList = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
+    private final MutableLiveData<Boolean> isWatchlistLoading = new MutableLiveData<>(false);
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
 
     // For top cryptos pagination
     private int currentPage = 1;
     private final int PAGE_SIZE = 20;
     private final List<Symbol> allCryptos = new ArrayList<>();
-    // Add these class variables
     private Call<List<Symbol>> currentSearchCall;
-    private final SymbolRepository repository; // Add this
+    private final SymbolRepository repository;
     private final MutableLiveData<List<Symbol>> searchResults = new MutableLiveData<>();
     private final CompositeDisposable disposables = new CompositeDisposable(); // For RxJava
     private WebSocket webSocketClient;
     private final OkHttpClient okHttpClient = new OkHttpClient();
+
+    // Added for subscription type and limit checking
+    private String subscriptionType;
 
     public HomeViewModel() {
         repository = new SymbolRepository();
@@ -83,49 +91,44 @@ public class HomeViewModel extends ViewModel {
         cryptoList.postValue(getPaginatedData());
     }
 
-    // Add this method to check if more data is available
     public boolean hasMoreData() {
         return currentPage * PAGE_SIZE < allCryptos.size();
     }
 
     /**
      * Searches cryptocurrencies based on user query.
-     *
-     * @param query Search string input by user
-     * @param limit Maximum number of search results
      */
     public void searchCryptos(String query, int limit) {
         isLoading.postValue(true);
-
         LiveData<List<Symbol>> liveData = repository.searchCrypto(query, limit);
         Observer<List<Symbol>> observer = new Observer<List<Symbol>>() {
             @Override
             public void onChanged(List<Symbol> results) {
-                // Update search results even if null
-                searchResults.postValue(results);
-                isLoading.postValue(false); // Hide loading regardless
-
-                // Clean up observer
+                if (results != null) {
+                    for (Symbol symbol : results) {
+                        symbol.setInWatchlist(watchlistSymbolTickers.contains(symbol.getSymbol()));
+                    }
+                    searchResults.postValue(results);
+                } else {
+                    searchResults.postValue(null);
+                }
+                isLoading.postValue(false);
                 liveData.removeObserver(this);
-
-                // Optionally handle errors
                 if (results == null) {
                     errorMessage.postValue("Failed to fetch results");
                 }
             }
         };
-
         liveData.observeForever(observer);
     }
 
-    // --- Watchlist Operations ---
     public void loadWatchlist(String userId) {
-        isLoading.postValue(true);
+        isWatchlistLoading.postValue(true);
         LiveData<List<Symbol>> liveData = repository.getWatchlist(userId);
         liveData.observeForever(new Observer<>() {
             @Override
             public void onChanged(List<Symbol> symbolsFromApi) {
-                isLoading.postValue(false);
+                isWatchlistLoading.postValue(false);
                 watchlistSymbolTickers.clear();
                 List<Symbol> processedSymbols = new ArrayList<>();
                 if (symbolsFromApi != null) {
@@ -138,81 +141,127 @@ public class HomeViewModel extends ViewModel {
                 }
                 watchlist.postValue(processedSymbols);
                 updateIsInWatchlistFlagForList(searchResults.getValue(), searchResults);
+                fetchSubscriptionType(userId); // Fetch subscription type after loading watchlist
                 liveData.removeObserver(this);
             }
         });
     }
 
+    /**
+     * Fetches the user's subscription type from Firebase Realtime Database.
+     */
+    private void fetchSubscriptionType(String userId) {
+        DatabaseReference userRef = FirebaseDatabase.getInstance().getReference("users").child(userId);
+        userRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (snapshot.exists()) {
+                    subscriptionType = snapshot.child("subscriptionType").getValue(String.class);
+                    Timber.d("Subscription type fetched: %s", subscriptionType);
+                } else {
+                    subscriptionType = "free"; // Default to free plan if not found
+                    Timber.w("No subscription type found for user %s, defaulting to free", userId);
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                subscriptionType = "free"; // Default to free plan on error
+                Timber.e(error.toException(), "Failed to fetch subscription type for user %s", userId);
+            }
+        });
+    }
+
+    /**
+     * Returns the watchlist limit based on the user's subscription type.
+     */
+    private int getWatchlistLimit(String subscriptionType) {
+        if (subscriptionType == null) return 0; // Default to no additions if unknown
+        switch (subscriptionType) {
+            case "test_drive":
+                return 1;
+            case "starter_weekly":
+                return 3;
+            case "starter_monthly":
+                return 6;
+            case "pro_weekly":
+                return -1; // Unlimited
+            case "pro_monthly":
+                return -1; // Unlimited
+            case "free":
+                return 1;
+            default:
+                return 0; // Unknown plans get no watchlist
+        }
+    }
+
     public void addToWatchlist(String userID, Symbol symbolToAdd, String source) {
+        // Check subscription type and watchlist limit first
+        if (subscriptionType == null) {
+            errorMessage.postValue("Subscription type not loaded yet.");
+            Timber.w("Attempted to add to watchlist before subscription type loaded");
+            return;
+        }
+
+        int limit = getWatchlistLimit(subscriptionType);
+        List<Symbol> currentWatchlist = watchlist.getValue();
+        int currentSize = currentWatchlist != null ? currentWatchlist.size() : 0;
+
+        // If limit is not unlimited (-1) and current size meets or exceeds limit
+        if (limit != -1 && currentSize >= limit) {
+            errorMessage.postValue("Watchlist limit reached for your plan.");
+            Timber.d("Watchlist limit reached: %d/%d for plan %s", currentSize, limit, subscriptionType);
+            return;
+        }
+
+        // Proceed with adding if limit not reached
         if (symbolToAdd.getSymbol() == null || symbolToAdd.getBaseCurrency() == null || symbolToAdd.getAsset() == null) {
             Timber.e("Cannot add to watchlist, symbol details missing: %s", symbolToAdd.getSymbol());
             watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolToAdd, false, true, new IllegalArgumentException("Symbol details missing")));
             return;
         }
 
-        AddWatchlistRequest request = new AddWatchlistRequest(
-                userID,
-                symbolToAdd.getSymbol(),
-                symbolToAdd.getBaseCurrency(),
-                symbolToAdd.getAsset(),
-                source
-        );
+        AddWatchlistRequest request = new AddWatchlistRequest(userID, symbolToAdd.getSymbol(), symbolToAdd.getBaseCurrency(), symbolToAdd.getAsset(), source);
 
-        disposables.add(repository.addToWatchlist(request)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        () -> {
-                            Timber.d("API: Added %s to watchlist", symbolToAdd.getSymbol());
-                            symbolToAdd.setInWatchlist(true);
-                            watchlistSymbolTickers.add(symbolToAdd.getSymbol());
+        disposables.add(repository.addToWatchlist(request).subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(() -> {
+            Timber.d("API: Added %s to watchlist", symbolToAdd.getSymbol());
+            symbolToAdd.setInWatchlist(true);
+            watchlistSymbolTickers.add(symbolToAdd.getSymbol());
 
-                            ArrayList<Symbol> currentWatchlist = new ArrayList<>(watchlist.getValue() != null ? watchlist.getValue() : Collections.emptyList());
-                            if (currentWatchlist.stream().noneMatch(s -> s.getSymbol().equals(symbolToAdd.getSymbol()))) {
-                                currentWatchlist.add(0, symbolToAdd); // Add to the beginning
-                                watchlist.postValue(currentWatchlist);
-                            }
+            ArrayList<Symbol> updatedWatchlist = new ArrayList<>(currentWatchlist != null ? currentWatchlist : Collections.emptyList());
+            if (updatedWatchlist.stream().noneMatch(s -> s.getSymbol().equals(symbolToAdd.getSymbol()))) {
+                updatedWatchlist.add(0, symbolToAdd);
+                watchlist.postValue(updatedWatchlist);
+            }
 
-                            updateIsInWatchlistFlagForList(searchResults.getValue(), searchResults);
-                            watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolToAdd, true, true, null));
-                        },
-                        throwable -> {
-                            Timber.e(throwable, "API: Failed to add %s to watchlist", symbolToAdd.getSymbol());
-                            watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolToAdd, false, true, throwable));
-                        }
-                ));
+            updateIsInWatchlistFlagForList(searchResults.getValue(), searchResults);
+            watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolToAdd, true, true, null));
+            connectToWatchlistWebSocket(userID); // Reconnect WebSocket
+        }, throwable -> {
+            Timber.e(throwable, "API: Failed to add %s to watchlist", symbolToAdd.getSymbol());
+            watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolToAdd, false, true, throwable));
+        }));
     }
 
     public void removeFromWatchlist(String userID, String symbolTickerToRemove) {
         RemoveWatchlistRequest request = new RemoveWatchlistRequest(userID, symbolTickerToRemove);
 
-        disposables.add(repository.removeFromWatchlist(request)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                        () -> {
-                            Timber.d("API: Removed %s from watchlist", symbolTickerToRemove);
-                            watchlistSymbolTickers.remove(symbolTickerToRemove);
+        disposables.add(repository.removeFromWatchlist(request).subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(() -> {
+            Timber.d("API: Removed %s from watchlist", symbolTickerToRemove);
+            watchlistSymbolTickers.remove(symbolTickerToRemove);
 
-                            List<Symbol> currentWatchlist = watchlist.getValue();
-                            if (currentWatchlist != null) {
-                                List<Symbol> updatedList = currentWatchlist.stream()
-                                        .filter(s -> !s.getSymbol().equals(symbolTickerToRemove))
-                                        .collect(Collectors.toList());
-                                watchlist.postValue(updatedList);
-                            }
-                            updateIsInWatchlistFlagForList(searchResults.getValue(), searchResults);
-
-                            // Use the String constructor - no need to create Symbol object
-                            watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolTickerToRemove, true, false, null));
-                        },
-                        throwable -> {
-                            Timber.e(throwable, "API: Failed to remove %s from watchlist", symbolTickerToRemove);
-
-                            // Use the String constructor for error case too
-                            watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolTickerToRemove, false, false, throwable));
-                        }
-                ));
+            List<Symbol> currentWatchlist = watchlist.getValue();
+            if (currentWatchlist != null) {
+                List<Symbol> updatedList = currentWatchlist.stream().filter(s -> !s.getSymbol().equals(symbolTickerToRemove)).collect(Collectors.toList());
+                watchlist.postValue(updatedList);
+            }
+            updateIsInWatchlistFlagForList(searchResults.getValue(), searchResults);
+            watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolTickerToRemove, true, false, null));
+            connectToWatchlistWebSocket(userID); // Reconnect WebSocket
+        }, throwable -> {
+            Timber.e(throwable, "API: Failed to remove %s from watchlist", symbolTickerToRemove);
+            watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolTickerToRemove, false, false, throwable));
+        }));
     }
 
     public void connectToWatchlistWebSocket(String userId) {
@@ -239,6 +288,10 @@ public class HomeViewModel extends ViewModel {
                     String type = json.optString("type");
                     Log.d("WebSocketDebug", "Message type: " + type);
                     switch (type) {
+                        case "init":
+                            Log.i("WebSocketDebug", "WebSocket init message: " + json.optJSONArray("watchlist"));
+                            handleInitMessage(json);
+                            break;
                         case "update":
                             String symbolTicker = json.getString("symbol");
                             double price = json.getDouble("price");
@@ -250,17 +303,13 @@ public class HomeViewModel extends ViewModel {
                                 sparklineData = parseSparklineData(json);
                             }
 
-                            Log.d("WebSocketDebug", "Updating symbol: " + symbolTicker +
-                                    " with price: " + price + " and change: " + change);
+                            Log.d("WebSocketDebug", "Updating symbol: " + symbolTicker + " with price: " + price + " and change: " + change);
 
                             if (sparklineData != null) {
                                 Log.d("WebSocketDebug", "Sparkline data points: " + sparklineData.size());
                             }
 
                             updateSymbolDataInLists(symbolTicker, price, change, sparklineData);
-                            break;
-                        case "init":
-                            Log.i("WebSocketDebug", "WebSocket init message: " + json.optJSONArray("watchlist"));
                             break;
                         case "error":
                             Log.e("WebSocketDebug", "WebSocket server error: " + json.optString("message"));
@@ -304,21 +353,28 @@ public class HomeViewModel extends ViewModel {
 
     private void handleInitMessage(JSONObject json) {
         try {
-            JSONArray watchlist = json.optJSONArray("watchlist");
-            if (watchlist != null) {
-                for (int i = 0; i < watchlist.length(); i++) {
-                    JSONObject stockData = watchlist.getJSONObject(i);
-                    String symbol = stockData.getString("symbol");
-                    double price = stockData.getDouble("price");
-                    double change = stockData.getDouble("change");
-
-                    // Parse sparkline data for initial load
-                    List<Double> sparklineData = null;
-                    if (stockData.has("sparkline")) {
-                        sparklineData = parseSparklineFromObject(stockData);
+            JSONArray watchlistArray = json.optJSONArray("watchlist");
+            if (watchlistArray != null) {
+                List<Symbol> currentWatchlist = watchlist.getValue();
+                if (currentWatchlist != null) {
+                    for (int i = 0; i < watchlistArray.length(); i++) {
+                        JSONObject stockData = watchlistArray.getJSONObject(i);
+                        String symbol = stockData.getString("symbol");
+                        double price = stockData.getDouble("price");
+                        double change = stockData.getDouble("change");
+                        List<Double> sparklineData = parseSparklineFromObject(stockData);
+                        for (Symbol s : currentWatchlist) {
+                            if (s.getSymbol().equals(symbol)) {
+                                s.setPrice(price);
+                                s.setChange(change);
+                                if (sparklineData != null) {
+                                    s.setSparkline(sparklineData);
+                                }
+                                break;
+                            }
+                        }
                     }
-
-                    updateSymbolDataInLists(symbol, price, change, sparklineData);
+                    watchlist.postValue(currentWatchlist);
                 }
             }
         } catch (JSONException e) {
@@ -348,13 +404,9 @@ public class HomeViewModel extends ViewModel {
     }
 
     // --- Helper Methods ---
-
-    /**
-     * Updates the isInWatchlist flag for symbols in a given list and posts the list to its LiveData.
-     */
     private void updateIsInWatchlistFlagForList(List<Symbol> listToUpdate, MutableLiveData<List<Symbol>> liveDataToPostTo) {
         if (listToUpdate == null || listToUpdate.isEmpty()) {
-            if (listToUpdate != null && liveDataToPostTo.getValue() != listToUpdate) { // Post if it's a new empty list
+            if (listToUpdate != null && liveDataToPostTo.getValue() != listToUpdate) {
                 liveDataToPostTo.postValue(listToUpdate);
             }
             return;
@@ -368,42 +420,32 @@ public class HomeViewModel extends ViewModel {
                 changed = true;
             }
         }
-        // Post the original list instance if it was modified, or if it's a new list instance.
-        // DiffUtil works best if a new list instance is posted when content changes.
         if (changed) {
             liveDataToPostTo.postValue(new ArrayList<>(listToUpdate));
-        } else if (liveDataToPostTo.getValue() != listToUpdate) { // If it's a different list instance (e.g. fresh from API)
+        } else if (liveDataToPostTo.getValue() != listToUpdate) {
             liveDataToPostTo.postValue(listToUpdate);
         }
     }
 
-    /**
-     * Updates price, change, and optionally sparkline for a symbol across all relevant LiveData lists.
-     */
     private void updateSymbolDataInLists(String symbolTicker, double newPrice, double newChange, @Nullable List<Double> newSparkline) {
         Log.d("WebSocketDebug", "Updating symbol " + symbolTicker + " in lists");
         updateSingleList(watchlist.getValue(), watchlist, symbolTicker, newPrice, newChange, newSparkline);
         updateSingleList(searchResults.getValue(), searchResults, symbolTicker, newPrice, newChange, newSparkline);
-        // Add for cryptoList if it exists and needs updates
     }
 
     private void updateSingleList(List<Symbol> list, MutableLiveData<List<Symbol>> liveData, String symbolTicker, double newPrice, double newChange, @Nullable List<Double> newSparkline) {
         if (list == null) return;
-        boolean mutated = false;
         for (Symbol s : list) {
             if (s.getSymbol().equals(symbolTicker)) {
                 s.setPrice(newPrice);
                 s.setChange(newChange);
-                if (newSparkline != null) { // Only update sparkline if new data is provided
+                if (newSparkline != null) {
                     s.setSparkline(newSparkline);
                 }
-                mutated = true;
                 break;
             }
         }
-        if (mutated) {
-            liveData.postValue(new ArrayList<>(list)); // Post new list to trigger observers with DiffUtil
-        }
+        liveData.postValue(list);
     }
 
     // --- LiveData Getters ---
@@ -419,6 +461,10 @@ public class HomeViewModel extends ViewModel {
         return isLoading;
     }
 
+    public LiveData<Boolean> getIsWatchlistLoading() {
+        return isWatchlistLoading;
+    }
+
     public LiveData<String> getErrorMessage() {
         return errorMessage;
     }
@@ -432,9 +478,5 @@ public class HomeViewModel extends ViewModel {
         super.onCleared();
         disposables.clear();
         disconnectWebSocket();
-        // OkHttp's dispatcher has its own lifecycle, but can be shut down if you created a custom one.
-        // For the default shared dispatcher, explicit shutdown is not always necessary here.
-        // okHttpClient.dispatcher().executorService().shutdown();
     }
-
 }

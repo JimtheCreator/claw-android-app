@@ -1,6 +1,7 @@
 package models;
 
 import java.util.List;
+import java.util.Objects;
 
 import com.google.gson.annotations.SerializedName;
 
@@ -136,6 +137,20 @@ public class Symbol {
 
     public void setInWatchlist(boolean inWatchlist) {
         isInWatchlist = inWatchlist;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Symbol symbol = (Symbol) o;
+        return Double.compare(symbol.price, price) == 0 &&
+                Double.compare(symbol.change, change) == 0 &&
+                isInWatchlist == symbol.isInWatchlist && // Include this
+                Objects.equals(symbol, symbol.symbol) &&
+                Objects.equals(asset, symbol.asset) &&
+                Objects.equals(baseCurrency, symbol.baseCurrency) &&
+                Objects.equals(sparkline, symbol.sparkline);
     }
 }
 
