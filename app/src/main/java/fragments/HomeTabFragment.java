@@ -14,6 +14,7 @@ import android.os.Handler;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -24,8 +25,11 @@ import com.claw.ai.MainActivity;
 import com.claw.ai.R;
 import com.claw.ai.databinding.FragmentHomeTabBinding;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 
@@ -47,6 +51,7 @@ public class HomeTabFragment extends Fragment {
     private float lastSlideOffset = -1;
     boolean isBottomSheetExpanded = false;
     private FragmentHomeTabBinding binding;
+
     private boolean isSearchExpanded = false;
 
     // Add these class variables
@@ -59,12 +64,11 @@ public class HomeTabFragment extends Fragment {
     int expanded_state_tag = 0;
     int collapsed_state_tag = 0;
 
-    private List<Symbol> searchedSymbolList;
+    private List<Symbol> searchedSymbolList, watchListSymbolList;
     private SymbolAdapter searchedSymbolAdapter, watchlistAdapter;
 
     private DisplayMetrics metrics;
     private AuthViewModel authViewModel;
-
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
@@ -94,25 +98,13 @@ public class HomeTabFragment extends Fragment {
         authViewModel.initialize(requireActivity(), getString(R.string.web_client_id));
 
         searchedSymbolList = new ArrayList<>();
-
-        searchedSymbolAdapter = new SymbolAdapter(
-                getContext(),
-                searchedSymbolList,
-                true,  // isSearchAdapter
-                new OnWatchlistActionListener() {
-                    @Override
-                    public void onAddToWatchlist(String user_id, Symbol symbol, String source) {
-                        homeViewModel.addToWatchlist(user_id, symbol,source);
-                    }
-
-                    @Override
-                    public void onRemoveFromWatchlist(String user_id, String symbol) {
-                        homeViewModel.removeFromWatchlist(user_id, symbol);
-                    }
-                }
-        );
+        watchListSymbolList = new ArrayList<>();
 
         homeViewModel = new ViewModelProvider(this).get(HomeViewModel.class);
+
+        initializeAdapters();
+        setupRecyclerViews();
+
         binding.dateText.setText(DateUtils.getFormattedDate());
 
         // Initially hide searched list and show the empty state
@@ -134,11 +126,6 @@ public class HomeTabFragment extends Fragment {
         });
     }
 
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-        binding = null;
-    }
 
     // Bottom Sheet Configuration
     private void setupBottomSheet() {
@@ -217,7 +204,6 @@ public class HomeTabFragment extends Fragment {
         MotionAnimation.animateSmoothScrollToBottom(binding.scrollView);
     }
 
-
     private void searchBarStateWhenClicked() {
         binding.frameSearchBox.setVisibility(View.VISIBLE);
         binding.dummySearchbox.setVisibility(View.GONE);
@@ -287,6 +273,23 @@ public class HomeTabFragment extends Fragment {
             bottomSheetBehavior.setFitToContents(false);
             bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
             MotionAnimation.animateSmoothScrollToBottom(binding.scrollView);
+        });
+
+
+        // Handle back press
+        requireActivity().getOnBackPressedDispatcher().addCallback(requireActivity(), new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED || bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_HALF_EXPANDED) {
+                    MotionAnimation.animateSmoothScrollToBottom(binding.scrollView);
+                    KeyboardQuickFunctions.closeKeyboard(binding.searchBox, requireContext());
+                    binding.searchBox.setText("");
+                    // Clear search results
+                    searchedSymbolList.clear();
+                    searchedSymbolAdapter.notifyDataSetChanged();
+                    searchBarStateBeforeClicked();
+                }
+            }
         });
     }
 
@@ -395,51 +398,132 @@ public class HomeTabFragment extends Fragment {
 
     // Update setupObservers to handle both lists separately
     private void setupObservers() {
-        // Handle errors
-        homeViewModel.getErrorMessage().observe(getViewLifecycleOwner(), this::showErrorToast);
-
         homeViewModel.getIsLoading().observe(getViewLifecycleOwner(), isLoading -> {
-            binding.searchProgress.setVisibility(isLoading ? View.VISIBLE : View.GONE);
+            if (binding != null) binding.searchProgress.setVisibility(isLoading ? View.VISIBLE : View.GONE);
         });
 
-        homeViewModel.getSearchResults().observe(getViewLifecycleOwner(), results -> {
-            if (results == null || results.isEmpty()) {
-                binding.emptySearchState.setVisibility(View.VISIBLE);
-                binding.searchedCryptosList.setVisibility(View.GONE);
+        homeViewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
+            if (error != null && !error.isEmpty()) showErrorToast(error);
+        });
+
+        homeViewModel.getSearchResults().observe(getViewLifecycleOwner(), symbols -> {
+            if (binding == null) return;
+            Timber.d("Search results observer: %d symbols. Query: '%s'", symbols != null ? symbols.size() : 0, binding.searchBox.getText().toString());
+            searchedSymbolAdapter.setData(symbols != null ? symbols : Collections.emptyList());
+            if (symbols == null || symbols.isEmpty()) {
+                if (!binding.searchBox.getText().toString().trim().isEmpty()) { // Only show empty state if query is not empty
+                    binding.emptySearchState.setVisibility(View.VISIBLE);
+                    binding.searchedCryptosList.setVisibility(View.GONE);
+                } else { // Query is empty, hide both
+                    binding.emptySearchState.setVisibility(View.GONE);
+                    binding.searchedCryptosList.setVisibility(View.GONE);
+                }
             } else {
                 binding.emptySearchState.setVisibility(View.GONE);
                 binding.searchedCryptosList.setVisibility(View.VISIBLE);
-                // Update adapter data
-                searchedSymbolAdapter.setData(results);
+            }
+        });
+
+        homeViewModel.getWatchlist().observe(getViewLifecycleOwner(), symbols -> {
+            if (binding == null) return;
+
+            // Enhanced logging
+            Log.d("HomeTabFragment", "=== WATCHLIST OBSERVER DEBUG ===");
+            Log.d("HomeTabFragment", "symbols is null? " + (symbols == null));
+            Log.d("HomeTabFragment", "symbols size: " + (symbols != null ? symbols.size() : "null"));
+
+            if (symbols != null && !symbols.isEmpty()) {
+                Log.d("HomeTabFragment", "First symbol: " + symbols.get(0).getSymbol());
+                Log.d("HomeTabFragment", "First symbol name: " + symbols.get(0).getSymbol());
+            }
+
+            // Check adapter state
+            Log.d("HomeTabFragment", "watchlistAdapter is null? " + (watchlistAdapter == null));
+            Log.d("HomeTabFragment", "Current adapter item count: " + (watchlistAdapter != null ? watchlistAdapter.getItemCount() : "adapter null"));
+
+            // Check RecyclerView state
+            Log.d("HomeTabFragment", "RecyclerView visibility: " + binding.symbolWatchlistRecyclerview.getVisibility());
+            Log.d("HomeTabFragment", "RecyclerView adapter: " + (binding.symbolWatchlistRecyclerview.getAdapter() != null ? "attached" : "null"));
+
+            updateWatchlistVisibility(symbols);
+
+            if (symbols != null) {
+                watchlistAdapter.setData(symbols);
+                Log.d("HomeTabFragment", "After setData - adapter item count: " + watchlistAdapter.getItemCount());
+                watchlistAdapter.notifyDataSetChanged();
+                Log.d("HomeTabFragment", "notifyDataSetChanged() called");
+            }
+
+            Log.d("HomeTabFragment", "=== END WATCHLIST OBSERVER DEBUG ===");
+        });
+
+        homeViewModel.getWatchlistUpdateResult().observe(getViewLifecycleOwner(), result -> {
+            // Check if 'result' itself is null FIRST
+            if (result == null) {
+                Timber.w("WatchlistUpdateResult is null");
+                return;
+            }
+
+            Symbol affectedSymbol = result.getSymbol(); // Get the Symbol object from the result
+
+            // Now check if the 'affectedSymbol' is null
+            if (affectedSymbol == null) {
+                Timber.w("Affected Symbol within WatchlistUpdateResult is null. Success: %s, IsAdded: %s", result.isSuccess(), result.isAdded());
+                // Potentially show a generic success/failure message if symbol details are missing
+                if (result.isSuccess()) {
+                    Toast.makeText(getContext(), "Watchlist operation successful.", Toast.LENGTH_SHORT).show();
+                } else {
+                    String errorMsg = (result.getError() != null && result.getError().getMessage() != null)
+                            ? result.getError().getMessage()
+                            : "Watchlist operation failed";
+                    Toast.makeText(getContext(), errorMsg, Toast.LENGTH_LONG).show();
+                }
+                return;
+            }
+
+            // If we reach here, 'affectedSymbol' is not null
+            if (result.isSuccess()) {
+                String action = result.isAdded() ? "added to" : "removed from";
+                // Ensure affectedSymbol.getSymbol() (for the ticker) is not null if you use it.
+                String ticker = affectedSymbol.getSymbol() != null ? affectedSymbol.getSymbol() : "Unknown Symbol";
+                Toast.makeText(getContext(), ticker + " " + action + " watchlist.", Toast.LENGTH_SHORT).show();
+            } else {
+                String errorMsg = (result.getError() != null && result.getError().getMessage() != null)
+                        ? result.getError().getMessage()
+                        : "operation failed";
+                String ticker = affectedSymbol.getSymbol() != null ? affectedSymbol.getSymbol() : "Unknown Symbol";
+                Toast.makeText(getContext(), "Watchlist " + errorMsg + " for " + ticker, Toast.LENGTH_LONG).show();
             }
         });
 
         authViewModel.getAuthState().observe(getViewLifecycleOwner(), authState -> {
+            if (binding == null) return;
+            String currentUid = getCurrentUserId();
             switch (authState) {
                 case AUTHENTICATED:
-                    if (isAdded() && !isStateSaved()) {
+                    if (currentUid != null) {
+                        Timber.d("Auth state: AUTHENTICATED, User: %s", currentUid);
                         showSymbolWatchlist();
+                        homeViewModel.loadWatchlist(currentUid);
+                        homeViewModel.connectToWatchlistWebSocket(currentUid);
+                        // Visibility is handled by watchlist observer based on content and auth state
+                    } else { // Should ideally not happen if AuthState is AUTHENTICATED
+                        Timber.w("Auth state: AUTHENTICATED, but UID is null!");
+                        showNoSymbolWatchlist(); // Fallback
+                        homeViewModel.disconnectWebSocket();
                     }
                     break;
                 case UNAUTHENTICATED:
+                case ERROR: // Treat ERROR as UNAUTHENTICATED for watchlist display
+                    Timber.d("Auth state: %s", authState.toString());
                     showNoSymbolWatchlist();
-                    break;
-                case ERROR:
-                    // Error message is handled by its own observer.
-                    // Ensure UI is in a reasonable state, e.g., show login page if not authenticated.
-                    if (!authViewModel.isUserSignedIn()) {
-                        showNoSymbolWatchlist();
-                    }
+                    watchlistAdapter.setData(Collections.emptyList()); // Clear adapter data
+                    homeViewModel.disconnectWebSocket();
                     break;
             }
+            // After auth state change, watchlist observer will update visibility based on new data & auth status
+            updateWatchlistVisibility(homeViewModel.getWatchlist().getValue());
         });
-
-        authViewModel.getErrorMessage().observe(getViewLifecycleOwner(), errorMessage -> {
-            if (errorMessage != null && !errorMessage.isEmpty()) {
-                Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_LONG).show();
-            }
-        });
-
     }
 
     private void showNoSymbolWatchlist() {
@@ -451,24 +535,87 @@ public class HomeTabFragment extends Fragment {
     private void showSymbolWatchlist() {
         binding.whenNotSignedInWatchlistLayout.setVisibility(View.GONE);
         binding.symbolWatchlistRecyclerview.setVisibility(View.VISIBLE);
+    }
 
-        // Initialize watchlist adapter
-//        watchlistAdapter = new SymbolAdapter(requireContext(), new ArrayList<>(), false, symbol -> {
-//            homeViewModel.removeFromWatchlist(symbol);
-//        });
 
+    private void setupRecyclerViews() {
+        // Searched Cryptos List
+        binding.searchedCryptosList.setLayoutManager(new LinearLayoutManager(requireContext()));
+        binding.searchedCryptosList.setAdapter(searchedSymbolAdapter);
+        binding.searchedCryptosList.addItemDecoration(new SpacebetweenItems(30, 1.4, ContextCompat.getColor(requireContext(), R.color.searchbar_colour)));
+        binding.searchedCryptosList.setEdgeEffectFactory(new BounceEdgeEffectFactory(requireContext()));
+        binding.searchedCryptosList.setNestedScrollingEnabled(false); // Important if inside ScrollView
+
+        // Watchlist RecyclerView
         binding.symbolWatchlistRecyclerview.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.symbolWatchlistRecyclerview.setAdapter(watchlistAdapter);
         binding.symbolWatchlistRecyclerview.addItemDecoration(new SpacebetweenItems(30, 1.4, ContextCompat.getColor(requireContext(), R.color.searchbar_colour)));
         binding.symbolWatchlistRecyclerview.setEdgeEffectFactory(new BounceEdgeEffectFactory(requireContext()));
-
-        loadSymbolWatchListFromServer();
+        binding.symbolWatchlistRecyclerview.setNestedScrollingEnabled(false); // Important if inside ScrollView
     }
 
-    private void loadSymbolWatchListFromServer() {
 
+    private void initializeAdapters() {
+        OnWatchlistActionListener commonWatchlistListener = new OnWatchlistActionListener() {
+            @Override
+            public void onAddToWatchlist(String ignoredUserId, Symbol symbol, String source) { // userId from adapter is ignored
+                String currentUid = getCurrentUserId();
+                if (currentUid != null && symbol != null) {
+                    homeViewModel.addToWatchlist(currentUid, symbol, source);
+                } else {
+                    Toast.makeText(getContext(), "Please sign in to modify watchlist.", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onRemoveFromWatchlist(String ignoredUserId, String symbolTicker) { // userId from adapter is ignored
+                String currentUid = getCurrentUserId();
+                if (currentUid != null && symbolTicker != null) {
+                    homeViewModel.removeFromWatchlist(currentUid, symbolTicker);
+                } else {
+                    Toast.makeText(getContext(), "Please sign in to modify watchlist.", Toast.LENGTH_SHORT).show();
+                }
+            }
+        };
+
+        searchedSymbolAdapter = new SymbolAdapter(getContext(), searchedSymbolList, true, getCurrentUserId(), commonWatchlistListener);
+        watchlistAdapter = new SymbolAdapter(getContext(), new ArrayList<>(), false, getCurrentUserId(), commonWatchlistListener);
     }
 
+    private String getCurrentUserId() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        return (user != null) ? user.getUid() : null;
+    }
+
+    private void updateWatchlistVisibility(List<Symbol> watchlistSymbols) {
+        if (binding == null) return;
+        boolean isSignedIn = (authViewModel.getAuthState().getValue() == AuthViewModel.AuthState.AUTHENTICATED && getCurrentUserId() != null);
+        Log.d("HomeTabFragment", "updateWatchlistVisibility: isSignedIn=" + isSignedIn + ", watchlistSymbols=" + (watchlistSymbols != null ? watchlistSymbols.size() : "null"));
+
+        if (isSignedIn) {
+            binding.whenNotSignedInWatchlistLayout.setVisibility(View.GONE);
+            if (watchlistSymbols != null && !watchlistSymbols.isEmpty()) {
+                Log.d("HomeTabFragment", "Showing RecyclerView with " + watchlistSymbols.size() + " items");
+                binding.symbolWatchlistRecyclerview.setVisibility(View.VISIBLE);
+            } else {
+                Log.d("HomeTabFragment", "Hiding RecyclerView, showing empty state");
+                binding.symbolWatchlistRecyclerview.setVisibility(View.GONE);
+                Toast.makeText(getContext(), "Your watchlist is empty.", Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            Log.d("HomeTabFragment", "Showing not signed in layout");
+            showNoSymbolWatchlist();
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        // The ViewModel's onCleared will handle WebSocket disconnect if Fragment is destroyed.
+        // If only view is destroyed (e.g. backstack), WebSocket might persist if ViewModel is activity-scoped.
+        // If ViewModel is fragment-scoped (ViewModelProvider(this)), then it's fine.
+        binding = null;
+    }
 
     private void showErrorToast(String message) {
         if (getContext() != null && message != null && !message.isEmpty()) {

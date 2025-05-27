@@ -1,5 +1,7 @@
 package repositories;
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -12,11 +14,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import backend.SymbolMarketEndpoints;
 import backend.MainClient;
 import backend.requests.AddWatchlistRequest;
+import backend.requests.RemoveWatchlistRequest;
 import io.reactivex.Completable;
 import models.Symbol;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import timber.log.Timber;
 
 public class SymbolRepository {
     private final SymbolMarketEndpoints api;
@@ -69,8 +73,43 @@ public class SymbolRepository {
         return api.addToWatchlist(request);
     }
 
-    public Completable removeFromWatchlist(String user_id, String symbol) {
-        return api.removeFromWatchlist(user_id, symbol);
+    public Completable removeFromWatchlist(RemoveWatchlistRequest request) {
+        return api.removeFromWatchlist(request);
+    }
+
+    public LiveData<List<Symbol>> getWatchlist(String userId) {
+        MutableLiveData<List<Symbol>> watchlistData = new MutableLiveData<>();
+        Call<List<Symbol>> call = api.getWatchlist(userId);
+        call.enqueue(new Callback<List<Symbol>>() {
+            // In SymbolRepository.java
+            @Override
+            public void onResponse(Call<List<Symbol>> call, Response<List<Symbol>> response) {
+                if (response.isSuccessful()) {
+                    List<Symbol> symbols = response.body();
+                    if (symbols != null) {
+                        Log.d("SymbolRepository", "Response successful. Body is NOT null. Size: " + symbols.size());
+
+                        // Optionally, log the first item to see if fields were deserialized:
+                        // if (!symbols.isEmpty()) {
+                        //     Timber.d("SymbolRepository: First symbol: %s", symbols.get(0).getSymbol()); // Assuming getSymbol() exists
+                        // }
+                    } else {
+                        Log.w("SymbolRepository", "Response successful BUT response.body() IS NULL after deserialization!");
+                    }
+                    watchlistData.setValue(symbols);
+                } else {
+                    Log.e("SymbolRepository", "Response not successful. Code: " + response.code());
+                    watchlistData.setValue(null);
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<List<Symbol>> call, @NonNull Throwable t) {
+                watchlistData.setValue(null); // Network error
+            }
+        });
+
+        return watchlistData;
     }
 
 }

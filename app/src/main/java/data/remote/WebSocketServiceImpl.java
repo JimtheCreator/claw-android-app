@@ -12,10 +12,12 @@ public class WebSocketServiceImpl implements WebSocketService {
     // WebSocketServiceImpl.java
     private static final String WS_BASE_URL = "wss://stable-wholly-crappie.ngrok-free.app/api/v1/ws/market/cryptos/stream-market-data/";
     private final OkHttpClient client;
-    private WebSocket webSocket;
+    private final OkHttpClient watchlistClient;
+    private WebSocket webSocket, watchlistSocket;
 
-    public WebSocketServiceImpl(OkHttpClient client) {
+    public WebSocketServiceImpl(OkHttpClient client, OkHttpClient watchlistClient) {
         this.client = client;
+        this.watchlistClient = watchlistClient;
     }
 
     @Override

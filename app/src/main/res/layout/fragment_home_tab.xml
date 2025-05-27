@@ -12,9 +12,38 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="15dp"
+            android:layout_marginEnd="15dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/title_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:fontFamily="@font/sanfrans_bold"
+                android:text="Crypto Market"
+                android:textColor="@color/white"
+                android:textSize="22.5sp" />
+
+            <TextView
+                android:id="@+id/dateText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/sanfrans_bold"
+                android:text="1 December"
+                android:textColor="@color/thickGrey"
+                android:textSize="24sp" />
+
+        </LinearLayout>
+
         <androidx.core.widget.NestedScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layout_marginTop="1.5dp"
             android:fillViewport="true"
             android:fitsSystemWindows="true"
             android:scrollIndicators="end"
@@ -25,41 +54,12 @@
                 android:layout_height="match_parent"
                 android:orientation="vertical">
 
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="15dp"
-                    android:layout_marginEnd="15dp"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:id="@+id/title_text"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center_vertical"
-                        android:fontFamily="@font/sanfrans_bold"
-                        android:text="Crypto Market"
-                        android:textColor="@color/white"
-                        android:textSize="22.5sp" />
-
-                    <TextView
-                        android:id="@+id/dateText"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="@font/sanfrans_bold"
-                        android:text="1 December"
-                        android:textColor="@color/thickGrey"
-                        android:textSize="24sp" />
-
-                </LinearLayout>
-
                 <!-- Watchlist displayed -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center_vertical"
                     android:layout_marginStart="15dp"
-                    android:layout_marginTop="15dp"
                     android:layout_marginEnd="15dp"
                     android:fontFamily="@font/sf_pro_text_semibold"
                     android:text="My Symbols"
@@ -71,11 +71,9 @@
                     android:id="@+id/symbol_watchlist_recyclerview"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:layout_marginStart="15dp"
-                    android:layout_marginTop="5dp"
-                    android:layout_marginEnd="15dp"
+                    android:layout_marginStart="12dp"
+                    android:layout_marginEnd="12dp"
                     android:overScrollMode="ifContentScrolls"
-                    android:visibility="gone"
                     />
 
                 <LinearLayout

@@ -132,7 +132,7 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
     }
 
     private void initViewModel() {
-        WebSocketService wsService = new WebSocketServiceImpl(new OkHttpClient());
+        WebSocketService wsService = new WebSocketServiceImpl(new OkHttpClient(), new OkHttpClient());
         StreamRepository repository = new StreamRepository(wsService, getApplicationContext());
         viewModel = new ViewModelProvider(this, new StreamViewModelFactory(repository))
                 .get(StreamViewModel.class);

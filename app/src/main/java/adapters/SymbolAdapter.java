@@ -2,7 +2,6 @@ package adapters;
 
 import android.content.Context;
 import android.content.Intent;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,8 +20,6 @@ import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,8 +36,6 @@ import timber.log.Timber;
  * A RecyclerView adapter that displays cryptocurrency symbol data, including price information
  * and sparkline charts. Updates list items efficiently using DiffUtil.
  */
-
-
 public class SymbolAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     private static final int SEARCH_VIEW_TYPE = 0;
@@ -49,12 +44,15 @@ public class SymbolAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
     Context context;
     private List<Symbol> symbolList;
     boolean isSearchAdapter;
+    private final String userId;
     private final OnWatchlistActionListener listener;
 
-    public SymbolAdapter(Context context, List<Symbol> symbolList, boolean isSearchAdapter, OnWatchlistActionListener listener) {
+
+    public SymbolAdapter(Context context, List<Symbol> symbolList, boolean isSearchAdapter, String userId, OnWatchlistActionListener listener) {
         this.context = context;
         this.symbolList = symbolList;
         this.isSearchAdapter = isSearchAdapter;
+        this.userId = userId;
         this.listener = listener;
     }
 
@@ -69,6 +67,13 @@ public class SymbolAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         this.symbolList.clear();
         this.symbolList.addAll(newList);
         diffResult.dispatchUpdatesTo(this);
+    }
+
+    // updateSymbols calls notifyDataSetChanged which is less efficient than DiffUtil.
+    // Prefer setData for list updates. Keeping it if used elsewhere for specific reasons.
+    public void updateSymbols(List<Symbol> newSymbols) {
+        this.symbolList = (newSymbols != null) ? newSymbols : new ArrayList<>();
+        notifyDataSetChanged(); // Consider replacing with setData for consistency and animations
     }
 
     @Override
@@ -94,68 +99,75 @@ public class SymbolAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         Symbol symbol = symbolList.get(position);
 
         try {
-            FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
-
-            assert firebaseUser != null;
-            String userid = firebaseUser.getUid();
-
             if (holder instanceof SearchViewHolder) {
                 SearchViewHolder vh = (SearchViewHolder) holder;
                 vh.binding.textViewSymbol.setText(symbol.getSymbol());
-                vh.binding.textViewName.setText(symbol.getAsset());
+                vh.binding.textViewName.setText(symbol.getAsset()); // Or getBaseCurrency(), depends on desired display
                 vh.binding.textViewPrice.setText(String.format(Locale.US, "US$%.2f", symbol.getCurrentPrice()));
 
                 boolean isNegative = symbol.get_24hChange() < 0;
-                int textColor = isNegative ? R.color.crimson_red : R.color.green_chart_color;
-                vh.binding.percentagePriceChange.setTextColor(ContextCompat.getColor(context, textColor));
+                int textColor = ContextCompat.getColor(context, isNegative ? R.color.crimson_red : R.color.green_chart_color);
+                vh.binding.percentagePriceChange.setTextColor(textColor);
                 vh.binding.percentagePriceChange.setText(String.format(Locale.US, "%.2f%%", symbol.get_24hChange()));
 
-                vh.binding.getRoot().setOnClickListener(v -> startSymbolDetail(symbol));
-                vh.binding.addToWatchlist.setOnClickListener(v -> {
-                    Log.d("CLICKED", "Initiated");
-                    if (!symbol.isInWatchlist()) {
-                        vh.binding.addToWatchlist.setVisibility(View.GONE);
-                        listener.onAddToWatchlist(userid, symbol, "Binance");
-                    }else {
-                        vh.binding.removeFromWatchlist.setVisibility(View.VISIBLE);
-                    }
-                });
-
+                // Conditional visibility of add/remove buttons
+                //Timber.d("Binding SearchVH for %s, isInWatchlist: %s", symbol.getSymbol(), symbol.isInWatchlist());
                 vh.binding.addToWatchlist.setVisibility(symbol.isInWatchlist() ? View.GONE : View.VISIBLE);
                 vh.binding.removeFromWatchlist.setVisibility(symbol.isInWatchlist() ? View.VISIBLE : View.GONE);
 
-                vh.removeButton.setOnClickListener(v -> {
-                    vh.binding.removeFromWatchlist.setVisibility(View.GONE);
-                    listener.onRemoveFromWatchlist(userid, symbol.getSymbol());
+                vh.binding.getRoot().setOnClickListener(v -> startSymbolDetail(true, symbol));
+
+                vh.binding.addToWatchlist.setOnClickListener(v -> {
+                    // The Fragment will provide the userId when calling the listener method.
+                    if (listener != null) {
+                        // Log.d("CLICKED", "Add to Watchlist initiated for " + symbol.getSymbol());
+                        listener.onAddToWatchlist(userId, symbol, "Binance"); // Pass null for userId, Fragment fills it
+                    }
+                });
+
+                // vh.removeButton is from SearchViewHolder, maps to binding.removeFromWatchlist
+                vh.removeButton.setOnClickListener(v -> { // Or vh.binding.removeFromWatchlist.setOnClickListener
+                    if (listener != null) {
+                        // Log.d("CLICKED", "Remove from Watchlist initiated for " + symbol.getSymbol());
+                        listener.onRemoveFromWatchlist(userId, symbol.getSymbol()); // Pass null for userId
+                    }
                 });
 
             } else if (holder instanceof WatchlistViewHolder) {
                 WatchlistViewHolder vh = (WatchlistViewHolder) holder;
                 vh.binding.textViewSymbol.setText(symbol.getSymbol());
-                vh.binding.textViewName.setText(symbol.getAsset());
-                vh.binding.textViewPrice.setText(String.format(Locale.US, "US$%.2f", symbol.getCurrentPrice()));
+                vh.binding.textViewName.setText(symbol.getAsset()); // Or getBaseCurrency()
+                vh.binding.textViewPrice.setText(String.format(Locale.US, "US$%.2f", symbol.getPrice()));
 
-                boolean isNegative = symbol.get_24hChange() < 0;
+                boolean isNegative = symbol.getChange() < 0;
                 int boxBackground = isNegative ? R.drawable.red_box : R.drawable.green_box;
                 vh.binding.changeBox.setBackgroundResource(boxBackground);
-                vh.binding.textViewChange.setText(String.format(Locale.US, "%.2f%%", symbol.get_24hChange()));
+                vh.binding.textViewChange.setText(String.format(Locale.US, "%.2f%%", symbol.getChange()));
 
-                List<Entry> entries = new ArrayList<>();
-                List<Double> sparkline = symbol.getSparkline();
-                if (sparkline != null && !sparkline.isEmpty()) {
-                    vh.binding.lineChart.setVisibility(View.VISIBLE);
-                    for (int i = 0; i < sparkline.size(); i++) {
-                        entries.add(new Entry(i, sparkline.get(i).floatValue()));
-                    }
-                    setupChart(vh.binding.lineChart, entries);
-                } else {
-                    vh.binding.lineChart.setVisibility(View.GONE);
-                }
+//                List<Double> sparklineData = symbol.getSparkline();
+//                if (sparklineData != null && !sparklineData.isEmpty()) {
+//                    vh.binding.lineChart.setVisibility(View.VISIBLE);
+//                    List<Entry> entries = new ArrayList<>();
+//                    for (int i = 0; i < sparklineData.size(); i++) {
+//                        if(sparklineData.get(i) != null) { // Check for null points in sparkline
+//                            entries.add(new Entry(i, sparklineData.get(i).floatValue()));
+//                        }
+//                    }
+//                    if (!entries.isEmpty()) { // Only setup chart if there are valid entries
+//                        setupChart(vh.binding.lineChart, entries);
+//                    } else {
+//                        vh.binding.lineChart.setVisibility(View.GONE);
+//                    }
+//                } else {
+//                    vh.binding.lineChart.setVisibility(View.GONE);
+//                }
 
-                vh.binding.getRoot().setOnClickListener(v -> startSymbolDetail(symbol));
+                vh.binding.getRoot().setOnClickListener(v -> startSymbolDetail(false, symbol));
+                // If watchlist items need a remove button, add it to XML and handle here:
+                // vh.binding.idOfRemoveButtonInWatchlistItem.setOnClickListener(v -> listener.onRemoveFromWatchlist(null, symbol.getSymbol()));
             }
         } catch (Exception e) {
-            Timber.e(e, "Error binding view at position %d", position);
+            Timber.e(e, "Error binding view at position %d for symbol %s", position, symbol.getSymbol());
         }
     }
 
@@ -164,20 +176,42 @@ public class SymbolAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         return symbolList != null ? symbolList.size() : 0;
     }
 
-    private void startSymbolDetail(Symbol symbol) {
-        Intent intent = new Intent(context, SymbolMarketDataActivity.class);
-        intent.putExtra("SYMBOL", symbol.getSymbol());
-        intent.putExtra("ASSET", symbol.getAsset());
-        intent.putExtra("CURRENT_PRICE", symbol.getCurrentPrice());
-        intent.putExtra("CHANGE_24H", symbol.get_24hChange());
+    private void startSymbolDetail(boolean isFromSearch, Symbol symbol) {
+        if (isFromSearch){
+            // ... (your existing implementation is fine, ensure symbol.getSparkline() is handled if null)
+            Intent intent = new Intent(context, SymbolMarketDataActivity.class);
+            intent.putExtra("SYMBOL", symbol.getSymbol());
+            intent.putExtra("ASSET", symbol.getAsset());
+            intent.putExtra("CURRENT_PRICE", symbol.getCurrentPrice());
+            intent.putExtra("CHANGE_24H", symbol.get_24hChange());
 
-        double[] sparklineArray = new double[symbol.getSparkline().size()];
-        for (int i = 0; i < symbol.getSparkline().size(); i++) {
-            sparklineArray[i] = symbol.getSparkline().get(i);
+            List<Double> sparkline = symbol.getSparkline();
+            if (sparkline != null) {
+                double[] sparklineArray = new double[sparkline.size()];
+                for (int i = 0; i < sparkline.size(); i++) {
+                    sparklineArray[i] = (sparkline.get(i) != null ? sparkline.get(i) : 0.0); // Handle nulls in sparkline
+                }
+                intent.putExtra("SPARKLINE", sparklineArray);
+            }
+            context.startActivity(intent);
+        }else {
+            // ... (your existing implementation is fine, ensure symbol.getSparkline() is handled if null)
+            Intent intent = new Intent(context, SymbolMarketDataActivity.class);
+            intent.putExtra("SYMBOL", symbol.getSymbol());
+            intent.putExtra("ASSET", symbol.getAsset());
+            intent.putExtra("CURRENT_PRICE", symbol.getPrice());
+            intent.putExtra("CHANGE_24H", symbol.getChange());
+
+            List<Double> sparkline = symbol.getSparkline();
+            if (sparkline != null) {
+                double[] sparklineArray = new double[sparkline.size()];
+                for (int i = 0; i < sparkline.size(); i++) {
+                    sparklineArray[i] = (sparkline.get(i) != null ? sparkline.get(i) : 0.0); // Handle nulls in sparkline
+                }
+                intent.putExtra("SPARKLINE", sparklineArray);
+            }
+            context.startActivity(intent);
         }
-
-        intent.putExtra("SPARKLINE", sparklineArray);
-        context.startActivity(intent);
     }
 
     public static class SearchViewHolder extends RecyclerView.ViewHolder {

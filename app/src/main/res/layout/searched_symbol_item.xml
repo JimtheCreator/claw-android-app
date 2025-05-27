@@ -98,7 +98,6 @@
                 android:textColor="@color/text_primary"
                 android:textSize="16sp" />
 
-
             <TextView
                 android:id="@+id/percentage_price_change"
                 android:layout_width="wrap_content"
@@ -120,5 +119,3 @@
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
-
-

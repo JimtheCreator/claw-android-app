@@ -5,6 +5,7 @@ import androidx.annotation.Nullable;
 import java.util.List;
 
 import backend.requests.AddWatchlistRequest;
+import backend.requests.RemoveWatchlistRequest;
 import io.reactivex.Completable;
 import models.MarketDataResponse;
 import models.Symbol;
@@ -12,6 +13,7 @@ import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.DELETE;
 import retrofit2.http.GET;
+import retrofit2.http.HTTP;
 import retrofit2.http.POST;
 import retrofit2.http.Path;
 import retrofit2.http.Query;
@@ -40,10 +42,13 @@ public interface SymbolMarketEndpoints {
             @Body AddWatchlistRequest request
     );
 
-    @DELETE("watchlist/remove")
+    @HTTP(method = "DELETE", path = "watchlist/remove", hasBody = true)
     Completable removeFromWatchlist(
-            @Query("user_id") String user_id,
-            @Query("symbol") String symbol
+            @Body RemoveWatchlistRequest request
     );
+
+    @GET("watchlist/{user_id}")
+    Call<List<Symbol>> getWatchlist(@Path("user_id") String userId);
+
 }
 
