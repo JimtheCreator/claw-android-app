@@ -112,13 +112,8 @@ public class SymbolAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
 
                 // Conditional visibility of add/remove buttons
                 //Timber.d("Binding SearchVH for %s, isInWatchlist: %s", symbol.getSymbol(), symbol.isInWatchlist());
-                if (userId == null){
-                    vh.binding.addToWatchlist.setVisibility(View.GONE);
-                    vh.binding.removeFromWatchlist.setVisibility(View.GONE);
-                }else {
-                    vh.binding.addToWatchlist.setVisibility(symbol.isInWatchlist() ? View.GONE : View.VISIBLE);
-                    vh.binding.removeFromWatchlist.setVisibility(symbol.isInWatchlist() ? View.VISIBLE : View.GONE);
-                }
+                vh.binding.addToWatchlist.setVisibility(symbol.isInWatchlist() ? View.GONE : View.VISIBLE);
+                vh.binding.removeFromWatchlist.setVisibility(symbol.isInWatchlist() ? View.VISIBLE : View.GONE);
 
                 vh.binding.getRoot().setOnClickListener(v -> startSymbolDetail(true, symbol));
 
