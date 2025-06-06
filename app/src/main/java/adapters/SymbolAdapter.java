@@ -118,7 +118,6 @@ public class SymbolAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
                 vh.binding.getRoot().setOnClickListener(v -> startSymbolDetail(true, symbol));
 
                 vh.binding.addToWatchlist.setOnClickListener(v -> {
-                    vh.binding.addToWatchlist.setEnabled(false); // Disable button
                     if (listener != null) {
                         Log.d("CLICKED", "Add to Watchlist initiated for " + symbol.getSymbol());
                         listener.onAddToWatchlist(userId, symbol, "Binance");

@@ -26,8 +26,7 @@ import java.util.Map;
 
 import accounts.SignUpBottomSheet;
 import bottomsheets.DisclaimerBottomSheetFragment;
-import firebase_manager.FirebaseAuthManager;
-import models.CancellationResponseSchema;
+import backend.results.CancellationResponseSchema;
 import models.User;
 import pricing.OnboardingPricingPageSheetFragment;
 import pricing.SubscriptionPlanSheetFragment;
@@ -285,45 +284,58 @@ public class MoreTabFragment extends Fragment {
             binding.profilePage.usageLimitsProgress.setVisibility(View.GONE);
             binding.profilePage.usageLimitsList.setVisibility(View.VISIBLE);
 
-            int priceAlertsLimit = (int) limits.get("price_alerts_limit");
-            if (priceAlertsLimit == -1) {
-                binding.profilePage.priceAlertsText.setText("Price Alerts: Unlimited");
-            } else {
-                binding.profilePage.priceAlertsText.setText("Price Alerts: " + usageData.getPriceAlertsUsed() + "/" + priceAlertsLimit);
+            if (usageData != null){
+                int priceAlertsLimit = (int) limits.get("price_alerts_limit");
+                if (priceAlertsLimit == -1) {
+                    binding.profilePage.priceAlertsText.setText("Price Alerts: Unlimited");
+                } else {
+                    binding.profilePage.priceAlertsText.setText("Price Alerts: " + usageData.getPriceAlertsUsed() + "/" + priceAlertsLimit);
+                }
+
+                int patternDetectionLimit = (int) limits.get("pattern_detection_limit");
+                if (patternDetectionLimit == -1) {
+                    binding.profilePage.patternDetectionText.setText("Pattern Detections: Unlimited");
+                } else {
+                    binding.profilePage.patternDetectionText.setText("Pattern Detections: " + usageData.getPatternDetectionUsed() + "/" + patternDetectionLimit);
+                }
+
+                int watchlistLimit = (int) limits.get("watchlist_limit");
+                if (watchlistLimit == -1) {
+                    binding.profilePage.watchlistText.setText("Watchlist: Unlimited");
+                } else {
+                    binding.profilePage.watchlistText.setText("Watchlist: " + usageData.getWatchlistUsed() + "/" + watchlistLimit);
+                }
+
+                int marketAnalysisLimit = (int) limits.get("market_analysis_limit");
+                if (marketAnalysisLimit == -1) {
+                    binding.profilePage.marketAnalysisText.setText("Market Analysis: Unlimited");
+                } else {
+                    binding.profilePage.marketAnalysisText.setText("Market Analysis: " + usageData.getMarketAnalysisUsed() + "/" + marketAnalysisLimit);
+                }
+
+                boolean journalingEnabled = (boolean) limits.get("journaling_enabled");
+                binding.profilePage.journalingText.setText("Journaling: " + (journalingEnabled ? "Enabled" : "Disabled"));
+
+                int videoDownloadLimit = (int) limits.get("video_download_limit");
+                if (videoDownloadLimit == -1) {
+                    binding.profilePage.videoDownloadsText.setText("Video Downloads: Unlimited");
+                } else if (videoDownloadLimit == 0) {
+                    binding.profilePage.videoDownloadsText.setText("Video Downloads: Not Available");
+                } else {
+                    binding.profilePage.videoDownloadsText.setText("Video Downloads: " + usageData.getVideoDownloadsUsed() + "/" + videoDownloadLimit);
+                }
+            }
+            else {
+                Toast.makeText(requireContext(), "Usage data is null", Toast.LENGTH_SHORT).show();
+                binding.profilePage.priceAlertsText.setText("Price Alerts: ---");
+                binding.profilePage.patternDetectionText.setText("Pattern Detections: ---");
+                binding.profilePage.watchlistText.setText("Watchlist: ---");
+                binding.profilePage.marketAnalysisText.setText("Market Analysis: ---");
+                binding.profilePage.journalingText.setText("Journaling: ---");
+                binding.profilePage.videoDownloadsText.setText("Video Downloads: ---");
             }
 
-            int patternDetectionLimit = (int) limits.get("pattern_detection_limit");
-            if (patternDetectionLimit == -1) {
-                binding.profilePage.patternDetectionText.setText("Pattern Detections: Unlimited");
-            } else {
-                binding.profilePage.patternDetectionText.setText("Pattern Detections: " + usageData.getPatternDetectionUsed() + "/" + patternDetectionLimit);
-            }
 
-            int watchlistLimit = (int) limits.get("watchlist_limit");
-            if (watchlistLimit == -1) {
-                binding.profilePage.watchlistText.setText("Watchlist: Unlimited");
-            } else {
-                binding.profilePage.watchlistText.setText("Watchlist: " + usageData.getWatchlistUsed() + "/" + watchlistLimit);
-            }
-
-            int marketAnalysisLimit = (int) limits.get("market_analysis_limit");
-            if (marketAnalysisLimit == -1) {
-                binding.profilePage.marketAnalysisText.setText("Market Analysis: Unlimited");
-            } else {
-                binding.profilePage.marketAnalysisText.setText("Market Analysis: " + usageData.getMarketAnalysisUsed() + "/" + marketAnalysisLimit);
-            }
-
-            boolean journalingEnabled = (boolean) limits.get("journaling_enabled");
-            binding.profilePage.journalingText.setText("Journaling: " + (journalingEnabled ? "Enabled" : "Disabled"));
-
-            int videoDownloadLimit = (int) limits.get("video_download_limit");
-            if (videoDownloadLimit == -1) {
-                binding.profilePage.videoDownloadsText.setText("Video Downloads: Unlimited");
-            } else if (videoDownloadLimit == 0) {
-                binding.profilePage.videoDownloadsText.setText("Video Downloads: Not Available");
-            } else {
-                binding.profilePage.videoDownloadsText.setText("Video Downloads: " + usageData.getVideoDownloadsUsed() + "/" + videoDownloadLimit);
-            }
         });
 
     }

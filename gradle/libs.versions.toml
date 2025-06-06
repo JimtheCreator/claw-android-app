@@ -29,6 +29,7 @@ googleFirebaseCrashlytics = "3.0.3"
 firebaseDatabase = "21.0.0"
 kotlin = "1.9.24"
 coreKtx = "1.16.0"
+firebaseMessaging = "24.1.1"
 
 [libraries]
 adapter-rxjava2 = { module = "com.squareup.retrofit2:adapter-rxjava2", version.ref = "converterGson" }
@@ -60,6 +61,7 @@ googleid = { group = "com.google.android.libraries.identity.googleid", name = "g
 firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics", version.ref = "firebaseCrashlytics" }
 firebase-database = { group = "com.google.firebase", name = "firebase-database", version.ref = "firebaseDatabase" }
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging", version.ref = "firebaseMessaging" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

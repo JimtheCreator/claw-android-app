@@ -648,8 +648,8 @@ public class HomeTabFragment extends Fragment {
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
+    public void onResume() {
+        super.onResume();
         if (authViewModel.getAuthState().getValue() == AuthViewModel.AuthState.AUTHENTICATED) {
             String currentUid = getCurrentUserId();
             if (currentUid != null) {
@@ -662,5 +662,16 @@ public class HomeTabFragment extends Fragment {
     public void onStop() {
         super.onStop();
         homeViewModel.disconnectWebSocket();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (authViewModel.getAuthState().getValue() == AuthViewModel.AuthState.AUTHENTICATED) {
+            String currentUid = getCurrentUserId();
+            if (currentUid != null) {
+                homeViewModel.disconnectWebSocket();
+            }
+        }
     }
 }

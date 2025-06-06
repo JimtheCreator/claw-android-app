@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Map;
 
 import bottomsheets.PlanChangeWarningBottomSheetFragment;
-import models.NativeCheckoutResponse;
+import backend.results.NativeCheckoutResponse;
 import models.Plan;
 import models.User;
 import viewmodels.stripe_payments.SubscriptionViewModel;

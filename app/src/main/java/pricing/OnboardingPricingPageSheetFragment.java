@@ -22,7 +22,6 @@ import com.claw.ai.R;
 import com.claw.ai.databinding.FragmentOnboardingPricePageBottomSheetBinding;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
-import com.stripe.android.PaymentConfiguration;
 import com.stripe.android.paymentsheet.PaymentSheet;
 import com.stripe.android.paymentsheet.PaymentSheetResult;
 
@@ -31,7 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import models.NativeCheckoutResponse;
+import backend.results.NativeCheckoutResponse;
 import models.Plan;
 import viewmodels.stripe_payments.PricingViewModel;
 

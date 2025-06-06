@@ -4,6 +4,9 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.lifecycle.Lifecycle;
+import androidx.lifecycle.LifecycleEventObserver;
+import androidx.lifecycle.LifecycleOwner;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
@@ -45,7 +48,7 @@ import timber.log.Timber;
 /**
  * ViewModel for handling cryptocurrency data operations and exposing data to the UI.
  */
-public class HomeViewModel extends ViewModel {
+public class HomeViewModel extends ViewModel implements LifecycleEventObserver {
     public static final String TAG = "HomeViewModel";
     private final MutableLiveData<WatchlistUpdateResult> watchlistUpdateResult = new MutableLiveData<>();
     private final MutableLiveData<List<Symbol>> watchlist = new MutableLiveData<>();
@@ -61,6 +64,7 @@ public class HomeViewModel extends ViewModel {
     private final List<Symbol> allCryptos = new ArrayList<>();
     private Call<List<Symbol>> currentSearchCall;
     private final SymbolRepository repository;
+    private boolean inBackground = false;
     private final MutableLiveData<List<Symbol>> searchResults = new MutableLiveData<>();
     private final CompositeDisposable disposables = new CompositeDisposable(); // For RxJava
     private WebSocket webSocketClient;
@@ -223,132 +227,116 @@ public class HomeViewModel extends ViewModel {
 
         AddWatchlistRequest request = new AddWatchlistRequest(userID, symbolToAdd.getSymbol(), symbolToAdd.getBaseCurrency(), symbolToAdd.getAsset(), source);
 
-        disposables.add(repository.addToWatchlist(request).subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(() -> {
-            Timber.d("API: Added %s to watchlist", symbolToAdd.getSymbol());
-            symbolToAdd.setInWatchlist(true);
-            watchlistSymbolTickers.add(symbolToAdd.getSymbol());
+        disposables.add(repository.addToWatchlist(request)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(() -> {
+                    Timber.d("API: Added %s to watchlist", symbolToAdd.getSymbol());
+                    symbolToAdd.setInWatchlist(true);
+                    watchlistSymbolTickers.add(symbolToAdd.getSymbol());
 
-            ArrayList<Symbol> updatedWatchlist = new ArrayList<>(currentWatchlist != null ? currentWatchlist : Collections.emptyList());
-            if (updatedWatchlist.stream().noneMatch(s -> s.getSymbol().equals(symbolToAdd.getSymbol()))) {
-                updatedWatchlist.add(0, symbolToAdd);
-                watchlist.postValue(updatedWatchlist);
-            }
+                    ArrayList<Symbol> updatedWatchlist = new ArrayList<>(currentWatchlist != null ? currentWatchlist : Collections.emptyList());
 
-            updateIsInWatchlistFlagForList(searchResults.getValue(), searchResults);
-            watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolToAdd, true, true, null));
-            connectToWatchlistWebSocket(userID); // Reconnect WebSocket
-        }, throwable -> {
-            Timber.e(throwable, "API: Failed to add %s to watchlist", symbolToAdd.getSymbol());
-            watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolToAdd, false, true, throwable));
-        }));
+                    if (updatedWatchlist.stream().noneMatch(s -> s.getSymbol().equals(symbolToAdd.getSymbol()))) {
+                        updatedWatchlist.add(0, symbolToAdd);
+                        watchlist.postValue(updatedWatchlist);
+                    }
+
+                    updateIsInWatchlistFlagForList(searchResults.getValue(), searchResults);
+                    watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolToAdd, true, true, null));
+
+                    // Disconnect and reconnect WebSocket to refresh the watchlist
+                    disconnectWebSocket();
+                    connectToWatchlistWebSocket(userID);
+                }, throwable -> {
+                    Timber.e(throwable, "API: Failed to add %s to watchlist", symbolToAdd.getSymbol());
+                    watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolToAdd, false, true, throwable));
+                }));
     }
 
     public void removeFromWatchlist(String userID, String symbolTickerToRemove) {
         RemoveWatchlistRequest request = new RemoveWatchlistRequest(userID, symbolTickerToRemove);
 
-        disposables.add(repository.removeFromWatchlist(request).subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(() -> {
-            Timber.d("API: Removed %s from watchlist", symbolTickerToRemove);
-            watchlistSymbolTickers.remove(symbolTickerToRemove);
+        disposables.add(repository.removeFromWatchlist(request)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(() -> {
+                    Timber.d("API: Removed %s from watchlist", symbolTickerToRemove);
+                    watchlistSymbolTickers.remove(symbolTickerToRemove);
 
-            List<Symbol> currentWatchlist = watchlist.getValue();
-            if (currentWatchlist != null) {
-                List<Symbol> updatedList = currentWatchlist.stream().filter(s -> !s.getSymbol().equals(symbolTickerToRemove)).collect(Collectors.toList());
-                watchlist.postValue(updatedList);
-            }
-            updateIsInWatchlistFlagForList(searchResults.getValue(), searchResults);
-            watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolTickerToRemove, true, false, null));
-            connectToWatchlistWebSocket(userID); // Reconnect WebSocket
-        }, throwable -> {
-            Timber.e(throwable, "API: Failed to remove %s from watchlist", symbolTickerToRemove);
-            watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolTickerToRemove, false, false, throwable));
-        }));
+                    List<Symbol> currentWatchlist = watchlist.getValue();
+                    if (currentWatchlist != null) {
+                        List<Symbol> updatedList = currentWatchlist.stream()
+                                .filter(s -> !s.getSymbol().equals(symbolTickerToRemove))
+                                .collect(Collectors.toList());
+                        watchlist.postValue(updatedList);
+                    }
+                    updateIsInWatchlistFlagForList(searchResults.getValue(), searchResults);
+                    watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolTickerToRemove, true, false, null));
+
+                    // Disconnect and reconnect WebSocket to refresh the watchlist
+                    disconnectWebSocket();
+                    connectToWatchlistWebSocket(userID);
+                }, throwable -> {
+                    Timber.e(throwable, "API: Failed to remove %s from watchlist", symbolTickerToRemove);
+                    watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolTickerToRemove, false, false, throwable));
+                }));
     }
 
     public void connectToWatchlistWebSocket(String userId) {
-        if (webSocketClient != null) {
-            Log.i("WebSocketDebug", "Closing existing WebSocket before reconnecting.");
-            webSocketClient.close(1000, "Reconnecting");
-        }
+        if (webSocketClient == null) {
+            String wsUrl = "wss://stable-wholly-crappie.ngrok-free.app/api/v1/ws/watchlist/" + userId;
+            Log.i("WebSocketDebug", "Connecting to WebSocket: " + wsUrl);
 
-        String wsUrl = "wss://stable-wholly-crappie.ngrok-free.app/api/v1/ws/watchlist/" + userId;
-        Log.i("WebSocketDebug", "Connecting to WebSocket: " + wsUrl);
-
-        Request request = new Request.Builder().url(wsUrl).build();
-        webSocketClient = okHttpClient.newWebSocket(request, new WebSocketListener() {
-            @Override
-            public void onOpen(@NonNull WebSocket webSocket, @NonNull Response response) {
-                Log.i("WebSocketDebug", "WebSocket connected: " + response);
-            }
-
-            @Override
-            public void onMessage(@NonNull WebSocket webSocket, @NonNull String text) {
-                Log.d("WebSocketDebug", "WebSocket Message: " + text);
-                try {
-                    JSONObject json = new JSONObject(text);
-                    String type = json.optString("type");
-                    Log.d("WebSocketDebug", "Message type: " + type);
-                    switch (type) {
-                        case "init":
-                            Log.i("WebSocketDebug", "WebSocket init message: " + json.optJSONArray("watchlist"));
-                            handleInitMessage(json);
-                            break;
-                        case "update":
-                            String symbolTicker = json.getString("symbol");
-                            double price = json.getDouble("price");
-                            double change = json.getDouble("change");
-
-                            // Extract sparkline data if present
-                            List<Double> sparklineData = null;
-                            if (json.has("sparkline")) {
-                                sparklineData = parseSparklineData(json);
-                            }
-
-                            Log.d("WebSocketDebug", "Updating symbol: " + symbolTicker + " with price: " + price + " and change: " + change);
-
-                            if (sparklineData != null) {
-                                Log.d("WebSocketDebug", "Sparkline data points: " + sparklineData.size());
-                            }
-
-                            updateSymbolDataInLists(symbolTicker, price, change, sparklineData);
-                            break;
-                        case "error":
-                            Log.e("WebSocketDebug", "WebSocket server error: " + json.optString("message"));
-                            break;
-                    }
-                } catch (Exception e) {
-                    Log.e("WebSocketDebug", "Error parsing WebSocket message", e);
+            Request request = new Request.Builder().url(wsUrl).build();
+            webSocketClient = okHttpClient.newWebSocket(request, new WebSocketListener() {
+                @Override
+                public void onOpen(@NonNull WebSocket webSocket, @NonNull Response response) {
+                    Log.i("WebSocketDebug", "WebSocket connected: " + response);
                 }
-            }
 
-            @Override
-            public void onClosing(@NonNull WebSocket webSocket, int code, @NonNull String reason) {
-                Log.i("WebSocketDebug", "WebSocket Closing: " + code + " / " + reason);
-            }
+                @Override
+                public void onMessage(@NonNull WebSocket webSocket, @NonNull String text) {
+                    try {
+                        JSONObject json = new JSONObject(text);
+                        String type = json.optString("type");
+                        switch (type) {
+                            case "init":
+                                handleInitMessage(json);
+                                break;
+                            case "update":
+                                String symbol = json.getString("symbol");
+                                double price = json.getDouble("price");
+                                double change = json.getDouble("change");
+                                updateSymbolDataInLists(symbol, price, change, null); // No sparkline updates
+                                break;
+                            case "error":
+                                errorMessage.postValue(json.optString("message"));
+                                break;
+                        }
+                    } catch (Exception e) {
+                        Log.e("WebSocketDebug", "Error parsing message", e);
+                    }
+                }
 
-            @Override
-            public void onClosed(@NonNull WebSocket webSocket, int code, @NonNull String reason) {
-                Log.i("WebSocketDebug", "WebSocket Closed: " + code + " / " + reason);
-            }
+                @Override
+                public void onClosing(@NonNull WebSocket webSocket, int code, @NonNull String reason) {
+                    Log.i("WebSocketDebug", "WebSocket Closing: " + code + " / " + reason);
+                }
 
-            @Override
-            public void onFailure(@NonNull WebSocket webSocket, @NonNull Throwable t, @Nullable Response response) {
-                String message = response != null ? "WebSocket Failure: " + response.toString() : "WebSocket Failure";
-                Log.e("WebSocketDebug", message, t);
-            }
-        });
-    }
+                @Override
+                public void onClosed(@NonNull WebSocket webSocket, int code, @NonNull String reason) {
+                    Log.i("WebSocketDebug", "WebSocket Closed: " + code + " / " + reason);
+                }
 
-    private List<Double> parseSparklineData(JSONObject json) {
-        List<Double> sparklineData = new ArrayList<>();
-        try {
-            JSONArray sparklineArray = json.getJSONArray("sparkline");
-            for (int i = 0; i < sparklineArray.length(); i++) {
-                sparklineData.add(sparklineArray.getDouble(i));
-            }
-        } catch (JSONException e) {
-            Log.e("WebSocketDebug", "Error parsing sparkline data", e);
+                @Override
+                public void onFailure(@NonNull WebSocket webSocket, @NonNull Throwable t, @Nullable Response response) {
+                    String message = response != null ? "WebSocket Failure: " + response.toString() : "WebSocket Failure";
+                    Log.e("WebSocketDebug", message, t);
+                }
+            });
         }
-        return sparklineData;
+
     }
 
     private void handleInitMessage(JSONObject json) {
@@ -479,4 +467,34 @@ public class HomeViewModel extends ViewModel {
         disposables.clear();
         disconnectWebSocket();
     }
+
+    /**
+     * @param lifecycleOwner
+     * @param event
+     */
+    @Override
+    public void onStateChanged(@NonNull LifecycleOwner lifecycleOwner, @NonNull Lifecycle.Event event) {
+        if (event == Lifecycle.Event.ON_PAUSE) {
+            handleBackgroundState();
+        } else if (event == Lifecycle.Event.ON_RESUME) {
+            handleForegroundState();
+        }
+    }
+
+    private void handleBackgroundState() {
+        // Pause WebSocket updates
+        setInBackground(true);
+        Timber.d("App moved to background");
+    }
+
+    private void handleForegroundState() {
+        // Resume WebSocket updates
+        setInBackground(false);
+        Timber.d("App returned to foreground");
+    }
+
+    public void setInBackground(boolean inBackground) {
+        this.inBackground = inBackground;
+    }
+
 }

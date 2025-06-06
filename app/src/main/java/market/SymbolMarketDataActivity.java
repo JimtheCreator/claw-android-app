@@ -73,13 +73,14 @@ import adapters.TimeframeSpinnerAdapter;
 import backend.MainClient;
 import backend.SymbolMarketEndpoints;
 import backend.WebSocketService;
+import bottomsheets.PriceAlertsBottomSheetFragment;
 import data.remote.WebSocketServiceImpl;
 import factory.StreamViewModelFactory;
 import kotlin.Unit;
 import model_interfaces.OnWatchlistActionListener;
 import models.HistoricalState;
 import models.MarketDataEntity;
-import models.MarketDataResponse;
+import backend.results.MarketDataResponse;
 import models.StreamMarketData;
 import models.Symbol;
 import okhttp3.OkHttpClient;
@@ -97,6 +98,7 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
     double[] sparklineArray;
     private HomeViewModel homeViewModel;
     OnWatchlistActionListener commonWatchlistListener;
+    FirebaseUser firebaseUser;
     String asset;
     private final SimpleDateFormat apiDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US);
     String symbol;
@@ -129,6 +131,8 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
         // Get reference to TradingView chart
         chartsView = binding.marketChartLayout.candlesStickChart;
         apiDateFormat.setTimeZone(TimeZone.getTimeZone("UTC")); // Use UTC, not default timezone
+
+        firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
 
         initializeView();
         initViewModel();
@@ -325,6 +329,13 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
 
             // Add to watchlist
             homeViewModel.addToWatchlist(userId, symbolObj, "Binance");
+        });
+
+        binding.marketChartLayout.createPriceAlert.setOnClickListener(v -> {
+            String symbol = getIntent().getStringExtra("SYMBOL");
+            double currentPrice = getIntent().getDoubleExtra("CURRENT_PRICE", 0.0);
+            PriceAlertsBottomSheetFragment priceAlertFragment = PriceAlertsBottomSheetFragment.newInstance(firebaseUser.getUid(), symbol, currentPrice);
+            priceAlertFragment.show(getSupportFragmentManager(), priceAlertFragment.getTag());
         });
     }
 

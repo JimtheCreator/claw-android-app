@@ -2,21 +2,24 @@ package backend;
 
 import java.util.List;
 
+import backend.requests.CancelAlertRequest;
 import backend.requests.SubscribeRequest;
-import models.CancelSubscriptionRequest;
-import models.CancellationResponseSchema;
-import models.NativeCheckoutResponse;
+import backend.requests.CancelSubscriptionRequest;
+import backend.results.CancellationResponseSchema;
+import backend.requests.CreateAlertRequest;
+import backend.results.NativeCheckoutResponse;
+import models.PriceAlert;
 import models.StripePrice;
 import models.UsageData;
 import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.GET;
+import retrofit2.http.PATCH;
 import retrofit2.http.POST;
 import retrofit2.http.Path;
+import retrofit2.http.Query;
 
 public interface ApiService {
-    // Assuming your backend is hosted at some BASE_URL
-    // The prices.py defines this endpoint
     @GET("stripe/prices")
     Call<List<StripePrice>> getStripePrices();
 
@@ -29,4 +32,14 @@ public interface ApiService {
 
     @GET("subscriptions/{user_id}/limits")
     Call<UsageData> getSubscriptionLimits(@Path("user_id") String userId);
+
+    @POST("alerts")
+    Call<CreateAlertRequest> createAlert(@Body CreateAlertRequest request);
+
+    @PATCH("alerts/{alert_id}")
+    Call<Void> cancelAlert(@Path("alert_id") int alertId, @Body CancelAlertRequest request);
+
+    @GET("alerts")
+    Call<List<PriceAlert>> getAlerts(@Query("user_id") String userId);
+
 }

@@ -1,6 +1,8 @@
-package models;
+package backend.results;
 
 import java.util.List;
+
+import models.MarketDataEntity;
 
 public class MarketDataResponse {
     private String symbol;

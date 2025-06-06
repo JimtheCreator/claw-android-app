@@ -1,0 +1,343 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="@drawable/dark_upper_rounded"
+    android:orientation="vertical">
+
+    <RelativeLayout
+        android:layout_marginTop="10dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="10dp"
+            android:src="@drawable/white_close_ic" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:layout_marginTop="10dp"
+            android:fontFamily="@font/sf_pro_text_bold"
+            android:text="Create price alert"
+            android:textColor="@color/off_white"
+            android:textSize="19.5sp" />
+
+    </RelativeLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginTop="10dp"
+        android:fontFamily="@font/sf_pro_text_regular"
+        android:text="When price is"
+        android:textColor="@color/grey"
+        android:textSize="14sp" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:fontFamily="@font/sf_pro_text_bold"
+            android:text="US$"
+            android:textColor="@color/off_white"
+            android:textSize="30sp" />
+
+        <TextView
+            android:id="@+id/expected_price"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:fontFamily="@font/sf_pro_text_bold"
+            android:text="50,000"
+            android:textColor="@color/off_white"
+            android:textSize="30sp" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:fontFamily="@font/sf_pro_text_regular"
+            android:text="Current price:"
+            android:textColor="@color/gray_inactive"
+            android:textSize="13sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:id="@+id/current_price"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="5dp"
+            android:fontFamily="@font/sf_pro_text_bold"
+            android:text="£80,000"
+            android:textColor="@color/white"
+            android:textSize="13sp" />
+
+    </LinearLayout>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="20dp"
+        android:layout_marginBottom="15dp">
+
+        <!-- Slider widget added here, right above the keypad -->
+        <com.google.android.material.slider.Slider
+            android:id="@+id/price_slider"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:valueFrom="0.0"
+            app:thumbColor="@color/dark_beige"
+            app:trackColorActive="@color/dark_beige"
+            app:trackColorInactive="@color/light_beige"
+            android:layout_above="@+id/keypadlayout"
+            android:layout_marginBottom="10dp"
+            android:valueTo="100.0"
+            android:stepSize="0.01"
+            android:value="50.0" />
+
+        <LinearLayout
+            android:id="@+id/keypadlayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="20dp"
+            android:paddingStart="40dp"
+            android:layout_alignParentBottom="true"
+            android:paddingEnd="40dp">
+
+            <!-- Row 1: 1 2 3 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="70dp"
+                android:layout_marginBottom="10dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btn_1"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/keypad_button_bg"
+                    android:fontFamily="monospace"
+                    android:gravity="center"
+                    android:text="1"
+                    android:textColor="@color/off_white"
+                    android:textSize="24sp" />
+
+                <TextView
+                    android:id="@+id/btn_2"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/keypad_button_bg"
+                    android:fontFamily="monospace"
+                    android:gravity="center"
+                    android:text="2"
+                    android:textColor="@color/off_white"
+                    android:textSize="24sp" />
+
+                <TextView
+                    android:id="@+id/btn_3"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/keypad_button_bg"
+                    android:fontFamily="monospace"
+                    android:gravity="center"
+                    android:text="3"
+                    android:textColor="@color/off_white"
+                    android:textSize="24sp" />
+            </LinearLayout>
+
+            <!-- Row 2: 4 5 6 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="70dp"
+                android:layout_marginBottom="10dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btn_4"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/keypad_button_bg"
+                    android:fontFamily="monospace"
+                    android:gravity="center"
+                    android:text="4"
+                    android:textColor="@color/off_white"
+                    android:textSize="24sp" />
+
+                <TextView
+                    android:id="@+id/btn_5"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/keypad_button_bg"
+                    android:fontFamily="monospace"
+                    android:gravity="center"
+                    android:text="5"
+                    android:textColor="@color/off_white"
+                    android:textSize="24sp" />
+
+                <TextView
+                    android:id="@+id/btn_6"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/keypad_button_bg"
+                    android:fontFamily="monospace"
+                    android:gravity="center"
+                    android:text="6"
+                    android:textColor="@color/off_white"
+                    android:textSize="24sp" />
+            </LinearLayout>
+
+            <!-- Row 3: 7 8 9 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="70dp"
+                android:layout_marginBottom="10dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btn_7"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/keypad_button_bg"
+                    android:fontFamily="monospace"
+                    android:gravity="center"
+                    android:text="7"
+                    android:textColor="@color/off_white"
+                    android:textSize="24sp" />
+
+                <TextView
+                    android:id="@+id/btn_8"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/keypad_button_bg"
+                    android:fontFamily="monospace"
+                    android:gravity="center"
+                    android:text="8"
+                    android:textColor="@color/off_white"
+                    android:textSize="24sp" />
+
+                <TextView
+                    android:id="@+id/btn_9"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/keypad_button_bg"
+                    android:fontFamily="monospace"
+                    android:gravity="center"
+                    android:text="9"
+                    android:textColor="@color/off_white"
+                    android:textSize="24sp" />
+            </LinearLayout>
+
+            <!-- Row 4: empty 0 empty -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="70dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btn_period"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/keypad_button_bg"
+                    android:fontFamily="monospace"
+                    android:gravity="center"
+                    android:text="."
+                    android:textColor="@color/off_white"
+                    android:textSize="24sp" />
+
+                <TextView
+                    android:id="@+id/btn_0"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/keypad_button_bg"
+                    android:fontFamily="monospace"
+                    android:gravity="center"
+                    android:text="0"
+                    android:textColor="@color/off_white"
+                    android:textSize="24sp" />
+
+                <ImageView
+                    android:id="@+id/btn_backspace"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:padding="20dp"
+                    android:background="@drawable/keypad_button_bg"
+                    android:src="@drawable/ic_backspace"
+                    android:scaleType="centerInside" />
+
+            </LinearLayout>
+
+            <!-- Create Alert Button -->
+            <RelativeLayout
+                android:id="@+id/create_alert"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginTop="30dp"
+                android:background="@drawable/alert_button_shape">
+
+                <LinearLayout
+                    android:id="@+id/alertcontent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerInParent="true"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginStart="5dp"
+                        android:fontFamily="@font/sf_pro_text_bold"
+                        android:text="Create alert"
+                        android:textColor="@color/graphite_black"
+                        android:textSize="18sp" />
+
+                </LinearLayout>
+
+                <ProgressBar
+                    android:id="@+id/progress_bar"
+                    android:layout_centerInParent="true"
+                    android:layout_width="35dp"
+                    android:layout_height="35dp"/>
+
+
+            </RelativeLayout>
+
+        </LinearLayout>
+
+
+    </RelativeLayout>
+
+</LinearLayout>

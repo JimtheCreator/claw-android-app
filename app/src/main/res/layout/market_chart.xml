@@ -24,36 +24,52 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
-                <LinearLayout
+                <RelativeLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="15dp"
-                    android:layout_marginTop="15dp"
-                    android:layout_marginEnd="15dp"
-                    android:orientation="horizontal">
+                    android:layout_height="wrap_content">
 
-                    <TextView
-                        android:id="@+id/symbol"
+                    <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="bottom"
-                        android:fontFamily="@font/sf_pro_text_bold"
-                        android:text="--"
-                        android:textColor="@color/off_white"
-                        android:textSize="22sp" />
-
-                    <TextView
-                        android:id="@+id/asset"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="bottom"
+                        android:layout_centerVertical="true"
                         android:layout_marginStart="15dp"
-                        android:fontFamily="@font/sf_pro_text_semibold"
-                        android:text="--"
-                        android:textColor="@color/gray_inactive"
-                        android:textSize="15sp" />
+                        android:layout_marginTop="15dp"
+                        android:layout_marginEnd="15dp"
+                        android:orientation="horizontal">
 
-                </LinearLayout>
+                        <TextView
+                            android:id="@+id/symbol"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="bottom"
+                            android:fontFamily="@font/sf_pro_text_bold"
+                            android:text="--"
+                            android:textColor="@color/off_white"
+                            android:textSize="22sp" />
+
+                        <TextView
+                            android:id="@+id/asset"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="bottom"
+                            android:layout_marginStart="15dp"
+                            android:fontFamily="@font/sf_pro_text_semibold"
+                            android:text="--"
+                            android:textColor="@color/gray_inactive"
+                            android:textSize="15sp" />
+
+                    </LinearLayout>
+
+                    <ImageView
+                        android:id="@+id/create_price_alert"
+                        android:layout_width="25dp"
+                        android:layout_height="25dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:layout_marginEnd="15dp"
+                        android:src="@drawable/alert_icon" />
+
+                </RelativeLayout>
 
 
                 <View
@@ -244,7 +260,7 @@
                 android:layout_width="30dp"
                 android:layout_height="30dp"
                 android:layout_gravity="center_vertical"
-                android:layout_marginEnd="10dp"
+                android:layout_marginEnd="5dp"
                 android:background="@drawable/ai_circle">
 
                 <ImageView
@@ -257,13 +273,13 @@
 
 
             <RelativeLayout
-                android:visibility="gone"
                 android:id="@+id/add_to_watchlist"
                 android:layout_width="30dp"
                 android:layout_height="30dp"
                 android:layout_gravity="center_vertical"
-                android:layout_marginStart="10dp"
-                android:background="@drawable/cool_black_circle">
+                android:layout_marginStart="5dp"
+                android:background="@drawable/cool_black_circle"
+                android:visibility="gone">
 
                 <ImageView
                     android:layout_width="20dp"

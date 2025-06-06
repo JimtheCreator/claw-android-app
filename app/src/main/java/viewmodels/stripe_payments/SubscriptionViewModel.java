@@ -1,7 +1,5 @@
 package viewmodels.stripe_payments;
 
-import repositories.plan_usage_limits.SupabaseRepository;
-
 import android.app.Application;
 import android.icu.text.NumberFormat;
 import android.icu.util.Currency;
@@ -12,7 +10,6 @@ import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MediatorLiveData;
 import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.Observer;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -23,18 +20,15 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
-import models.CancellationResponseSchema;
-import models.NativeCheckoutResponse;
+import backend.results.CancellationResponseSchema;
+import backend.results.NativeCheckoutResponse;
 import models.Plan;
 import models.StripePrice;
-import models.UsageData;
 import models.User;
 import repositories.stripe_payments.StripeRepository;
 

@@ -22,6 +22,7 @@ public class AuthViewModel extends ViewModel {
     private final MutableLiveData<AuthState> authState = new MutableLiveData<>(AuthState.UNAUTHENTICATED);
     private final MutableLiveData<User> currentUser = new MutableLiveData<>();
     private static final String TAG = "AuthViewModel";
+    LiveData<UsageData> repoResponseLiveData;
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
     private final MutableLiveData<UsageData> usageData = new MutableLiveData<>();
     private String googleWebClientIdCache;
@@ -174,29 +175,41 @@ public class AuthViewModel extends ViewModel {
             usageData.setValue(data);
         } else {
             Log.d(TAG, "Fetching paid tier usage counts");
-            if (supabaseRepository == null) {
-                supabaseRepository = new SupabaseRepository();
-                Log.d(TAG, "SupabaseRepository initialized in fetchUsageCounts");
-            }
-
-            // Fetch from Supabase via API
-            LiveData<UsageData> repoResponseLiveData = supabaseRepository.getSubscriptionLimits(userId); //
-
-            if (repoResponseLiveData == null) return;
             // Observe the LiveData returned by the repository.
             // Since the LiveData from getSubscriptionLimits is new for each call and emits once,
             // this observer will update usageData and then remove itself.
-            repoResponseLiveData.observeForever(new Observer<>() {
-                @Override
-                public void onChanged(UsageData dataFromRepo) {
-                    Log.d(TAG, "Fetching...");
-                    usageData.setValue(dataFromRepo);
-                    // Clean up the observer from this specific LiveData instance
-                    // to prevent potential leaks or multiple observations on the same temporary LiveData.
-                    Log.d(TAG, "Fetched...");
-                    repoResponseLiveData.removeObserver(this);
-                }
-            });
+            if (supabaseRepository == null) {
+                supabaseRepository = new SupabaseRepository();
+                Log.d(TAG, "SupabaseRepository initialized in fetchUsageCounts");
+                // Fetch from Supabase via API
+                repoResponseLiveData = supabaseRepository.getSubscriptionLimits(userId); //
+                repoResponseLiveData.observeForever(new Observer<>() {
+                    @Override
+                    public void onChanged(UsageData dataFromRepo) {
+                        Log.d(TAG, "Fetching...");
+                        usageData.setValue(dataFromRepo);
+                        // Clean up the observer from this specific LiveData instance
+                        // to prevent potential leaks or multiple observations on the same temporary LiveData.
+                        Log.d(TAG, "Fetched...");
+                        repoResponseLiveData.removeObserver(this);
+                    }
+                });
+            }else {
+                Log.d(TAG, "SupabaseRepository initialized in fetchUsageCounts");
+                // Fetch from Supabase via API
+                repoResponseLiveData = supabaseRepository.getSubscriptionLimits(userId); //
+                repoResponseLiveData.observeForever(new Observer<>() {
+                    @Override
+                    public void onChanged(UsageData dataFromRepo) {
+                        Log.d(TAG, "Fetching...");
+                        usageData.setValue(dataFromRepo);
+                        // Clean up the observer from this specific LiveData instance
+                        // to prevent potential leaks or multiple observations on the same temporary LiveData.
+                        Log.d(TAG, "Fetched...");
+                        repoResponseLiveData.removeObserver(this);
+                    }
+                });
+            }
         }
     }
 

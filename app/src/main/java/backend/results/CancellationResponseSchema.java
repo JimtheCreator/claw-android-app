@@ -1,4 +1,4 @@
-package models;
+package backend.results;
 
 public class CancellationResponseSchema {
     private boolean success;
