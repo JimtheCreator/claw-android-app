@@ -50,7 +50,7 @@ public class PriceAlertsViewModel extends ViewModel {
 
     public void fetchActiveAlerts(String userId) {
         isLoading.postValue(true);
-        repository.getActiveAlerts(userId, new Callback<List<PriceAlert>>() {
+        repository.getActiveAlerts(userId, new Callback<>() {
             @Override
             public void onResponse(@NonNull Call<List<PriceAlert>> call, @NonNull Response<List<PriceAlert>> response) {
                 isLoading.postValue(false);
