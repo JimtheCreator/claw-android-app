@@ -4,16 +4,13 @@ import androidx.recyclerview.widget.DiffUtil;
 
 import java.util.List;
 
-import models.Symbol;
+import models.PriceAlert;
 
-/**
- * Efficiently compares two lists of Symbol items for RecyclerView updates.
- */
-public class SymbolDiffCallback extends DiffUtil.Callback {
-    private final List<Symbol> oldList;
-    private final List<Symbol> newList;
+public class PriceAlertsDiffCallback extends DiffUtil.Callback{
+    private final List<PriceAlert> oldList;
+    private final List<PriceAlert> newList;
 
-    public SymbolDiffCallback(List<Symbol> oldList, List<Symbol> newList) {
+    public PriceAlertsDiffCallback(List<PriceAlert> oldList, List<PriceAlert> newList) {
         this.oldList = oldList;
         this.newList = newList;
     }
@@ -30,8 +27,8 @@ public class SymbolDiffCallback extends DiffUtil.Callback {
 
     @Override
     public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
-        Symbol oldSymbol = oldList.get(oldItemPosition);
-        Symbol newSymbol = newList.get(newItemPosition);
-        return oldSymbol.equals(newSymbol); // Relies on Symbol.equals including isInWatchlist
+        PriceAlert oldSymbol = oldList.get(oldItemPosition);
+        PriceAlert newSymbol = newList.get(newItemPosition);
+        return oldSymbol.equals(newSymbol);
     }
 }

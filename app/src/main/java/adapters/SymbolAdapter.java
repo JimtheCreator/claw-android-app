@@ -69,13 +69,6 @@ public class SymbolAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         diffResult.dispatchUpdatesTo(this);
     }
 
-    // updateSymbols calls notifyDataSetChanged which is less efficient than DiffUtil.
-    // Prefer setData for list updates. Keeping it if used elsewhere for specific reasons.
-    public void updateSymbols(List<Symbol> newSymbols) {
-        this.symbolList = (newSymbols != null) ? newSymbols : new ArrayList<>();
-        notifyDataSetChanged(); // Consider replacing with setData for consistency and animations
-    }
-
     @Override
     public int getItemViewType(int position) {
         return isSearchAdapter ? SEARCH_VIEW_TYPE : WATCHLIST_VIEW_TYPE;

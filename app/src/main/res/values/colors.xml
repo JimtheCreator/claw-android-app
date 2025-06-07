@@ -111,7 +111,6 @@
     <!-- Widget Colors -->
     <color name="defaultCOLOR">#80CCCCCC</color>
 
-
     <!-- Solid Colors -->
     <color name="awesomeGreen">#8BC34A</color>
     <color name="deepOrange">#FF5722</color>
@@ -136,8 +135,5 @@
     <color name="transparentCool9">#808BC34A</color>
     <color name="transparentCool10">#803F51B5</color>
     <color name="transparentBeige">#80D3C3A9</color>
-
-
-
 
 </resources>

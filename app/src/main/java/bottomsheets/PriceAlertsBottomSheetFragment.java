@@ -7,6 +7,7 @@ import android.os.Vibrator;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -30,7 +31,6 @@ import java.util.Locale;
 import viewmodels.alerts.PriceAlertsViewModel;
 
 public class PriceAlertsBottomSheetFragment extends BottomSheetDialogFragment {
-
     private FragmentPriceAlertsBottomSheetBinding binding;
     private double price;
     private String userId;
@@ -81,6 +81,7 @@ public class PriceAlertsBottomSheetFragment extends BottomSheetDialogFragment {
     }
 
     private void initializeViews() {
+        binding.header.setText("When " + symbol + " price is");
         binding.currentPrice.setText("US$" + priceFormat.format(price));
         binding.expectedPrice.setText(inputFormat.format(price));
         binding.priceSlider.setValueFrom(0.0f);
@@ -127,13 +128,21 @@ public class PriceAlertsBottomSheetFragment extends BottomSheetDialogFragment {
     }
 
     private void onClicks() {
+        binding.closebutton.setOnClickListener(v -> dismiss());
+
         binding.createAlert.setOnClickListener(v -> {
             Log.d(TAG, "CreateNewAlert clicked");
             String expectedPriceText = binding.expectedPrice.getText().toString().replace(",", "");
             try {
                 double expectedPrice = Double.parseDouble(expectedPriceText);
                 String conditionType = expectedPrice > price ? "price_above" : "price_below";
-                viewModel.createAlert(userId, symbol, conditionType, expectedPrice);
+                if (expectedPrice != price) {
+                    viewModel.createAlert(userId, symbol, conditionType, expectedPrice);
+                }else {
+                    Toast toast = Toast.makeText(requireContext(), "Set a higher/lower price", Toast.LENGTH_SHORT);
+                    toast.setGravity(Gravity.CENTER, 0,0);
+                    toast.show();
+                }
             } catch (NumberFormatException e) {
                 Toast.makeText(getContext(), "Invalid price input " + e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
             }
@@ -248,9 +257,13 @@ public class PriceAlertsBottomSheetFragment extends BottomSheetDialogFragment {
             binding.progressBar.setVisibility(isLoading ? View.VISIBLE : View.GONE);
             binding.alertcontent.setVisibility(isLoading ? View.GONE : View.VISIBLE);
             if (isLoading){
+                setCancelable(false);
+                binding.closebutton.setEnabled(false);
                 binding.createAlert.setEnabled(false);
                 binding.createAlert.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.button_disabled_background));
             }else {
+                setCancelable(true);
+                binding.closebutton.setEnabled(true);
                 binding.createAlert.setEnabled(true);
                 binding.createAlert.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.alert_button_shape));
             }

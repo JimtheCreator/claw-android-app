@@ -4,7 +4,6 @@ import java.util.List;
 
 import backend.ApiService;
 import backend.MainClient;
-import backend.requests.CancelAlertRequest;
 import backend.requests.CreateAlertRequest;
 import models.PriceAlert;
 import retrofit2.Call;
@@ -23,14 +22,13 @@ public class PriceAlertsRepository {
         call.enqueue(callback);
     }
 
-    public void cancelAlert(String userId, int alertId, Callback<Void> callback) {
-        CancelAlertRequest request = new CancelAlertRequest("cancelled");
-        Call<Void> call = apiService.cancelAlert(alertId, request);
+    public void getActiveAlerts(String userId, Callback<List<PriceAlert>> callback) {
+        Call<List<PriceAlert>> call = apiService.getActiveAlerts(userId);
         call.enqueue(callback);
     }
 
-    public void getAlerts(String userId, Callback<List<PriceAlert>> callback) {
-        Call<List<PriceAlert>> call = apiService.getAlerts(userId);
+    public void cancelAlert(String userId, String alertId, Callback<Void> callback) {
+        Call<Void> call = apiService.cancelAlert(alertId, userId);
         call.enqueue(callback);
     }
 }

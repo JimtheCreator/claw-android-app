@@ -1,15 +1,21 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Base.Theme.Claw" parent="Theme.Material3.DayNight.NoActionBar"
-        >
+    <style name="Base.Theme.Claw" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your light theme here. -->
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowTranslucentStatus">true</item>
-
     </style>
+
+    <style name="TabTextStyle" parent="">
+        <item name="android:fontFamily">@font/sf_pro_text_bold</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/gray_inactive</item> <!-- add this to avoid crash -->
+        <item name="textAllCaps">false</item>
+    </style>
+
 
     <style name="FullScreenDialogStyle" parent="Theme.AppCompat.Light.Dialog">
         <item name="android:windowNoTitle">true</item>
@@ -80,8 +86,6 @@
         <!-- Customize query text appearance -->
     </style>
 
-
-    <!--    FOR THE HOMETABLAYOUT-->
     <style name="CustomTabText">
         <item name="android:textSize">17.5sp</item> <!-- Adjust size as needed -->
         <item name="android:fontFamily">@font/sf_pro_text_medium</item> <!-- Optional -->

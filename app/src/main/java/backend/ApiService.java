@@ -36,10 +36,10 @@ public interface ApiService {
     @POST("alerts")
     Call<CreateAlertRequest> createAlert(@Body CreateAlertRequest request);
 
-    @PATCH("alerts/{alert_id}")
-    Call<Void> cancelAlert(@Path("alert_id") int alertId, @Body CancelAlertRequest request);
+    @GET("alerts/{user_id}")
+    Call<List<PriceAlert>> getActiveAlerts(@Path("user_id") String userId);
 
-    @GET("alerts")
-    Call<List<PriceAlert>> getAlerts(@Query("user_id") String userId);
+    @POST("alerts/{alert_id}/cancel")
+    Call<Void> cancelAlert(@Path("alert_id") String alertId, @Query("user_id") String userId);
 
 }

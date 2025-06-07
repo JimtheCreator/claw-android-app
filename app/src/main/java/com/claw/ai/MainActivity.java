@@ -20,7 +20,7 @@ import com.google.firebase.analytics.FirebaseAnalytics;
 
 import java.util.Stack;
 
-import fragments.AlertTabFragment;
+import fragments.alerts.AlertTabFragment;
 import fragments.HomeTabFragment;
 import fragments.MoreTabFragment;
 import recent_tabs.RecentTabsFragment;

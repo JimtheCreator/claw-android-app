@@ -88,6 +88,9 @@ dependencies {
     //Timber for Logs
     implementation libs.timber
 
+    // SwipeLayout
+    implementation libs.swiperefreshlayout
+
     //RXJAVA
     implementation libs.rxandroid
     implementation libs.rxjava

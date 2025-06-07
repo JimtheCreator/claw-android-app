@@ -5,10 +5,9 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
+import java.util.ArrayList;
 import java.util.List;
 
-
-import backend.requests.CancelAlertRequest;
 import backend.requests.CreateAlertRequest;
 import models.PriceAlert;
 import repositories.alerts.PriceAlertsRepository;
@@ -26,69 +25,121 @@ public class PriceAlertsViewModel extends ViewModel {
         repository = new PriceAlertsRepository();
     }
 
-    public LiveData<List<PriceAlert>> getAlerts(String userId) {
-        repository.getAlerts(userId, new Callback<List<PriceAlert>>() {
-            @Override
-            public void onResponse(@NonNull Call<List<PriceAlert>> call, @NonNull Response<List<PriceAlert>> response) {
-                if (response.isSuccessful()) {
-                    alertsLiveData.setValue(response.body());
-                } else {
-                    messageLiveData.setValue("Failed to fetch alerts: " + response.code());
-                }
-            }
-
-            @Override
-            public void onFailure(@NonNull Call<List<PriceAlert>> call, @NonNull Throwable t) {
-                messageLiveData.setValue("Error: " + t.getMessage());
-            }
-        });
-
-        return alertsLiveData;
-    }
-
     public void createAlert(String userId, String symbol, String conditionType, double conditionValue) {
         isLoading.postValue(true);
         repository.createAlert(userId, symbol, conditionType, conditionValue, new Callback<>() {
             @Override
             public void onResponse(@NonNull Call<CreateAlertRequest> call, @NonNull Response<CreateAlertRequest> response) {
+                isLoading.postValue(false);
                 if (response.isSuccessful()) {
-                    isLoading.postValue(false);
-                    messageLiveData.setValue("Alert created successfully");
-                    getAlerts(userId); // Refresh alerts
+                    messageLiveData.postValue("Alert created successfully");
                 } else if (response.code() == 403) {
-                    isLoading.postValue(false);
-                    messageLiveData.setValue("Price alert limit reached");
+                    messageLiveData.postValue("Price alert limit reached");
                 } else {
-                    isLoading.postValue(false);
-                    messageLiveData.setValue("Failed to create alert: " + response.code());
+                    messageLiveData.postValue("Failed to create alert: " + response.code());
                 }
             }
 
             @Override
             public void onFailure(@NonNull Call<CreateAlertRequest> call, @NonNull Throwable t) {
                 isLoading.postValue(false);
-                messageLiveData.setValue("Error: " + t.getMessage());
+                messageLiveData.postValue("Error: " + t.getMessage());
             }
         });
     }
 
-    public void cancelAlert(String userId, int alertId) {
+    public void fetchActiveAlerts(String userId) {
+        isLoading.postValue(true);
+        repository.getActiveAlerts(userId, new Callback<List<PriceAlert>>() {
+            @Override
+            public void onResponse(@NonNull Call<List<PriceAlert>> call, @NonNull Response<List<PriceAlert>> response) {
+                isLoading.postValue(false);
+                if (response.isSuccessful()) {
+                    List<PriceAlert> alerts = response.body();
+                    if (alerts != null) {
+                        // Sort alerts by creation time (newest first)
+                        alerts.sort((a1, a2) ->
+                                a2.getCreatedAt().compareTo(a1.getCreatedAt()));
+                    }
+                    alertsLiveData.postValue(alerts != null ? alerts : new ArrayList<>());
+                } else {
+                    messageLiveData.postValue("Failed to fetch alerts: " + response.code());
+                    alertsLiveData.postValue(new ArrayList<>());
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<List<PriceAlert>> call, @NonNull Throwable t) {
+                isLoading.postValue(false);
+                messageLiveData.postValue("Error: " + t.getMessage());
+                alertsLiveData.postValue(new ArrayList<>());
+            }
+        });
+    }
+
+    public void cancelAlert(String userId, String alertId) {
+        // Optimistic UI Update
+        List<PriceAlert> currentAlerts = alertsLiveData.getValue();
+        if (currentAlerts != null) {
+            List<PriceAlert> updatedAlerts = new ArrayList<>(currentAlerts);
+            updatedAlerts.removeIf(alert -> alert.getId().equals(alertId));
+            alertsLiveData.postValue(updatedAlerts);
+        }
+
         repository.cancelAlert(userId, alertId, new Callback<Void>() {
             @Override
             public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> response) {
                 if (response.isSuccessful()) {
-                    messageLiveData.setValue("Alert cancelled");
-                    getAlerts(userId); // Refresh alerts
+                    messageLiveData.postValue("Alert cancelled successfully");
                 } else {
-                    messageLiveData.setValue("Failed to cancel alert: " + response.code());
+                    messageLiveData.postValue("Failed to cancel alert: " + response.code());
+                    fetchActiveAlerts(userId);
                 }
             }
 
             @Override
             public void onFailure(@NonNull Call<Void> call, @NonNull Throwable t) {
-                messageLiveData.setValue("Error: " + t.getMessage());
+                messageLiveData.postValue("Error: " + t.getMessage());
+                fetchActiveAlerts(userId);
             }
         });
+    }
+
+    // Silent refresh method that doesn't show loading state
+    public void refreshAlertsInBackground(String userId) {
+        if (userId != null) {
+            repository.getActiveAlerts(userId, new Callback<List<PriceAlert>>() {
+                @Override
+                public void onResponse(@NonNull Call<List<PriceAlert>> call, @NonNull Response<List<PriceAlert>> response) {
+                    if (response.isSuccessful()) {
+                        List<PriceAlert> alerts = response.body();
+                        if (alerts != null) {
+                            // Sort alerts by creation time (newest first)
+                            alerts.sort((a1, a2) ->
+                                    a2.getCreatedAt().compareTo(a1.getCreatedAt()));
+                        }
+                        alertsLiveData.postValue(alerts != null ? alerts : new ArrayList<>());
+                    }
+                    // Don't show error messages for background refresh
+                }
+
+                @Override
+                public void onFailure(@NonNull Call<List<PriceAlert>> call, @NonNull Throwable t) {
+                    // Silent failure for background refresh
+                }
+            });
+        }
+    }
+
+    // Refresh method with loading state (for manual refresh like swipe-to-refresh)
+    public void refreshAlerts(String userId) {
+        if (userId != null) {
+            fetchActiveAlerts(userId);
+        }
+    }
+
+    public LiveData<List<PriceAlert>> getAlerts() {
+        return alertsLiveData;
     }
 
     public LiveData<String> getMessages() {

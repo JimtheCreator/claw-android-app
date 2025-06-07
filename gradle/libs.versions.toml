@@ -18,6 +18,7 @@ okhttp = "4.12.0"
 rxandroid = "2.1.1"
 rxjava = "2.2.21"
 stripeAndroid = "21.13.0"
+swiperefreshlayout = "1.1.0"
 timber = "5.0.1"
 googleGmsGoogleServices = "4.4.2"
 firebaseAnalytics = "22.4.0"
@@ -53,6 +54,7 @@ retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "converte
 rxandroid = { module = "io.reactivex.rxjava2:rxandroid", version.ref = "rxandroid" }
 rxjava = { module = "io.reactivex.rxjava2:rxjava", version.ref = "rxjava" }
 stripe-android = { module = "com.stripe:stripe-android", version.ref = "stripeAndroid" }
+swiperefreshlayout = { module = "androidx.swiperefreshlayout:swiperefreshlayout", version.ref = "swiperefreshlayout" }
 timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics", version.ref = "firebaseAnalytics" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth", version.ref = "firebaseAuth" }
