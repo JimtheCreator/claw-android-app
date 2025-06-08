@@ -1,9 +1,45 @@
 package com.claw.ai;
 
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+
+import androidx.activity.EdgeToEdge;
+import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
+
+import com.claw.ai.databinding.ActivityMainBinding;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.firebase.analytics.FirebaseAnalytics;
+
+import java.util.Stack;
+
+import bottomsheets.SetupBottomSheetFragment;
+import fragments.alerts.AlertTabFragment;
+import fragments.HomeTabFragment;
+import fragments.MoreTabFragment;
+import recent_tabs.RecentTabsFragment;
+import android.Manifest;
+
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.PowerManager;
+import android.provider.Settings;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
@@ -29,6 +65,7 @@ import fragments.HomeTabFragment;
 import fragments.MoreTabFragment;
 import recent_tabs.RecentTabsFragment;
 import android.Manifest;
+import android.view.View;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -42,24 +79,19 @@ public class MainActivity extends AppCompatActivity {
     private final Fragment moreTabFragment = new MoreTabFragment();
     private FirebaseAnalytics mFirebaseAnalytics;
 
-    // Declare the launcher at the top of your Activity/Fragment
-    private final ActivityResultLauncher<String> requestPermissionLauncher =
-            registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
-                if (isGranted) {
-                    // FCM SDK can now send notifications that will be displayed
-                    // You can log this or show a toast
-                } else {
-                    // Explain to the user that notifications are disabled
-                    // and how they can enable them in settings.
-                }
-            });
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        // Check if first launch and show setup
+        askNotificationPermission();
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
 
-        // Initialize view binding
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
@@ -70,16 +102,13 @@ public class MainActivity extends AppCompatActivity {
         });
 
         googleAnalytics();
-        askNotificationPermission();
 
-        // Load default fragment and push to back stack
         if (savedInstanceState == null) {
             loadFragment(homeFragment);
             binding.bottomNavigation.setSelectedItemId(R.id.home);
-            tabBackStack.push(R.id.home); // 👈 FIX: Push home tab to back stack
+            tabBackStack.push(R.id.home);
         }
 
-        // Set up bottom navigation
         binding.bottomNavigation.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();
 
@@ -91,7 +120,6 @@ public class MainActivity extends AppCompatActivity {
 
             Fragment selectedFragment = null;
 
-            // Select the appropriate fragment based on the item clicked
             if (itemId == R.id.home) {
                 selectedFragment = homeFragment;
                 binding.bottomNavigation.setBackground(ContextCompat.getDrawable(MainActivity.this, R.color.black_shade));
@@ -109,7 +137,6 @@ public class MainActivity extends AppCompatActivity {
             return true;
         });
 
-        // Handle back press
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -118,16 +145,34 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+//    private boolean isFirstLaunch() {
+//        SharedPreferences prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE);
+//        boolean isFirst = prefs.getBoolean("isFirstLaunch", true);
+//        if (isFirst) {
+//            prefs.edit().putBoolean("isFirstLaunch", false).apply();
+//        }
+//        return isFirst;
+//    }
+
+    private void showSetupBottomSheet() {
+        SetupBottomSheetFragment fragment = new SetupBottomSheetFragment();
+        fragment.show(getSupportFragmentManager(), "setup");
+    }
+
     private void askNotificationPermission() {
-        // This is only necessary for API level 33 and higher.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
                     PackageManager.PERMISSION_GRANTED) {
-                // Permission is already granted. You can proceed.
+                // Permission granted
             } else {
-                // Directly ask for the permission.
-                // The registered ActivityResultCallback gets the result of this request.
-                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+                showSetupBottomSheet();
+            }
+        }else {
+            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            boolean batteryOptimized = pm.isIgnoringBatteryOptimizations(getApplicationContext().getPackageName());
+
+            if (!batteryOptimized){
+                showSetupBottomSheet();
             }
         }
     }
@@ -138,7 +183,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadFragment(Fragment fragment) {
         FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
-
         hideAllFragments(transaction);
 
         if (!fragment.isAdded()) {
@@ -166,12 +210,12 @@ public class MainActivity extends AppCompatActivity {
         BottomNavigationView navView = findViewById(R.id.bottom_navigation);
 
         if (tabBackStack.size() > 1) {
-            tabBackStack.pop(); // Remove current
+            tabBackStack.pop();
             int previousTab = tabBackStack.peek();
             isSwitchingTabs = true;
             navView.setSelectedItemId(previousTab);
         } else {
-            finish(); // Exit app
+            finish();
         }
     }
 
@@ -179,7 +223,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onNewIntent(@NonNull Intent intent) {
         super.onNewIntent(intent);
         tabBackStack.clear();
-        tabBackStack.push(R.id.home); // Reset to default tab
+        tabBackStack.push(R.id.home);
     }
 
     @Override

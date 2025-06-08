@@ -92,4 +92,13 @@
         <item name="textAllCaps">false</item> <!-- Set to false if you don't want uppercase -->
     </style>
 
+    <!-- Add this new style -->
+    <style name="BottomSheetDialogTheme" parent="Theme.Design.Light.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/BottomSheetStyle</item>
+    </style>
+
+    <style name="BottomSheetStyle" parent="Widget.MaterialComponents.BottomSheet">
+        <item name="backgroundTint">@color/black_shade</item>
+    </style>
+
 </resources>
