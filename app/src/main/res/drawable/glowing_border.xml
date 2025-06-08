@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Outermost glow (soft, transparent beige) -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="16dp" />
+            <stroke android:width="2dp" android:color="#20F5F5DC" />
+            <solid android:color="@android:color/transparent" />
+        </shape>
+    </item>
+
+    <!-- Mid glow -->
+    <item android:inset="2dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="13dp" />
+            <stroke android:width="1.5dp" android:color="#40F5F5DC" />
+            <solid android:color="@android:color/transparent" />
+        </shape>
+    </item>
+
+    <!-- Inner glow -->
+    <item android:inset="3dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="11dp" />
+            <stroke android:width="1dp" android:color="#60F5F5DC" />
+            <solid android:color="@android:color/transparent" />
+        </shape>
+    </item>
+
+    <!-- Core stroke -->
+    <item android:inset="4dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="9dp" />
+            <stroke android:width="1dp" android:color="#FFF5F5DC" />
+            <solid android:color="#FF1C1C1C" />
+        </shape>
+    </item>
+
+</layer-list>

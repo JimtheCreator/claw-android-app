@@ -333,8 +333,11 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
 
         binding.marketChartLayout.createPriceAlert.setOnClickListener(v -> {
             String symbol = getIntent().getStringExtra("SYMBOL");
-            double currentPrice = getIntent().getDoubleExtra("CURRENT_PRICE", 0.0);
-            PriceAlertsBottomSheetFragment priceAlertFragment = PriceAlertsBottomSheetFragment.newInstance(firebaseUser.getUid(), symbol, currentPrice);
+            String stringCurrentPrice = binding.marketChartLayout.currentPrice.getText().toString();
+            // Remove all non-numeric characters except dot and minus
+            String numeric = stringCurrentPrice.replaceAll("[^\\d.-]", "");
+            double price = Double.parseDouble(numeric);
+            PriceAlertsBottomSheetFragment priceAlertFragment = PriceAlertsBottomSheetFragment.newInstance(firebaseUser.getUid(), symbol, price);
             priceAlertFragment.show(getSupportFragmentManager(), priceAlertFragment.getTag());
         });
     }

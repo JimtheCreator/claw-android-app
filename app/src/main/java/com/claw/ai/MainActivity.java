@@ -1,10 +1,14 @@
 package com.claw.ai;
 
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
@@ -24,6 +28,7 @@ import fragments.alerts.AlertTabFragment;
 import fragments.HomeTabFragment;
 import fragments.MoreTabFragment;
 import recent_tabs.RecentTabsFragment;
+import android.Manifest;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -36,6 +41,18 @@ public class MainActivity extends AppCompatActivity {
     private final Fragment alertTabFragment = new AlertTabFragment();
     private final Fragment moreTabFragment = new MoreTabFragment();
     private FirebaseAnalytics mFirebaseAnalytics;
+
+    // Declare the launcher at the top of your Activity/Fragment
+    private final ActivityResultLauncher<String> requestPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+                if (isGranted) {
+                    // FCM SDK can now send notifications that will be displayed
+                    // You can log this or show a toast
+                } else {
+                    // Explain to the user that notifications are disabled
+                    // and how they can enable them in settings.
+                }
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,6 +70,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         googleAnalytics();
+        askNotificationPermission();
 
         // Load default fragment and push to back stack
         if (savedInstanceState == null) {
@@ -98,6 +116,20 @@ public class MainActivity extends AppCompatActivity {
                 handleCustomBackPress();
             }
         });
+    }
+
+    private void askNotificationPermission() {
+        // This is only necessary for API level 33 and higher.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+                    PackageManager.PERMISSION_GRANTED) {
+                // Permission is already granted. You can proceed.
+            } else {
+                // Directly ask for the permission.
+                // The registered ActivityResultCallback gets the result of this request.
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
     }
 
     private void googleAnalytics() {

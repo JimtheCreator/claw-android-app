@@ -90,28 +90,38 @@ public class PriceAlertsBottomSheetFragment extends BottomSheetDialogFragment {
         binding.priceSlider.setValue((float) price);
 //        binding.createNewAlert.setEnabled(false);
 
+        // Also update your TextWatcher in initializeViews()
         binding.expectedPrice.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 try {
                     double inputPrice = Double.parseDouble(s.toString());
-//                    binding.createNewAlert.setEnabled(inputPrice != price);
+                    double roundedInputPrice = roundToTwoDecimals(inputPrice);
+                    double roundedCurrentPrice = roundToTwoDecimals(price);
+
+                    // Enable/disable button based on rounded comparison
+                    boolean isDifferent = roundedInputPrice != roundedCurrentPrice;
+                    // You can uncomment these lines if you want to enable/disable the button
+                    // binding.createAlert.setEnabled(isDifferent);
                 } catch (NumberFormatException e) {
-//                    binding.createNewAlert.setEnabled(false);
+                    // binding.createAlert.setEnabled(false);
                 }
             }
+
             @Override
             public void afterTextChanged(Editable s) {}
         });
     }
 
+    // Update your slider listener to also round values
     private void setupSlider() {
         binding.priceSlider.addOnChangeListener((slider, value, fromUser) -> {
             if (fromUser) {
-                binding.expectedPrice.setText(inputFormat.format(value));
-//                binding.createNewAlert.setEnabled(value != price);
+                double roundedValue = roundToTwoDecimals(value);
+                binding.expectedPrice.setText(inputFormat.format(roundedValue));
             }
         });
 
@@ -130,17 +140,24 @@ public class PriceAlertsBottomSheetFragment extends BottomSheetDialogFragment {
     private void onClicks() {
         binding.closebutton.setOnClickListener(v -> dismiss());
 
+        // Update your createAlert click listener
         binding.createAlert.setOnClickListener(v -> {
             Log.d(TAG, "CreateNewAlert clicked");
             String expectedPriceText = binding.expectedPrice.getText().toString().replace(",", "");
             try {
                 double expectedPrice = Double.parseDouble(expectedPriceText);
-                String conditionType = expectedPrice > price ? "price_above" : "price_below";
-                if (expectedPrice != price) {
-                    viewModel.createAlert(userId, symbol, conditionType, expectedPrice);
-                }else {
+
+                // Round both prices to 2 decimal places for accurate comparison
+                double roundedExpectedPrice = roundToTwoDecimals(expectedPrice);
+                double roundedCurrentPrice = roundToTwoDecimals(price);
+
+                // Compare the rounded values
+                if (roundedExpectedPrice != roundedCurrentPrice) {
+                    String conditionType = roundedExpectedPrice > roundedCurrentPrice ? "price_above" : "price_below";
+                    viewModel.createAlert(userId, symbol, conditionType, roundedExpectedPrice);
+                } else {
                     Toast toast = Toast.makeText(requireContext(), "Set a higher/lower price", Toast.LENGTH_SHORT);
-                    toast.setGravity(Gravity.CENTER, 0,0);
+                    toast.setGravity(Gravity.CENTER, 0, 0);
                     toast.show();
                 }
             } catch (NumberFormatException e) {
@@ -280,6 +297,12 @@ public class PriceAlertsBottomSheetFragment extends BottomSheetDialogFragment {
         if (vibrator != null && vibrator.hasVibrator()) {
             vibrator.vibrate(VibrationEffect.createOneShot(35, VibrationEffect.DEFAULT_AMPLITUDE));
         }
+    }
+
+
+    // Add this helper method to your class
+    private double roundToTwoDecimals(double value) {
+        return Math.round(value * 100.0) / 100.0;
     }
 
     @Override

@@ -1,9 +1,12 @@
 package adapters;
 
+import android.graphics.drawable.AnimationDrawable;
+import android.graphics.drawable.Drawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.DiffUtil;
@@ -77,12 +80,14 @@ public class PriceAlertsAdapter extends RecyclerView.Adapter<PriceAlertsAdapter.
         TextView symbolTextView;
         TextView conditionTextView;
         Button cancelButton;
+        FrameLayout glow_container;
 
         ViewHolder(View itemView) {
             super(itemView);
             symbolTextView = itemView.findViewById(R.id.alert_symbol);
             conditionTextView = itemView.findViewById(R.id.alert_condition);
             cancelButton = itemView.findViewById(R.id.cancel_button);
+            glow_container = itemView.findViewById(R.id.glow_container);
         }
     }
 }

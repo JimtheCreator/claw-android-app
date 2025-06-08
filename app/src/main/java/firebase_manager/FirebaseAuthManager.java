@@ -31,8 +31,11 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 import java.util.Date;
+import java.util.HashMap;
+
 import models.User;
 import viewmodels.telegram_login.TelegramAuthViewModel;
 
@@ -297,6 +300,7 @@ public class FirebaseAuthManager {
                     User user = task.getResult().getValue(User.class);
                     if (authCallback != null && user != null) {
                         authCallback.onAuthSuccess(user, false);
+                        uploadFcmTokenToRealtimeDb(user.getUuid());
                     } else if (authCallback != null) {
                         authCallback.onAuthFailed("Failed to parse existing user data from database.");
                     }
@@ -325,6 +329,7 @@ public class FirebaseAuthManager {
                         if (saveTask.isSuccessful()) {
                             if (authCallback != null) {
                                 authCallback.onAuthSuccess(newUser, true);
+                                uploadFcmTokenToRealtimeDb(firebaseUser.getUid());
                             }
                         } else {
                             if (authCallback != null) {
@@ -350,6 +355,25 @@ public class FirebaseAuthManager {
             }
         });
     }
+
+    private void uploadFcmTokenToRealtimeDb(String userId) {
+        FirebaseMessaging.getInstance().getToken()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        String token = task.getResult();
+                        HashMap<String, Object> hashMap = new HashMap<>();
+                        hashMap.put("fcmToken", token);
+
+                        DatabaseReference dbRef = FirebaseDatabase.getInstance().getReference("users").child(userId);
+                        dbRef.updateChildren(hashMap)
+                                .addOnSuccessListener(aVoid -> Log.d("FCM", "Token uploaded to Realtime DB"))
+                                .addOnFailureListener(e -> Log.e("FCM", "Failed to upload token", e));
+                    } else {
+                        Log.e("FCM", "Fetching FCM token failed", task.getException());
+                    }
+                });
+    }
+
 
     // Add a public method to check if this was a newly created user
     public static boolean wasUserNewlyCreated() {
