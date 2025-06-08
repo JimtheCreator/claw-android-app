@@ -375,6 +375,10 @@ public class MoreTabFragment extends Fragment {
         if (binding == null) return;
         binding.loginPage.getRoot().setVisibility(View.GONE);
         binding.profilePage.getRoot().setVisibility(View.VISIBLE);
+
+        if (currentUser == null) return;
+
+        binding.profilePage.displayName.setText(currentUser.getUuid());
     }
 
     private void setupClickListeners() {

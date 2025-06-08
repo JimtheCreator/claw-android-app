@@ -32,37 +32,37 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
     @Override
     public void onMessageReceived(@NonNull RemoteMessage remoteMessage) {
         super.onMessageReceived(remoteMessage);
-        // Check if the message contains a notification payload
         if (remoteMessage.getNotification() != null) {
             String title = remoteMessage.getNotification().getTitle();
             String body = remoteMessage.getNotification().getBody();
 
-            // Get NotificationManager
             NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-
-            // Use the existing notification channel
             String channelId = App.PRICE_ALERTS_CHANNEL_ID;
 
-            // Build the notification
             NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
-                    .setSmallIcon(android.R.drawable.ic_dialog_info) // Replace with your app’s icon
+                    .setSmallIcon(android.R.drawable.ic_dialog_info)
                     .setContentTitle(title)
                     .setContentText(body)
                     .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .setAutoCancel(true);
 
-            // Optional: Add an intent to open the app when tapped
-            Intent intent = new Intent(this, MainActivity.class); // Replace with your main activity
+            // Set custom sound for pre-Android 8.0 devices
+
+            Intent intent = new Intent(this, MainActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
             PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent,
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             builder.setContentIntent(pendingIntent);
 
-            // Display the notification
-            notificationManager.notify((int) System.currentTimeMillis(), builder.build()); // Unique ID to avoid overwriting
+            notificationManager.notify((int) System.currentTimeMillis(), builder.build());
+
+            refreshAlertList();
         }
+    }
 
-
+    private void refreshAlertList() {
+        // Use getPackageName() to dynamically create the action string
+        Intent intent = new Intent(getPackageName() + ".ACTION_REFRESH_ALERTS");
+        sendBroadcast(intent);
     }
 }
-
