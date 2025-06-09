@@ -27,8 +27,8 @@ public class PriceAlertsRepository {
         call.enqueue(callback);
     }
 
-    public void cancelAlert(String userId, String alertId, Callback<Void> callback) {
-        Call<Void> call = apiService.cancelAlert(alertId, userId);
+    public void cancelAlert(String userId, String alertId, String symbol, Callback<Void> callback) {
+        Call<Void> call = apiService.cancelAlert(alertId, userId, symbol);
         call.enqueue(callback);
     }
 }

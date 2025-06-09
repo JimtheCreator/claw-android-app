@@ -37,6 +37,8 @@ public class PriceAlert {
         this.updatedAt = updatedAt;
     }
 
+
+
     public String getId() {
         return id;
     }

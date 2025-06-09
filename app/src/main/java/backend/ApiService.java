@@ -40,6 +40,6 @@ public interface ApiService {
     Call<List<PriceAlert>> getActiveAlerts(@Path("user_id") String userId);
 
     @POST("alerts/{alert_id}/cancel")
-    Call<Void> cancelAlert(@Path("alert_id") String alertId, @Query("user_id") String userId);
+    Call<Void> cancelAlert(@Path("alert_id") String alertId, @Query("user_id") String userId, @Query("symbol") String symbol);
 
 }

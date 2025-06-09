@@ -32,6 +32,10 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
     @Override
     public void onMessageReceived(@NonNull RemoteMessage remoteMessage) {
         super.onMessageReceived(remoteMessage);
+        // 🔥 ADD THIS CHECK: If there is no logged-in user, do nothing and exit.
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) return; // Stop processing the notification if the user is logged out.
+
         if (remoteMessage.getNotification() != null) {
             String title = remoteMessage.getNotification().getTitle();
             String body = remoteMessage.getNotification().getBody();

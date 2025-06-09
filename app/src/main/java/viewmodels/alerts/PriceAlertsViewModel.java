@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import backend.requests.CreateAlertRequest;
 import models.PriceAlert;
@@ -23,6 +24,15 @@ public class PriceAlertsViewModel extends ViewModel {
 
     public PriceAlertsViewModel() {
         repository = new PriceAlertsRepository();
+    }
+
+    /**
+     * 🔥 ADD THIS METHOD
+     * Clears the alerts LiveData. This is crucial for handling user sign-outs
+     * to prevent stale data from being shown to the next user.
+     */
+    public void clearAlerts() {
+        alertsLiveData.postValue(null);
     }
 
     public void createAlert(String userId, String symbol, String conditionType, double conditionValue) {
@@ -48,6 +58,7 @@ public class PriceAlertsViewModel extends ViewModel {
         });
     }
 
+
     public void fetchActiveAlerts(String userId) {
         isLoading.postValue(true);
         repository.getActiveAlerts(userId, new Callback<>() {
@@ -57,11 +68,15 @@ public class PriceAlertsViewModel extends ViewModel {
                 if (response.isSuccessful()) {
                     List<PriceAlert> alerts = response.body();
                     if (alerts != null) {
-                        // Sort alerts by creation time (newest first)
-                        alerts.sort((a1, a2) ->
-                                a2.getCreatedAt().compareTo(a1.getCreatedAt()));
+                        // Filter to keep only "active" alerts and sort them
+                        List<PriceAlert> activeAlerts = alerts.stream()
+                                .filter(alert -> "active".equalsIgnoreCase(alert.getStatus())) // Assumes getStatus() exists
+                                .sorted((a1, a2) -> a2.getCreatedAt().compareTo(a1.getCreatedAt()))
+                                .collect(Collectors.toList());
+                        alertsLiveData.postValue(activeAlerts);
+                    } else {
+                        alertsLiveData.postValue(new ArrayList<>());
                     }
-                    alertsLiveData.postValue(alerts != null ? alerts : new ArrayList<>());
                 } else {
                     messageLiveData.postValue("Failed to fetch alerts: " + response.code());
                     alertsLiveData.postValue(new ArrayList<>());
@@ -77,7 +92,7 @@ public class PriceAlertsViewModel extends ViewModel {
         });
     }
 
-    public void cancelAlert(String userId, String alertId) {
+    public void cancelAlert(String userId, String alertId, String symbol) {
         // Optimistic UI Update
         List<PriceAlert> currentAlerts = alertsLiveData.getValue();
         if (currentAlerts != null) {
@@ -86,7 +101,7 @@ public class PriceAlertsViewModel extends ViewModel {
             alertsLiveData.postValue(updatedAlerts);
         }
 
-        repository.cancelAlert(userId, alertId, new Callback<Void>() {
+        repository.cancelAlert(userId, alertId, symbol, new Callback<>() {
             @Override
             public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> response) {
                 if (response.isSuccessful()) {
@@ -114,11 +129,15 @@ public class PriceAlertsViewModel extends ViewModel {
                     if (response.isSuccessful()) {
                         List<PriceAlert> alerts = response.body();
                         if (alerts != null) {
-                            // Sort alerts by creation time (newest first)
-                            alerts.sort((a1, a2) ->
-                                    a2.getCreatedAt().compareTo(a1.getCreatedAt()));
+                            // Filter to keep only "active" alerts and sort them
+                            List<PriceAlert> activeAlerts = alerts.stream()
+                                    .filter(alert -> "active".equalsIgnoreCase(alert.getStatus())) // Assumes getStatus() exists
+                                    .sorted((a1, a2) -> a2.getCreatedAt().compareTo(a1.getCreatedAt()))
+                                    .collect(Collectors.toList());
+                            alertsLiveData.postValue(activeAlerts);
+                        } else {
+                            alertsLiveData.postValue(new ArrayList<>());
                         }
-                        alertsLiveData.postValue(alerts != null ? alerts : new ArrayList<>());
                     }
                     // Don't show error messages for background refresh
                 }

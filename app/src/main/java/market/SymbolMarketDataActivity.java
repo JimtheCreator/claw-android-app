@@ -1120,7 +1120,9 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
             viewModel.disconnect();
         }
 
-        executorService.shutdownNow();
+        if (executorService != null && !executorService.isShutdown()) {
+            executorService.shutdownNow();
+        }
     }
 
     private void setupTimeframeSpinner() {

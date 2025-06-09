@@ -576,7 +576,7 @@ public class HomeTabFragment extends Fragment {
     private void initializeAdapters() {
         OnWatchlistActionListener commonWatchlistListener = new OnWatchlistActionListener() {
             @Override
-            public void onAddToWatchlist(String ignoredUserId, Symbol symbol, String source) { // userId from adapter is ignored
+            public void onAddToWatchlist(String ignoredUserId, Symbol symbol, String source)   { // userId from adapter is ignored
                 String currentUid = getCurrentUserId();
                 if (currentUid != null && symbol != null) {
                     homeViewModel.addToWatchlist(currentUid, symbol, source);

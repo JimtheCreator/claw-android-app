@@ -15,6 +15,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
@@ -36,25 +37,24 @@ public class PriceAlertsFragment extends Fragment {
     private FragmentPriceAlertsBinding binding;
     private PriceAlertsViewModel viewModel;
     private PriceAlertsAdapter adapter;
+    private Observer<List<PriceAlert>> alertsObserver;
+    private Observer<String> messageObserver;
+    private Observer<Boolean> loadingObserver;
+
     private String userId;
-    private boolean isInitialized = false;
     private AuthViewModel authViewModel;
     private static final String TAG = "PriceAlertsFragment";
 
-    // 1. Declare the BroadcastReceiver
     private BroadcastReceiver refreshReceiver;
-    // Define the action suffix as a constant to avoid typos
     private static final String REFRESH_ACTION_SUFFIX = ".ACTION_REFRESH_ALERTS";
     private String refreshAction;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Construct the dynamic action string
         refreshAction = requireContext().getPackageName() + REFRESH_ACTION_SUFFIX;
 
         authViewModel = new ViewModelProvider(requireActivity()).get(AuthViewModel.class);
-        // Ensure web_client_id is correctly defined in your strings.xml
         authViewModel.initialize(requireActivity(), getString(R.string.web_client_id));
 
         viewModel = new ViewModelProvider(requireActivity()).get(PriceAlertsViewModel.class);
@@ -74,13 +74,20 @@ public class PriceAlertsFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        adapter = new PriceAlertsAdapter(alert -> viewModel.cancelAlert(userId, alert.getId()));
+        adapter = new PriceAlertsAdapter(alert -> {
+            String currentUserId = getCurrentUserId();
+            if (currentUserId != null) {
+                viewModel.cancelAlert(currentUserId, alert.getId(), alert.getSymbol());
+            }
+        });
+
         binding.alertsRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         binding.alertsRecyclerView.setAdapter(adapter);
 
         binding.swipeRefreshLayout.setOnRefreshListener(() -> {
-            if (userId != null) {
-                viewModel.refreshAlerts(userId);
+            String currentUserId = getCurrentUserId();
+            if (currentUserId != null) {
+                viewModel.refreshAlerts(currentUserId);
             } else {
                 binding.swipeRefreshLayout.setRefreshing(false);
             }
@@ -88,34 +95,71 @@ public class PriceAlertsFragment extends Fragment {
 
         setupObservers();
         setupBroadcastReceiver();
-
-        // Only fetch data on first initialization
-        if (!isInitialized && userId != null && viewModel.getAlerts().getValue() == null) {
-            viewModel.fetchActiveAlerts(userId);
-            isInitialized = true;
-        }
     }
 
-    // 2. Initialize the receiver and define its behavior
     private void setupBroadcastReceiver() {
         refreshReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                // Check if the received broadcast is the one we want
                 if (refreshAction.equals(intent.getAction())) {
                     Timber.d("Received broadcast to refresh alerts. Refreshing...");
-                    if (userId != null) {
-                        // Use the silent refresh so the user doesn't see a loading spinner
-                        viewModel.refreshAlertsInBackground(userId);
+                    String currentUserId = getCurrentUserId();
+                    if (currentUserId != null) {
+                        viewModel.refreshAlertsInBackground(currentUserId);
                     }
                 }
             }
         };
     }
 
-
     private void setupObservers() {
-        viewModel.getAlerts().observe(getViewLifecycleOwner(), alerts -> {
+        authViewModel.getAuthState().observe(getViewLifecycleOwner(), authState -> {
+            if (binding == null) return;
+            String currentUid = getCurrentUserId();
+            switch (authState) {
+                case AUTHENTICATED:
+                    if (currentUid != null) {
+                        Log.d(TAG, "AUTHENTICATED");
+                        binding.signInLayout.setVisibility(View.GONE);
+                        callPriceViewModel();
+                        if (viewModel.getAlerts().getValue() == null) {
+                            viewModel.fetchActiveAlerts(currentUid);
+                        }
+                    } else {
+                        Log.d(TAG, "AUTHENTICATED BUT USERID NULL");
+                        removeDataObservers();
+                        viewModel.clearAlerts();
+                        adjustWidgets();
+                    }
+                    break;
+                case UNAUTHENTICATED:
+                    Log.d(TAG, "UNAUTHENTICATED");
+                    removeDataObservers();
+                    viewModel.clearAlerts();
+                    adjustWidgets();
+                    break; // ✅ FIX: Added missing break statement.
+                case ERROR:
+                    Log.d(TAG, "ERROR");
+                    removeDataObservers();
+                    viewModel.clearAlerts();
+                    adjustWidgets();
+                    break;
+            }
+        });
+    }
+
+    private void callPriceViewModel() {
+        binding.signInLayout.setVisibility(View.GONE);
+
+        alertsObserver = alerts -> {
+            if (binding == null) return;
+
+            // ✅ FIX: Add a guard clause to check the authentication state.
+            // This prevents the observer from updating the UI if the user has logged out.
+            if (authViewModel.getAuthState().getValue() != AuthViewModel.AuthState.AUTHENTICATED) {
+                return;
+            }
+
             adapter.setAlerts(alerts != null ? alerts : new ArrayList<>());
             if (alerts != null && !alerts.isEmpty()) {
                 binding.noAlertsLayout.setVisibility(View.GONE);
@@ -124,75 +168,36 @@ public class PriceAlertsFragment extends Fragment {
                 binding.noAlertsLayout.setVisibility(View.VISIBLE);
                 binding.alertsRecyclerView.setVisibility(View.GONE);
             }
-        });
+        };
+        viewModel.getAlerts().observe(getViewLifecycleOwner(), alertsObserver);
 
-        viewModel.getMessages().observe(getViewLifecycleOwner(), message -> {
+        messageObserver = message -> {
             if (message != null && !message.isEmpty()) {
                 Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
             }
-        });
+        };
+        viewModel.getMessages().observe(getViewLifecycleOwner(), messageObserver);
 
-        viewModel.getIsLoading().observe(getViewLifecycleOwner(), isLoading -> {
-            if (binding != null && !binding.swipeRefreshLayout.isRefreshing()) {
-                binding.progressBar.setVisibility(isLoading ? View.VISIBLE : View.GONE);
-            }
+        loadingObserver = isLoading -> {
+            if (binding == null) return;
 
-            if (!isLoading && binding != null) {
+            if (isLoading) {
+                if (!binding.swipeRefreshLayout.isRefreshing()) {
+                    binding.progressBar.setVisibility(View.VISIBLE);
+                    binding.noAlertsLayout.setVisibility(View.GONE);
+                    binding.alertsRecyclerView.setVisibility(View.GONE);
+                }
+            } else {
+                binding.progressBar.setVisibility(View.GONE);
                 binding.swipeRefreshLayout.setRefreshing(false);
             }
-        });
-
-        authViewModel.getAuthState().observe(getViewLifecycleOwner(), authState -> {
-            if (binding == null) return;
-            String currentUid = getCurrentUserId();
-            switch (authState) {
-                case AUTHENTICATED:
-                    if (currentUid != null) {
-                        Timber.d("Auth state: AUTHENTICATED, User: %s", currentUid);
-                        Log.d(TAG, "AUTHENTICATED");
-                        // After auth state change, watchlist observer will update visibility based on new data & auth status
-                        updateUIVisibility(viewModel.getAlerts().getValue());
-                        // Visibility is handled by watchlist observer based on content and auth state
-                    } else { // Should ideally not happen if AuthState is AUTHENTICATED
-                        Log.d(TAG, "AUTHENTICATED: But NULL");
-                        Timber.w("Auth state: AUTHENTICATED, but UID is null!");
-                        adjustWidgets();
-                    }
-                    break;
-                case UNAUTHENTICATED:
-                    Log.d(TAG, "UNAUTHENTICATED");
-                    adjustWidgets();
-                    break;
-                case ERROR: // Treat ERROR as UNAUTHENTICATED for watchlist display
-                    Log.d(TAG, "ERROR");
-                    Timber.d("Auth state: %s", authState.toString());
-                    Toast.makeText(requireContext(), authState.toString(), Toast.LENGTH_SHORT).show();
-                    break;
-            }
-
-            // After auth state change, watchlist observer will update visibility based on new data & auth status
-            updateUIVisibility(viewModel.getAlerts().getValue());
-        });
-    }
-
-    private void updateUIVisibility(List<PriceAlert> value) {
-        if (binding == null) return;
-        boolean isSignedIn = (authViewModel.getAuthState().getValue() == AuthViewModel.AuthState.AUTHENTICATED && getCurrentUserId() != null);
-        Log.d("HomeTabFragment", "updateWatchlistVisibility: isSignedIn=" + isSignedIn + ", watchlistSymbols=" + (value != null ? value.size() : "null"));
-
-        if (isSignedIn) {
-            binding.signInLayout.setVisibility(View.GONE);
-
-            if (value != null && !value.isEmpty()) {
-                binding.noAlertsLayout.setVisibility(View.GONE);
-                binding.alertsRecyclerView.setVisibility(View.VISIBLE);
-            }
-        } else {
-            adjustWidgets();
-        }
+        };
+        viewModel.getIsLoading().observe(getViewLifecycleOwner(), loadingObserver);
     }
 
     private void adjustWidgets() {
+        Log.d(TAG, "NOT SIGNED-IN");
+        binding.swipeRefreshLayout.setRefreshing(false);
         binding.signInLayout.setVisibility(View.VISIBLE);
         binding.noAlertsLayout.setVisibility(View.GONE);
         binding.alertsRecyclerView.setVisibility(View.GONE);
@@ -204,10 +209,25 @@ public class PriceAlertsFragment extends Fragment {
         return (user != null) ? user.getUid() : null;
     }
 
-    // Method to refresh data when needed (can be called from parent)
     public void refreshData() {
-        if (userId != null) {
-            viewModel.refreshAlertsInBackground(userId);
+        String currentUserId = getCurrentUserId();
+        if (currentUserId != null) {
+            viewModel.refreshAlertsInBackground(currentUserId);
+        }
+    }
+
+    private void removeDataObservers() {
+        if (adapter != null) {
+            adapter.setAlerts(new ArrayList<>());
+        }
+        if (alertsObserver != null) {
+            viewModel.getAlerts().removeObserver(alertsObserver);
+        }
+        if (messageObserver != null) {
+            viewModel.getMessages().removeObserver(messageObserver);
+        }
+        if (loadingObserver != null) {
+            viewModel.getIsLoading().removeObserver(loadingObserver);
         }
     }
 
