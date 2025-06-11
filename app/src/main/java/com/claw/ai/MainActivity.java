@@ -1,7 +1,9 @@
 package com.claw.ai;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -53,6 +55,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.claw.ai.databinding.ActivityMainBinding;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
@@ -64,6 +67,8 @@ import fragments.alerts.AlertTabFragment;
 import fragments.HomeTabFragment;
 import fragments.MoreTabFragment;
 import recent_tabs.RecentTabsFragment;
+import viewmodels.SharedRefreshViewModel;
+
 import android.Manifest;
 import android.view.View;
 
@@ -78,6 +83,10 @@ public class MainActivity extends AppCompatActivity {
     private final Fragment alertTabFragment = new AlertTabFragment();
     private final Fragment moreTabFragment = new MoreTabFragment();
     private FirebaseAnalytics mFirebaseAnalytics;
+
+    private SharedRefreshViewModel sharedRefreshViewModel;
+    private BroadcastReceiver refreshReceiver;
+    private static final String REFRESH_ACTION_SUFFIX = ".ACTION_REFRESH_ALERTS";
 
     @Override
     protected void onStart() {
@@ -143,6 +152,30 @@ public class MainActivity extends AppCompatActivity {
                 handleCustomBackPress();
             }
         });
+
+        // Get the shared ViewModel scoped to the Activity's lifecycle
+        sharedRefreshViewModel = new ViewModelProvider(this).get(SharedRefreshViewModel.class);
+
+        // Setup the receiver to listen for refresh requests from the messaging service
+        setupBroadcastReceiver();
+    }
+
+    private void setupBroadcastReceiver() {
+        final String refreshAction = getPackageName() + REFRESH_ACTION_SUFFIX;
+        IntentFilter filter = new IntentFilter(refreshAction);
+
+        refreshReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (refreshAction.equals(intent.getAction())) {
+                    // When a broadcast is received, tell the shared ViewModel to fire the event
+                    sharedRefreshViewModel.requestPriceAlertsRefresh();
+                }
+            }
+        };
+
+        // Register the receiver with the NOT_EXPORTED flag for security
+        ContextCompat.registerReceiver(this, refreshReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
     }
 
 //    private boolean isFirstLaunch() {

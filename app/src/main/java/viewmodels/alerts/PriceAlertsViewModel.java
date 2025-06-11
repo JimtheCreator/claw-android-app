@@ -15,12 +15,14 @@ import repositories.alerts.PriceAlertsRepository;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import utils.SingleLiveEvent;
 
 public class PriceAlertsViewModel extends ViewModel {
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
     private final PriceAlertsRepository repository;
     private final MutableLiveData<List<PriceAlert>> alertsLiveData = new MutableLiveData<>();
     private final MutableLiveData<String> messageLiveData = new MutableLiveData<>();
+    private final SingleLiveEvent<Boolean> scrollToTopAndShowRefresh = new SingleLiveEvent<>(); // Add this
 
     public PriceAlertsViewModel() {
         repository = new PriceAlertsRepository();
@@ -43,6 +45,8 @@ public class PriceAlertsViewModel extends ViewModel {
                 isLoading.postValue(false);
                 if (response.isSuccessful()) {
                     messageLiveData.postValue("Alert created successfully");
+                    // Trigger refresh after creating an alert
+                    fetchActiveAlerts(userId);
                 } else if (response.code() == 403) {
                     messageLiveData.postValue("Price alert limit reached");
                 } else {
@@ -74,6 +78,7 @@ public class PriceAlertsViewModel extends ViewModel {
                                 .sorted((a1, a2) -> a2.getCreatedAt().compareTo(a1.getCreatedAt()))
                                 .collect(Collectors.toList());
                         alertsLiveData.postValue(activeAlerts);
+                        scrollToTopAndShowRefresh.call(); // Trigger UI update
                     } else {
                         alertsLiveData.postValue(new ArrayList<>());
                     }
@@ -99,6 +104,7 @@ public class PriceAlertsViewModel extends ViewModel {
             List<PriceAlert> updatedAlerts = new ArrayList<>(currentAlerts);
             updatedAlerts.removeIf(alert -> alert.getId().equals(alertId));
             alertsLiveData.postValue(updatedAlerts);
+            scrollToTopAndShowRefresh.call(); // Trigger UI update
         }
 
         repository.cancelAlert(userId, alertId, symbol, new Callback<>() {
@@ -135,6 +141,7 @@ public class PriceAlertsViewModel extends ViewModel {
                                     .sorted((a1, a2) -> a2.getCreatedAt().compareTo(a1.getCreatedAt()))
                                     .collect(Collectors.toList());
                             alertsLiveData.postValue(activeAlerts);
+                            scrollToTopAndShowRefresh.call(); // Trigger UI update
                         } else {
                             alertsLiveData.postValue(new ArrayList<>());
                         }
@@ -167,5 +174,9 @@ public class PriceAlertsViewModel extends ViewModel {
 
     public LiveData<Boolean> getIsLoading() {
         return isLoading;
+    }
+
+    public SingleLiveEvent<Boolean> getScrollToTopAndShowRefresh() { // Getter for the SingleLiveEvent
+        return scrollToTopAndShowRefresh;
     }
 }

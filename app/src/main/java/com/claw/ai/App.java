@@ -6,6 +6,8 @@ import android.app.NotificationManager;
 import android.media.AudioAttributes;
 import android.net.Uri;
 
+import com.stripe.android.PaymentConfiguration;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -21,6 +23,15 @@ public class App extends Application {
 
     public void onCreate() {
         super.onCreate();
+        // Retrieve the key from strings.xml
+        String stripePublishableKey = getApplicationContext().getString(R.string.TEST_STRIPE_PUBLISHABLE_KEY);
+
+        // Initialize the Stripe SDK with the key
+        PaymentConfiguration.init(
+                getApplicationContext(),
+                stripePublishableKey
+        );
+
         createNotificationChannels();
 
         // Initialize periodic sync

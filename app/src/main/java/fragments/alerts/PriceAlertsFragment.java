@@ -1,9 +1,6 @@
 package fragments.alerts;
 
 import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -13,7 +10,6 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
@@ -29,7 +25,7 @@ import java.util.List;
 
 import adapters.PriceAlertsAdapter;
 import models.PriceAlert;
-import timber.log.Timber;
+import viewmodels.SharedRefreshViewModel;
 import viewmodels.alerts.PriceAlertsViewModel;
 import viewmodels.google_login.AuthViewModel;
 
@@ -38,6 +34,7 @@ public class PriceAlertsFragment extends Fragment {
     private PriceAlertsViewModel priceAlertsViewModel;
     private PriceAlertsAdapter adapter;
     private Observer<List<PriceAlert>> alertsObserver;
+    private SharedRefreshViewModel sharedRefreshViewModel;
     private Observer<String> messageObserver;
     private Observer<Boolean> loadingObserver;
 
@@ -45,14 +42,9 @@ public class PriceAlertsFragment extends Fragment {
     private AuthViewModel authViewModel;
     private static final String TAG = "PriceAlertsFragment";
 
-    private BroadcastReceiver refreshReceiver;
-    private static final String REFRESH_ACTION_SUFFIX = ".ACTION_REFRESH_ALERTS";
-    private String refreshAction;
-
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        refreshAction = requireContext().getPackageName() + REFRESH_ACTION_SUFFIX;
 
         authViewModel = new ViewModelProvider(requireActivity()).get(AuthViewModel.class);
         authViewModel.initialize(requireActivity(), getString(R.string.web_client_id));
@@ -61,6 +53,8 @@ public class PriceAlertsFragment extends Fragment {
 
         FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         userId = firebaseUser != null ? firebaseUser.getUid() : null;
+
+        sharedRefreshViewModel = new ViewModelProvider(requireActivity()).get(SharedRefreshViewModel.class);
     }
 
     @Override
@@ -94,22 +88,6 @@ public class PriceAlertsFragment extends Fragment {
         });
 
         setupObservers();
-        setupBroadcastReceiver();
-    }
-
-    private void setupBroadcastReceiver() {
-        refreshReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if (refreshAction.equals(intent.getAction())) {
-                    Timber.d("Received broadcast to refresh alerts. Refreshing...");
-                    String currentUserId = getCurrentUserId();
-                    if (currentUserId != null) {
-                        priceAlertsViewModel.refreshAlertsInBackground(currentUserId);
-                    }
-                }
-            }
-        };
     }
 
     private void setupObservers() {
@@ -118,7 +96,7 @@ public class PriceAlertsFragment extends Fragment {
             String currentUid = getCurrentUserId();
             switch (authState) {
                 case AUTHENTICATED:
-                    if (currentUid != null) {  
+                    if (currentUid != null) {
                         Log.d(TAG, "AUTHENTICATED");
                         binding.signInLayout.setVisibility(View.GONE);
                         callPriceViewModel();
@@ -137,13 +115,35 @@ public class PriceAlertsFragment extends Fragment {
                     removeDataObservers();
                     priceAlertsViewModel.clearAlerts();
                     adjustWidgets();
-                    break; // ✅ FIX: Added missing break statement.
+                    break;
                 case ERROR:
                     Log.d(TAG, "ERROR");
                     removeDataObservers();
                     priceAlertsViewModel.clearAlerts();
                     adjustWidgets();
                     break;
+            }
+        });
+
+        // This observer listens for the refresh request from the shared ViewModel (if still needed for other purposes)
+        sharedRefreshViewModel.priceAlertsRefreshRequest.observe(getViewLifecycleOwner(), event -> {
+            if (event.getContentIfNotHandled() != null) {
+                refreshData();
+            }
+        });
+
+        // New observer for scrolling to top and showing refresh progress, from PriceAlertsViewModel
+        priceAlertsViewModel.getScrollToTopAndShowRefresh().observe(getViewLifecycleOwner(), shouldScrollAndShow -> {
+            if (shouldScrollAndShow != null && shouldScrollAndShow) {
+                if (binding != null) {
+                    binding.progressBar.setVisibility(View.VISIBLE); // Show the progress bar
+                    LinearLayoutManager layoutManager = (LinearLayoutManager) binding.alertsRecyclerView.getLayoutManager();
+                    if (layoutManager != null && layoutManager.findFirstCompletelyVisibleItemPosition() > 0) {
+                        binding.alertsRecyclerView.scrollToPosition(0); // Scroll to top if not already there
+                    }
+                    // The SingleLiveEvent handles the "reset" internally by only emitting once.
+                    // No need to explicitly set it to false here.
+                }
             }
         });
     }
@@ -154,8 +154,6 @@ public class PriceAlertsFragment extends Fragment {
         alertsObserver = alerts -> {
             if (binding == null) return;
 
-            // ✅ FIX: Add a guard clause to check the authentication state.
-            // This prevents the observer from updating the UI if the user has logged out.
             if (authViewModel.getAuthState().getValue() != AuthViewModel.AuthState.AUTHENTICATED) {
                 return;
             }
@@ -168,6 +166,7 @@ public class PriceAlertsFragment extends Fragment {
                 binding.noAlertsLayout.setVisibility(View.VISIBLE);
                 binding.alertsRecyclerView.setVisibility(View.GONE);
             }
+            binding.progressBar.setVisibility(View.GONE); // Hide progress bar after data is loaded
         };
 
         priceAlertsViewModel.getAlerts().observe(getViewLifecycleOwner(), alertsObserver);
@@ -241,13 +240,10 @@ public class PriceAlertsFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        IntentFilter filter = new IntentFilter(refreshAction);
-        ContextCompat.registerReceiver(requireActivity(), refreshReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        requireActivity().unregisterReceiver(refreshReceiver);
     }
 }
