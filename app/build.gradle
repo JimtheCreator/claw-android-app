@@ -49,6 +49,15 @@ dependencies {
     implementation libs.activity
     implementation libs.constraintlayout
 
+    // ROOM DB
+    def room_version = "2.7.1"
+    implementation libs.room.runtime
+    annotationProcessor "androidx.room:room-compiler:$room_version"
+    implementation libs.room.ktx
+
+    // For background tasks with WorkManager
+    implementation libs.work.runtime.ktx
+
     //Firebase and Google Auth
     implementation libs.com.google.android.libraries.identity.googleid.googleid.v110.x3
     implementation libs.firebase.analytics
@@ -67,7 +76,7 @@ dependencies {
 
     //STRIPE
     // Stripe Android SDK
-    implementation libs.stripe.android // Check for the latest version
+    implementation libs.stripe.android
     
     //GLIDE LIBRARY
     implementation libs.glide

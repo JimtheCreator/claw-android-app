@@ -1,4 +1,4 @@
-package firebase_manager;
+package database.firebaseDB;
 
 import android.app.Activity;
 import android.util.Log;
@@ -16,7 +16,6 @@ import androidx.credentials.exceptions.ClearCredentialException;
 import androidx.credentials.exceptions.GetCredentialCancellationException;
 import androidx.credentials.exceptions.GetCredentialException;
 import androidx.credentials.exceptions.NoCredentialException;
-import androidx.lifecycle.MutableLiveData;
 
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Tasks;
@@ -37,7 +36,6 @@ import java.util.Date;
 import java.util.HashMap;
 
 import models.User;
-import viewmodels.telegram_login.TelegramAuthViewModel;
 
 public class FirebaseAuthManager {
     private static final String TAG = "FirebaseAuthManager";

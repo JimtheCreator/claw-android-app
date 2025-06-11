@@ -1,5 +1,6 @@
 package viewmodels;
 
+import android.app.Application;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -35,6 +36,7 @@ import backend.results.WatchlistUpdateResult;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.schedulers.Schedulers;
+import kotlinx.coroutines.CoroutineScope;
 import models.Symbol;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -73,8 +75,8 @@ public class HomeViewModel extends ViewModel implements LifecycleEventObserver {
     // Added for subscription type and limit checking
     private String subscriptionType;
 
-    public HomeViewModel() {
-        repository = new SymbolRepository();
+    public HomeViewModel(@NonNull Application application) {
+        repository = new SymbolRepository(application);
     }
 
     private List<Symbol> getPaginatedData() {

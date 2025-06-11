@@ -12,7 +12,7 @@ import androidx.lifecycle.ViewModel;
 import java.util.HashMap;
 import java.util.Map;
 
-import firebase_manager.FirebaseAuthManager;
+import database.firebaseDB.FirebaseAuthManager;
 import models.UsageData;
 import models.User;
 import repositories.plan_usage_limits.SupabaseRepository;

@@ -78,7 +78,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="210dp"
                 android:contentDescription="Sign-up"
-                android:src="@drawable/nothing_to_see"
+                android:src="@drawable/just_login"
                 />
 
             <TextView

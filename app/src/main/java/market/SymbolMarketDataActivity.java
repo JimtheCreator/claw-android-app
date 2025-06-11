@@ -70,11 +70,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import adapters.TimeframeSpinnerAdapter;
+import backend.ApiService;
 import backend.MainClient;
-import backend.SymbolMarketEndpoints;
 import backend.WebSocketService;
 import bottomsheets.PriceAlertsBottomSheetFragment;
 import data.remote.WebSocketServiceImpl;
+import factory.HomeViewModelFactory;
 import factory.StreamViewModelFactory;
 import kotlin.Unit;
 import model_interfaces.OnWatchlistActionListener;
@@ -98,6 +99,7 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
     double[] sparklineArray;
     private HomeViewModel homeViewModel;
     OnWatchlistActionListener commonWatchlistListener;
+    HomeViewModelFactory factory;
     FirebaseUser firebaseUser;
     String asset;
     private final SimpleDateFormat apiDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US);
@@ -134,7 +136,6 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
 
         firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
 
-        initializeView();
         initViewModel();
         globalInit();
         onClicksAndDrags();
@@ -143,16 +144,15 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
         setupTimeframeSpinner();
     }
 
-    private void initializeView() {
-        homeViewModel = new ViewModelProvider(this).get(HomeViewModel.class);
-    }
-
     private String getCurrentUserId() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         return (user != null) ? user.getUid() : null;
     }
 
     private void initViewModel() {
+        factory = new HomeViewModelFactory(getApplication());
+        homeViewModel = new ViewModelProvider(this, factory).get(HomeViewModel.class);
+
         WebSocketService wsService = new WebSocketServiceImpl(new OkHttpClient(), new OkHttpClient());
         StreamRepository repository = new StreamRepository(wsService, getApplicationContext());
         viewModel = new ViewModelProvider(this, new StreamViewModelFactory(repository))
@@ -731,7 +731,7 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
      * Handles the API call with automatic retry logic
      */
     private void fetchDataWithRetry(String interval, String start, String end, int retryCount) {
-        MainClient.getInstance().create(SymbolMarketEndpoints.class)
+        MainClient.getInstance().create(ApiService.class)
                 .getMarketData(symbol, interval, start, end, historicalState.currentPage,
                         historicalState.CHUNK_SIZE).enqueue(new Callback<MarketDataResponse>() {
                     @Override

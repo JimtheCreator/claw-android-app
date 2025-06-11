@@ -34,6 +34,7 @@ import java.util.List;
 import adapters.SymbolAdapter;
 import animations.BounceEdgeEffectFactory;
 import animations.MotionAnimation;
+import factory.HomeViewModelFactory;
 import model_interfaces.OnWatchlistActionListener;
 import models.Symbol;
 import space.SpacebetweenItems;
@@ -58,6 +59,7 @@ public class HomeTabFragment extends Fragment {
     private String currentQuery = "";
     private BottomSheetBehavior<View> bottomSheetBehavior;
     private HomeViewModel homeViewModel;
+    HomeViewModelFactory factory;
     int half_expanded_state_tag = 0;
     int expanded_state_tag = 0;
     int collapsed_state_tag = 0;
@@ -67,6 +69,7 @@ public class HomeTabFragment extends Fragment {
 
     private DisplayMetrics metrics;
     private AuthViewModel authViewModel;
+
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
@@ -108,7 +111,8 @@ public class HomeTabFragment extends Fragment {
         searchedSymbolList = new ArrayList<>();
         watchListSymbolList = new ArrayList<>();
 
-        homeViewModel = new ViewModelProvider(this).get(HomeViewModel.class);
+        factory = new HomeViewModelFactory(requireActivity().getApplication());
+        homeViewModel = new ViewModelProvider(this, factory).get(HomeViewModel.class);
 
         initializeAdapters();
         setupRecyclerViews();

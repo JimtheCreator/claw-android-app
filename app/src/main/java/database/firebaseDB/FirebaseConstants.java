@@ -1,4 +1,4 @@
-package firebase_manager;
+package database.firebaseDB;
 
 public class FirebaseConstants {
     // Database nodes

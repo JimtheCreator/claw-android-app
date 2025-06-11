@@ -3,24 +3,17 @@ package com.claw.ai;
 import android.app.Application;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.os.Build;
+import android.media.AudioAttributes;
+import android.net.Uri;
 
 import java.util.Arrays;
 import java.util.List;
 
+import backend.ApiService;
+import backend.MainClient;
+import database.roomDB.AppDatabase;
 import repositories.SymbolRepository;
-
-import android.app.Application;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.media.AudioAttributes; // Add this import
-import android.net.Uri; // Add this import
-import android.os.Build;
-
-import java.util.Arrays;
-import java.util.List;
-
-import repositories.SymbolRepository;
+import repositories.SyncRepository;
 
 public class App extends Application {
 
@@ -29,17 +22,9 @@ public class App extends Application {
     public void onCreate() {
         super.onCreate();
         createNotificationChannels();
-        preloadPopularSearches();
-    }
 
-    private void preloadPopularSearches() {
-        new Thread(() -> {
-            List<String> popular = Arrays.asList("BTC", "ETH", "BNB");
-            SymbolRepository repo = new SymbolRepository();
-            for (String term : popular) {
-                repo.searchCrypto(term, 10);
-            }
-        }).start();
+        // Initialize periodic sync
+        initializePeriodicSync();
     }
 
     private void createNotificationChannels() {
@@ -61,5 +46,12 @@ public class App extends Application {
         if (notificationManager != null) {
             notificationManager.createNotificationChannel(channel);
         }
+    }
+
+    private void initializePeriodicSync() {
+        AppDatabase database = AppDatabase.getInstance(this);
+        ApiService apiService = MainClient.getApiService();
+        SyncRepository syncRepository = new SyncRepository(this, database, apiService);
+        syncRepository.startPeriodicSync();
     }
 }

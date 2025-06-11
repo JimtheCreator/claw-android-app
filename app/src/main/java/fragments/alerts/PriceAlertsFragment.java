@@ -35,7 +35,7 @@ import viewmodels.google_login.AuthViewModel;
 
 public class PriceAlertsFragment extends Fragment {
     private FragmentPriceAlertsBinding binding;
-    private PriceAlertsViewModel viewModel;
+    private PriceAlertsViewModel priceAlertsViewModel;
     private PriceAlertsAdapter adapter;
     private Observer<List<PriceAlert>> alertsObserver;
     private Observer<String> messageObserver;
@@ -57,7 +57,7 @@ public class PriceAlertsFragment extends Fragment {
         authViewModel = new ViewModelProvider(requireActivity()).get(AuthViewModel.class);
         authViewModel.initialize(requireActivity(), getString(R.string.web_client_id));
 
-        viewModel = new ViewModelProvider(requireActivity()).get(PriceAlertsViewModel.class);
+        priceAlertsViewModel = new ViewModelProvider(requireActivity()).get(PriceAlertsViewModel.class);
 
         FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         userId = firebaseUser != null ? firebaseUser.getUid() : null;
@@ -77,7 +77,7 @@ public class PriceAlertsFragment extends Fragment {
         adapter = new PriceAlertsAdapter(alert -> {
             String currentUserId = getCurrentUserId();
             if (currentUserId != null) {
-                viewModel.cancelAlert(currentUserId, alert.getId(), alert.getSymbol());
+                priceAlertsViewModel.cancelAlert(currentUserId, alert.getId(), alert.getSymbol());
             }
         });
 
@@ -87,7 +87,7 @@ public class PriceAlertsFragment extends Fragment {
         binding.swipeRefreshLayout.setOnRefreshListener(() -> {
             String currentUserId = getCurrentUserId();
             if (currentUserId != null) {
-                viewModel.refreshAlerts(currentUserId);
+                priceAlertsViewModel.refreshAlerts(currentUserId);
             } else {
                 binding.swipeRefreshLayout.setRefreshing(false);
             }
@@ -105,7 +105,7 @@ public class PriceAlertsFragment extends Fragment {
                     Timber.d("Received broadcast to refresh alerts. Refreshing...");
                     String currentUserId = getCurrentUserId();
                     if (currentUserId != null) {
-                        viewModel.refreshAlertsInBackground(currentUserId);
+                        priceAlertsViewModel.refreshAlertsInBackground(currentUserId);
                     }
                 }
             }
@@ -118,30 +118,30 @@ public class PriceAlertsFragment extends Fragment {
             String currentUid = getCurrentUserId();
             switch (authState) {
                 case AUTHENTICATED:
-                    if (currentUid != null) {
+                    if (currentUid != null) {  
                         Log.d(TAG, "AUTHENTICATED");
                         binding.signInLayout.setVisibility(View.GONE);
                         callPriceViewModel();
-                        if (viewModel.getAlerts().getValue() == null) {
-                            viewModel.fetchActiveAlerts(currentUid);
+                        if (priceAlertsViewModel.getAlerts().getValue() == null) {
+                            priceAlertsViewModel.fetchActiveAlerts(currentUid);
                         }
                     } else {
                         Log.d(TAG, "AUTHENTICATED BUT USERID NULL");
                         removeDataObservers();
-                        viewModel.clearAlerts();
+                        priceAlertsViewModel.clearAlerts();
                         adjustWidgets();
                     }
                     break;
                 case UNAUTHENTICATED:
                     Log.d(TAG, "UNAUTHENTICATED");
                     removeDataObservers();
-                    viewModel.clearAlerts();
+                    priceAlertsViewModel.clearAlerts();
                     adjustWidgets();
                     break; // ✅ FIX: Added missing break statement.
                 case ERROR:
                     Log.d(TAG, "ERROR");
                     removeDataObservers();
-                    viewModel.clearAlerts();
+                    priceAlertsViewModel.clearAlerts();
                     adjustWidgets();
                     break;
             }
@@ -169,14 +169,15 @@ public class PriceAlertsFragment extends Fragment {
                 binding.alertsRecyclerView.setVisibility(View.GONE);
             }
         };
-        viewModel.getAlerts().observe(getViewLifecycleOwner(), alertsObserver);
+
+        priceAlertsViewModel.getAlerts().observe(getViewLifecycleOwner(), alertsObserver);
 
         messageObserver = message -> {
             if (message != null && !message.isEmpty()) {
                 Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
             }
         };
-        viewModel.getMessages().observe(getViewLifecycleOwner(), messageObserver);
+        priceAlertsViewModel.getMessages().observe(getViewLifecycleOwner(), messageObserver);
 
         loadingObserver = isLoading -> {
             if (binding == null) return;
@@ -192,7 +193,7 @@ public class PriceAlertsFragment extends Fragment {
                 binding.swipeRefreshLayout.setRefreshing(false);
             }
         };
-        viewModel.getIsLoading().observe(getViewLifecycleOwner(), loadingObserver);
+        priceAlertsViewModel.getIsLoading().observe(getViewLifecycleOwner(), loadingObserver);
     }
 
     private void adjustWidgets() {
@@ -212,7 +213,7 @@ public class PriceAlertsFragment extends Fragment {
     public void refreshData() {
         String currentUserId = getCurrentUserId();
         if (currentUserId != null) {
-            viewModel.refreshAlertsInBackground(currentUserId);
+            priceAlertsViewModel.refreshAlertsInBackground(currentUserId);
         }
     }
 
@@ -221,13 +222,13 @@ public class PriceAlertsFragment extends Fragment {
             adapter.setAlerts(new ArrayList<>());
         }
         if (alertsObserver != null) {
-            viewModel.getAlerts().removeObserver(alertsObserver);
+            priceAlertsViewModel.getAlerts().removeObserver(alertsObserver);
         }
         if (messageObserver != null) {
-            viewModel.getMessages().removeObserver(messageObserver);
+            priceAlertsViewModel.getMessages().removeObserver(messageObserver);
         }
         if (loadingObserver != null) {
-            viewModel.getIsLoading().removeObserver(loadingObserver);
+            priceAlertsViewModel.getIsLoading().removeObserver(loadingObserver);
         }
     }
 
