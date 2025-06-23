@@ -6,222 +6,214 @@
     android:background="@drawable/bottom_stroke_background"
     android:orientation="vertical">
 
-    <androidx.core.widget.NestedScrollView
+    <LinearLayout
+        android:layout_above="@+id/border"
+        android:id="@+id/frame"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_above="@+id/border"
-        android:layout_alignParentTop="true"
-        android:fillViewport="true">
+        android:orientation="vertical">
 
         <LinearLayout
-            android:id="@+id/frame"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:orientation="vertical">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_marginStart="15dp"
+                    android:layout_marginTop="15dp"
+                    android:layout_marginEnd="15dp"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/symbol"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom"
+                        android:fontFamily="@font/sf_pro_text_bold"
+                        android:text="--"
+                        android:textColor="@color/off_white"
+                        android:textSize="22sp" />
+
+                    <TextView
+                        android:id="@+id/asset"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom"
+                        android:layout_marginStart="15dp"
+                        android:fontFamily="@font/sf_pro_text_semibold"
+                        android:text="--"
+                        android:textColor="@color/gray_inactive"
+                        android:textSize="15sp" />
+
+                </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/create_price_alert"
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:layout_marginEnd="15dp"
+                    android:src="@drawable/alert_icon" />
+
+            </RelativeLayout>
+
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1.5dp"
+                android:layout_marginStart="15dp"
+                android:layout_marginTop="5dp"
+                android:layout_marginEnd="15dp"
+                android:background="@color/black_shade" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:layout_marginStart="15dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginEnd="15dp"
+                android:orientation="horizontal">
 
-                <RelativeLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
-
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_centerVertical="true"
-                        android:layout_marginStart="15dp"
-                        android:layout_marginTop="15dp"
-                        android:layout_marginEnd="15dp"
-                        android:orientation="horizontal">
-
-                        <TextView
-                            android:id="@+id/symbol"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="bottom"
-                            android:fontFamily="@font/sf_pro_text_bold"
-                            android:text="--"
-                            android:textColor="@color/off_white"
-                            android:textSize="22sp" />
-
-                        <TextView
-                            android:id="@+id/asset"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="bottom"
-                            android:layout_marginStart="15dp"
-                            android:fontFamily="@font/sf_pro_text_semibold"
-                            android:text="--"
-                            android:textColor="@color/gray_inactive"
-                            android:textSize="15sp" />
-
-                    </LinearLayout>
-
-                    <ImageView
-                        android:id="@+id/create_price_alert"
-                        android:layout_width="25dp"
-                        android:layout_height="25dp"
-                        android:layout_alignParentEnd="true"
-                        android:layout_centerVertical="true"
-                        android:layout_marginEnd="15dp"
-                        android:src="@drawable/alert_icon" />
-
-                </RelativeLayout>
-
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1.5dp"
-                    android:layout_marginStart="15dp"
-                    android:layout_marginTop="5dp"
-                    android:layout_marginEnd="15dp"
-                    android:background="@color/black_shade" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
+                <TextView
+                    android:id="@+id/current_price"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="15dp"
-                    android:layout_marginTop="10dp"
-                    android:layout_marginEnd="15dp"
-                    android:orientation="horizontal">
+                    android:layout_gravity="center_vertical"
+                    android:fontFamily="@font/sf_pro_text_bold"
+                    android:text="--"
+                    android:textColor="@color/off_white"
+                    android:textSize="19sp" />
 
-                    <TextView
-                        android:id="@+id/current_price"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center_vertical"
-                        android:fontFamily="@font/sf_pro_text_bold"
-                        android:text="--"
-                        android:textColor="@color/off_white"
-                        android:textSize="19sp" />
-
-                    <TextView
-                        android:id="@+id/percentage_price_change"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center_vertical"
-                        android:layout_marginStart="7dp"
-                        android:fontFamily="@font/sf_pro_text_semibold"
-                        android:text="--"
-                        android:textColor="@color/crimson_red"
-                        android:textSize="15sp" />
-
-
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
+                <TextView
+                    android:id="@+id/percentage_price_change"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="15dp"
-                    android:layout_marginEnd="15dp"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center_vertical"
-                        android:fontFamily="@font/sf_pro_text_semibold"
-                        android:text="From"
-                        android:textColor="@color/gray_inactive"
-                        android:textSize="14sp" />
-
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:layout_gravity="center_vertical"
-                        android:layout_marginStart="10dp"
-                        android:src="@drawable/binance_logo" />
-
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center_vertical"
-                        android:layout_marginStart="5dp"
-                        android:fontFamily="@font/sf_pro_text_semibold"
-                        android:text="BINANCE"
-                        android:textColor="@color/binance_color"
-                        android:textSize="14sp" />
-
-                </LinearLayout>
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginStart="7dp"
+                    android:fontFamily="@font/sf_pro_text_semibold"
+                    android:text="--"
+                    android:textColor="@color/crimson_red"
+                    android:textSize="15sp" />
 
 
             </LinearLayout>
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginStart="15dp"
-                android:layout_marginTop="10dp"
-                android:layout_marginEnd="15dp"
-                android:background="@color/black_shade" />
-
-
-            <com.google.android.material.tabs.TabLayout
-                android:id="@+id/time_interval_tabLayout"
-                style="@style/CustomTabText"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="15dp"
                 android:layout_marginEnd="15dp"
-                android:background="#00000000"
-                android:clipToPadding="false"
-                android:overScrollMode="ifContentScrolls"
-                app:tabGravity="start"
-                app:tabIndicatorColor="@color/invincibleColor"
-                app:tabIndicatorFullWidth="false"
-                app:tabIndicatorHeight="0dp"
-                app:tabInlineLabel="true"
-                app:tabMinWidth="0dp"
-                app:tabMode="scrollable"
-                app:tabPaddingEnd="0dp"
-                app:tabPaddingStart="0dp"
-                app:tabRippleColor="@null"
-                app:tabTextColor="@color/inactive" />
+                android:orientation="horizontal">
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginStart="15dp"
-                android:layout_marginEnd="15dp"
-                android:background="@color/black_shade" />
-
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_gravity="center_horizontal">
-
-                <ProgressBar
-                    android:id="@+id/progressBar"
+                <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_centerInParent="true"
-                    android:layout_gravity="center"
-                    android:visibility="gone"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+                    android:layout_gravity="center_vertical"
+                    android:fontFamily="@font/sf_pro_text_semibold"
+                    android:text="From"
+                    android:textColor="@color/gray_inactive"
+                    android:textSize="14sp" />
 
-                <com.tradingview.lightweightcharts.view.ChartsView
-                    android:id="@+id/candles_stick_chart"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintLeft_toLeftOf="parent"
-                    app:layout_constraintRight_toRightOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginStart="10dp"
+                    android:src="@drawable/binance_logo" />
 
-            </androidx.constraintlayout.widget.ConstraintLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginStart="5dp"
+                    android:fontFamily="@font/sf_pro_text_semibold"
+                    android:text="BINANCE"
+                    android:textColor="@color/binance_color"
+                    android:textSize="14sp" />
+
+            </LinearLayout>
 
 
         </LinearLayout>
 
-    </androidx.core.widget.NestedScrollView>
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginStart="15dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="15dp"
+            android:background="@color/black_shade" />
+
+
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/time_interval_tabLayout"
+            style="@style/CustomTabText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="15dp"
+            android:layout_marginEnd="15dp"
+            android:background="#00000000"
+            android:clipToPadding="false"
+            android:overScrollMode="ifContentScrolls"
+            app:tabGravity="start"
+            app:tabIndicatorColor="@color/invincibleColor"
+            app:tabIndicatorFullWidth="false"
+            app:tabIndicatorHeight="0dp"
+            app:tabInlineLabel="true"
+            app:tabMinWidth="0dp"
+            app:tabMode="scrollable"
+            app:tabPaddingEnd="0dp"
+            app:tabPaddingStart="0dp"
+            app:tabRippleColor="@null"
+            app:tabTextColor="@color/inactive" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginStart="15dp"
+            android:layout_marginEnd="15dp"
+            android:background="@color/black_shade" />
+
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center_horizontal">
+
+            <ProgressBar
+                android:id="@+id/progressBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:layout_gravity="center"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <com.tradingview.lightweightcharts.view.ChartsView
+                android:id="@+id/candles_stick_chart"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+    </LinearLayout>
 
     <View
         android:id="@+id/border"

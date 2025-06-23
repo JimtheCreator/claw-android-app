@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import market.SymbolMarketDataActivity;
+import market.symbol.SymbolMarketDataActivity;
 import model_interfaces.OnWatchlistActionListener;
 import models.Symbol;
 import timber.log.Timber;
@@ -172,7 +172,6 @@ public class SymbolAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
 
     private void startSymbolDetail(boolean isFromSearch, Symbol symbol) {
         if (isFromSearch) {
-            // ... (your existing implementation is fine, ensure symbol.getSparkline() is handled if null)
             Intent intent = new Intent(context, SymbolMarketDataActivity.class);
             intent.putExtra("SYMBOL", symbol.getSymbol());
             intent.putExtra("BASE_CURRENCY", symbol.getBaseCurrency());
@@ -190,7 +189,6 @@ public class SymbolAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             }
             context.startActivity(intent);
         } else {
-            // ... (your existing implementation is fine, ensure symbol.getSparkline() is handled if null)
             Intent intent = new Intent(context, SymbolMarketDataActivity.class);
             intent.putExtra("SYMBOL", symbol.getSymbol());
             intent.putExtra("ASSET", symbol.getAsset());

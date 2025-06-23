@@ -12,7 +12,6 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.transition.TransitionManager;
 
 import com.claw.ai.R;
 import com.claw.ai.databinding.FragmentPatternAlertsBinding;
@@ -26,12 +25,21 @@ import adapters.PatternAlertsAdapter;
 import bottomsheets.patterns.PatternAlertsBottomSheetFragment;
 import models.PatternAlert;
 import viewmodels.alerts.PatternAlertViewModel;
+import viewmodels.SharedRefreshViewModel;
 
-public class PatternAlertsFragment extends Fragment implements PatternAlertsAdapter.OnDeleteClickListener{
+public class PatternAlertsFragment extends Fragment implements PatternAlertsAdapter.OnDeleteClickListener {
 
     FragmentPatternAlertsBinding binding;
     private PatternAlertViewModel viewModel;
     private PatternAlertsAdapter adapter;
+    private SharedRefreshViewModel sharedRefreshViewModel;
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        // Initialize the shared ViewModel
+        sharedRefreshViewModel = new ViewModelProvider(requireActivity()).get(SharedRefreshViewModel.class);
+    }
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -100,6 +108,31 @@ public class PatternAlertsFragment extends Fragment implements PatternAlertsAdap
                 Toast.makeText(getContext(), error, Toast.LENGTH_SHORT).show();
             }
         });
+
+        // NEW: Listen for pattern alerts refresh requests from FCM notifications
+        sharedRefreshViewModel.patternAlertsRefreshRequest.observe(getViewLifecycleOwner(), event -> {
+            if (event.getContentIfNotHandled() != null) {
+                refreshDataFromNotification();
+            }
+        });
+    }
+
+    /**
+     * Called when a pattern alert notification is received
+     * This method refreshes the data and scrolls to top if needed
+     */
+    private void refreshDataFromNotification() {
+        String userId = getCurrentUserId();
+        if (userId != null) {
+            // Show progress indicator and scroll to top if not already there
+            LinearLayoutManager layoutManager = (LinearLayoutManager) binding.recyclerViewPatternAlerts.getLayoutManager();
+            if (layoutManager != null && layoutManager.findFirstCompletelyVisibleItemPosition() > 0) {
+                binding.recyclerViewPatternAlerts.scrollToPosition(0);
+            }
+
+            // Refresh the alerts
+            viewModel.refreshAlerts(userId);
+        }
     }
 
     private void deleteAlert(String alertId) {
@@ -172,5 +205,11 @@ public class PatternAlertsFragment extends Fragment implements PatternAlertsAdap
     @Override
     public void onDetach() {
         super.onDetach();
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        binding = null;
     }
 }

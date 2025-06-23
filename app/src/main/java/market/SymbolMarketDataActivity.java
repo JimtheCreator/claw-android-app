@@ -974,10 +974,6 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
 
     }
 
-    private void creatingViewModelConnection(String interval) {
-        viewModel.connect(symbol, interval, false);
-    }
-
     @NonNull
     private ViewGroup.MarginLayoutParams getMarginLayoutParams(View tabView, int i) {
         ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) tabView.getLayoutParams();
@@ -1000,7 +996,11 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
         return params;
     }
 
-    // Update sparkline using existing MPAndroidChart
+    private void creatingViewModelConnection(String interval) {
+        viewModel.connect(symbol, interval, false);
+    }
+
+
     private void updateSparkline(double[] sparklineArray) {
         LineChart chart = binding.marketChartLayout.sparklineChart;
 

@@ -19,6 +19,7 @@ import com.claw.ai.databinding.FragmentAlertTabBinding;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
 
+import services.notification.MyFirebaseMessagingService;
 import viewmodels.google_login.AuthViewModel;
 
 public class AlertTabFragment extends Fragment {
@@ -122,13 +123,9 @@ public class AlertTabFragment extends Fragment {
         // Refresh the currently visible tab when returning to this fragment
         if (binding != null) {
             int currentTab = binding.viewPager.getCurrentItem();
-            if (currentTab == 0 && priceAlertsFragment != null) {
+            if (currentTab == 0 && priceAlertsFragment != null || currentTab == 1 && patternAlertsFragment != null) {
                 priceAlertsFragment.refreshData();
             }
-            // Add similar logic for pattern alerts if needed
-            // else if (currentTab == 1 && patternAlertsFragment != null) {
-            //     patternAlertsFragment.refreshData();
-            // }
         }
     }
 }

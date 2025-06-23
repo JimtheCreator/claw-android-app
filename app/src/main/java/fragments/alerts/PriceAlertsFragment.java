@@ -1,6 +1,5 @@
 package fragments.alerts;
 
-import android.content.BroadcastReceiver;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -37,7 +36,6 @@ public class PriceAlertsFragment extends Fragment {
     private SharedRefreshViewModel sharedRefreshViewModel;
     private Observer<String> messageObserver;
     private Observer<Boolean> loadingObserver;
-
     private String userId;
     private AuthViewModel authViewModel;
     private static final String TAG = "PriceAlertsFragment";

@@ -67,9 +67,11 @@ import fragments.alerts.AlertTabFragment;
 import fragments.HomeTabFragment;
 import fragments.MoreTabFragment;
 import recent_tabs.RecentTabsFragment;
+import services.notification.MyFirebaseMessagingService;
 import viewmodels.SharedRefreshViewModel;
 
 import android.Manifest;
+import android.util.Log;
 import android.view.View;
 
 public class MainActivity extends AppCompatActivity {
@@ -83,10 +85,15 @@ public class MainActivity extends AppCompatActivity {
     private final Fragment alertTabFragment = new AlertTabFragment();
     private final Fragment moreTabFragment = new MoreTabFragment();
     private FirebaseAnalytics mFirebaseAnalytics;
-
     private SharedRefreshViewModel sharedRefreshViewModel;
-    private BroadcastReceiver refreshReceiver;
-    private static final String REFRESH_ACTION_SUFFIX = ".ACTION_REFRESH_ALERTS";
+
+    // Add these constants and variables to your MainActivity class
+
+    private static final String REFRESH_PRICE_ALERTS_SUFFIX = ".ACTION_REFRESH_PRICE_ALERTS";
+    private static final String REFRESH_PATTERN_ALERTS_SUFFIX = ".ACTION_REFRESH_PATTERN_ALERTS";
+
+    private BroadcastReceiver priceAlertsRefreshReceiver;
+    private BroadcastReceiver patternAlertsRefreshReceiver;
 
     @Override
     protected void onStart() {
@@ -160,23 +167,7 @@ public class MainActivity extends AppCompatActivity {
         setupBroadcastReceiver();
     }
 
-    private void setupBroadcastReceiver() {
-        final String refreshAction = getPackageName() + REFRESH_ACTION_SUFFIX;
-        IntentFilter filter = new IntentFilter(refreshAction);
 
-        refreshReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if (refreshAction.equals(intent.getAction())) {
-                    // When a broadcast is received, tell the shared ViewModel to fire the event
-                    sharedRefreshViewModel.requestPriceAlertsRefresh();
-                }
-            }
-        };
-
-        // Register the receiver with the NOT_EXPORTED flag for security
-        ContextCompat.registerReceiver(this, refreshReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
-    }
 
 //    private boolean isFirstLaunch() {
 //        SharedPreferences prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE);
@@ -252,16 +243,87 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // Replace the existing setupBroadcastReceiver method with this enhanced version
+    private void setupBroadcastReceiver() {
+        // Price alerts refresh receiver
+        final String priceRefreshAction = getPackageName() + REFRESH_PRICE_ALERTS_SUFFIX;
+        IntentFilter priceFilter = new IntentFilter(priceRefreshAction);
+
+        priceAlertsRefreshReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (priceRefreshAction.equals(intent.getAction())) {
+                    // When a broadcast is received, tell the shared ViewModel to fire the price alerts refresh event
+                    sharedRefreshViewModel.requestPriceAlertsRefresh();
+                    Log.d("MainActivity", "Price alerts refresh broadcast received");
+                }
+            }
+        };
+
+        // Pattern alerts refresh receiver
+        final String patternRefreshAction = getPackageName() + REFRESH_PATTERN_ALERTS_SUFFIX;
+        IntentFilter patternFilter = new IntentFilter(patternRefreshAction);
+
+        patternAlertsRefreshReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (patternRefreshAction.equals(intent.getAction())) {
+                    // When a broadcast is received, tell the shared ViewModel to fire the pattern alerts refresh event
+                    sharedRefreshViewModel.requestPatternAlertsRefresh();
+                    Log.d("MainActivity", "Pattern alerts refresh broadcast received");
+                }
+            }
+        };
+
+        // Register both receivers with the NOT_EXPORTED flag for security
+        ContextCompat.registerReceiver(this, priceAlertsRefreshReceiver, priceFilter, ContextCompat.RECEIVER_NOT_EXPORTED);
+        ContextCompat.registerReceiver(this, patternAlertsRefreshReceiver, patternFilter, ContextCompat.RECEIVER_NOT_EXPORTED);
+    }
+
+    // Add this to your onDestroy method to unregister receivers
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        // Unregister broadcast receivers
+        if (priceAlertsRefreshReceiver != null) {
+            unregisterReceiver(priceAlertsRefreshReceiver);
+        }
+        if (patternAlertsRefreshReceiver != null) {
+            unregisterReceiver(patternAlertsRefreshReceiver);
+        }
+
+        binding = null;
+    }
+
+    // Enhanced onNewIntent method
     @Override
     protected void onNewIntent(@NonNull Intent intent) {
         super.onNewIntent(intent);
+
+        // Handle notification-based navigation
+        String notificationType = intent.getStringExtra("notification_type");
+        if (notificationType != null) {
+            handleNotificationNavigation(notificationType);
+        }
+
         tabBackStack.clear();
         tabBackStack.push(R.id.home);
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        binding = null;
+    private void handleNotificationNavigation(String notificationType) {
+        // Navigate to appropriate tab based on notification type
+        switch (notificationType) {
+            case "price_alert":
+            case "pattern_alert":
+                // Navigate to alerts tab
+                switchToTab(R.id.alert_signals);
+                break;
+            default:
+                // Stay on home tab
+                switchToTab(R.id.home);
+                break;
+        }
     }
+
 }

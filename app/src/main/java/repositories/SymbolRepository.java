@@ -90,7 +90,7 @@ public class SymbolRepository {
     public LiveData<List<Symbol>> getWatchlist(String userId) {
         MutableLiveData<List<Symbol>> watchlistData = new MutableLiveData<>();
         Call<List<Symbol>> call = api.getWatchlist(userId);
-        call.enqueue(new Callback<List<Symbol>>() {
+        call.enqueue(new Callback<>() {
             // In SymbolRepository.java
             @Override
             public void onResponse(Call<List<Symbol>> call, Response<List<Symbol>> response) {
@@ -122,7 +122,7 @@ public class SymbolRepository {
         return watchlistData;
     }
 
-    public LiveData<List<CachedSymbol>> searchSymbols(String query) {
+    public LiveData<List<CachedSymbol>> searchCachedSymbols(String query) {
         // Immediately fetch from the local database and return as LiveData.
         LiveData<List<CachedSymbol>> localResults = symbolDao.searchSymbols("%" + query + "%");
 
@@ -134,7 +134,7 @@ public class SymbolRepository {
 
     private void checkLocalResultsAndFetch(String query, LiveData<List<CachedSymbol>> localResults) {
         // Observe the local results once to check if they exist
-        localResults.observeForever(new Observer<List<CachedSymbol>>() {
+        localResults.observeForever(new Observer<>() {
             @Override
             public void onChanged(List<CachedSymbol> symbols) {
                 // Remove observer immediately to avoid memory leaks
@@ -171,6 +171,5 @@ public class SymbolRepository {
     public LiveData<Boolean> isSymbolSearchLoading() {
         return isSymbolSearchLoading;
     }
-
 }
 

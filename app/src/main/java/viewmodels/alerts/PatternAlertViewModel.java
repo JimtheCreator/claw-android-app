@@ -173,7 +173,7 @@ public class PatternAlertViewModel extends AndroidViewModel {
     }
 
     public LiveData<List<CachedSymbol>> searchSymbols(String query) {
-        return symbolRepository.searchSymbols(query);
+        return symbolRepository.searchCachedSymbols(query);
     }
 
     // 5. CHANGE the getter to return the stable, transformed LiveData. No parameter is needed.
