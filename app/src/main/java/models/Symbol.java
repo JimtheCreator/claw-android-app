@@ -36,7 +36,6 @@ public class Symbol {
     private List<Double> sparkline;
     private boolean isInWatchlist;
 
-
     public Symbol(String symbol, String asset, String pair, String baseCurrency, double currentPrice, double _24hChange, double price, double change, double _24hVolume, List<Double> sparkline, boolean isInWatchlist) {
         this.symbol = symbol;
         this.asset = asset;

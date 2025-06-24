@@ -50,8 +50,9 @@ class SymbolMarketDataViewModel(
     private var isLoadingMore = false
     private var earliestTimestamp: Long? = null
 
-    // NEW: Add flag to prevent immediate load-more triggering
-    private var hasInitialDataLoaded = false
+    // NEW: CONVERTED to StateFlow to be observed by the Activity
+    private val _hasInitialDataLoaded = MutableStateFlow(false)
+    val hasInitialDataLoaded: StateFlow<Boolean> = _hasInitialDataLoaded
 
 
     fun setSymbol(symbol: String) {
@@ -72,18 +73,21 @@ class SymbolMarketDataViewModel(
 
     private fun clearStates() {
         _error.value = null
-        // Clear the candle list for a clean transition
         _candles.value = emptyList()
         // Reset the initial data loaded flag
-        hasInitialDataLoaded = false
+        _hasInitialDataLoaded.value = false //
     }
 
     private fun loadData() {
         val symbol = currentSymbol ?: return
         Timber.d("Loading data for symbol: $symbol, interval: $currentInterval")
         cancelAllJobs() // Cancel previous jobs
-        loadHistoricalData(symbol)
-        startMarketDataStream(symbol)
+        historicalDataJob = viewModelScope.launch {
+            loadHistoricalData(symbol)
+            if (_hasInitialDataLoaded.value) {
+                startMarketDataStream(symbol)
+            }
+        }
     }
 
     private fun startMarketDataStream(symbol: String) {
@@ -102,21 +106,16 @@ class SymbolMarketDataViewModel(
                                 _change.value = marketUpdate.data.change
                             }
                             is MarketUpdate.CandleUpdate -> {
-                                // NEW: Logic to intelligently merge real-time candle updates
                                 val newCandle = marketUpdate.data
                                 val currentCandles = _candles.value.toMutableList()
 
                                 if (currentCandles.isNotEmpty() && newCandle.time == currentCandles.last().time) {
-                                    // This update is for the last candle in our list, so replace it
                                     currentCandles[currentCandles.size - 1] = newCandle
                                     Timber.d("Updated last candle: ${newCandle.time}")
                                 } else if (currentCandles.isEmpty() || newCandle.time > currentCandles.last().time) {
-                                    // This is a new candle, append it
                                     currentCandles.add(newCandle)
                                     Timber.d("Appended new candle: ${newCandle.time}")
                                 }
-                                // Else, the candle is old/out of order, so we ignore it.
-
                                 _candles.value = currentCandles
                             }
                         }
@@ -128,76 +127,67 @@ class SymbolMarketDataViewModel(
         }
     }
 
-    private fun loadHistoricalData(symbol: String) {
-        historicalDataJob = viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                val calendar = Calendar.getInstance()
-                val endTime = Date()
-                calendar.time = endTime
+    private suspend fun loadHistoricalData(symbol: String) {
+        _isLoading.value = true
+        try {
+            val calendar = Calendar.getInstance()
+            val endTime = Date()
+            calendar.time = endTime
 
-                val limit = 999
-
-                // Calculate the theoretical start time based on interval
-                val theoreticalStartCalendar = Calendar.getInstance().apply { time = endTime }
-                when (currentInterval) {
-                    "1m" -> theoreticalStartCalendar.add(Calendar.MINUTE, -limit)
-                    "5m" -> theoreticalStartCalendar.add(Calendar.MINUTE, -limit * 5)
-                    "15m" -> theoreticalStartCalendar.add(Calendar.MINUTE, -limit * 15)
-                    "30m" -> theoreticalStartCalendar.add(Calendar.MINUTE, -limit * 30)
-                    "1h" -> theoreticalStartCalendar.add(Calendar.HOUR, -limit)
-                    "2h" -> theoreticalStartCalendar.add(Calendar.HOUR, -limit * 2)
-                    "4h" -> theoreticalStartCalendar.add(Calendar.HOUR, -limit * 4)
-                    "6h" -> theoreticalStartCalendar.add(Calendar.HOUR, -limit * 6)
-                    "1d" -> theoreticalStartCalendar.add(Calendar.DAY_OF_YEAR, -limit)
-                    "3d" -> theoreticalStartCalendar.add(Calendar.DAY_OF_YEAR, -limit * 3)
-                    "1w" -> theoreticalStartCalendar.add(Calendar.WEEK_OF_YEAR, -limit)
-                    "1M" -> theoreticalStartCalendar.add(Calendar.MONTH, -limit)
-                    else -> theoreticalStartCalendar.add(Calendar.MINUTE, -limit) // Default to minutes
-                }
-
-                // Cap the start time to maximum 10 years ago
-                val maxLookbackCalendar = Calendar.getInstance().apply {
-                    time = endTime
-                    add(Calendar.YEAR, -10)
-                }
-
-                // Use the more recent of the two dates (theoretical start vs 10 years ago)
-                val startTime = if (theoreticalStartCalendar.time.before(maxLookbackCalendar.time)) {
-                    maxLookbackCalendar.time
-                } else {
-                    theoreticalStartCalendar.time
-                }
-
-                Timber.d("Fetching historical data from $startTime to $endTime for interval $currentInterval")
-
-                val candles = repository.getHistoricalCandles(symbol, currentInterval, startTime, endTime)
-                Timber.d("Received ${candles.size} historical candles")
-
-                if (candles.isNotEmpty()) {
-                    // Update the unified candle list
-                    _candles.value = candles.sortedBy { it.time }
-                    // Mark that initial data has been loaded
-                    hasInitialDataLoaded = true
-                } else {
-                    _error.value = "No historical data available for this symbol and interval"
-                }
-
-            } catch (e: Exception) {
-                val errorMsg = "Failed to load historical data: ${e.message}"
-                _error.value = errorMsg
-                Timber.e(e, errorMsg)
-                _candles.value = emptyList() // Ensure empty list on error
-            } finally {
-                _isLoading.value = false
+            val limit = 999
+            val theoreticalStartCalendar = Calendar.getInstance().apply { time = endTime }
+            when (currentInterval) {
+                "1m" -> theoreticalStartCalendar.add(Calendar.MINUTE, -limit)
+                "5m" -> theoreticalStartCalendar.add(Calendar.MINUTE, -limit * 5)
+                "15m" -> theoreticalStartCalendar.add(Calendar.MINUTE, -limit * 15)
+                "30m" -> theoreticalStartCalendar.add(Calendar.MINUTE, -limit * 30)
+                "1h" -> theoreticalStartCalendar.add(Calendar.HOUR, -limit)
+                "2h" -> theoreticalStartCalendar.add(Calendar.HOUR, -limit * 2)
+                "4h" -> theoreticalStartCalendar.add(Calendar.HOUR, -limit * 4)
+                "6h" -> theoreticalStartCalendar.add(Calendar.HOUR, -limit * 6)
+                "1d" -> theoreticalStartCalendar.add(Calendar.DAY_OF_YEAR, -limit)
+                "3d" -> theoreticalStartCalendar.add(Calendar.DAY_OF_YEAR, -limit * 3)
+                "1w" -> theoreticalStartCalendar.add(Calendar.WEEK_OF_YEAR, -limit)
+                "1M" -> theoreticalStartCalendar.add(Calendar.MONTH, -limit)
+                else -> theoreticalStartCalendar.add(Calendar.MINUTE, -limit)
             }
+
+            val maxLookbackCalendar = Calendar.getInstance().apply {
+                time = endTime
+                add(Calendar.YEAR, -10)
+            }
+
+            val startTime = if (theoreticalStartCalendar.time.before(maxLookbackCalendar.time)) {
+                maxLookbackCalendar.time
+            } else {
+                theoreticalStartCalendar.time
+            }
+
+            Timber.d("Fetching historical data from $startTime to $endTime for interval $currentInterval")
+
+            val candles = repository.getHistoricalCandles(symbol, currentInterval, startTime, endTime)
+            Timber.d("Received ${candles.size} historical candles")
+
+            if (candles.isNotEmpty()) {
+                _candles.value = candles.sortedBy { it.time }
+                _hasInitialDataLoaded.value = true
+                _isLoading.value = false // Move here to stop progress bar after successful load
+            } else {
+                _error.value = "No historical data available for this symbol and interval"
+                _isLoading.value = false // Stop progress bar on empty data
+            }
+        } catch (e: Exception) {
+            _error.value = "Failed to load historical data: ${e.message}"
+            Timber.e(e, "Failed to load historical data")
+            _isLoading.value = false // Stop progress bar on error
         }
+        // Remove finally block since we handle all cases explicitly
     }
 
     // Function to load more historical data
     fun loadMoreHistoricalData() {
-        if (!hasInitialDataLoaded || isLoadingMore || _candles.value.isEmpty()) {
-            Timber.d("Skipping loadMoreHistoricalData: hasInitialDataLoaded=$hasInitialDataLoaded, isLoadingMore=$isLoadingMore, candles.size=${_candles.value.size}")
+        if (!_hasInitialDataLoaded.value || isLoadingMore || _candles.value.isEmpty()) { //
+            Timber.d("Skipping loadMoreHistoricalData: hasInitialDataLoaded=${_hasInitialDataLoaded.value}, isLoadingMore=$isLoadingMore, candles.size=${_candles.value.size}")
             return
         }
 

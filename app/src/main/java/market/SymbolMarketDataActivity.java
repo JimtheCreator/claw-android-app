@@ -1000,7 +1000,6 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
         viewModel.connect(symbol, interval, false);
     }
 
-
     private void updateSparkline(double[] sparklineArray) {
         LineChart chart = binding.marketChartLayout.sparklineChart;
 
@@ -1179,27 +1178,6 @@ public class SymbolMarketDataActivity extends AppCompatActivity {
 
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
         builder.show();
-    }
-
-    private void handlePatternSelection(List<String> patternName, boolean isSelected) {
-        if (isSelected) {
-            Log.d("PatternSelected", patternName + " selected");
-            // Handle pattern selection
-
-        } else {
-            Log.d("PatternSelected", patternName + " deselected");
-            // Handle pattern deselection
-        }
-    }
-
-    private void handleGoalSelection(String goalName, boolean isSelected) {
-        if (isSelected) {
-            Log.d("GoalSelected", goalName + " selected");
-            // Handle goal selection
-        } else {
-            Log.d("GoalSelected", goalName + " deselected");
-            // Handle goal deselection
-        }
     }
 
 }

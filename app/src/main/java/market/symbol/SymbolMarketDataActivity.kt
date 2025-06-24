@@ -1,5 +1,6 @@
 package market.symbol
 
+import accounts.SignUpBottomSheet
 import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
@@ -13,9 +14,11 @@ import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import bottomsheets.PriceAlertsBottomSheetFragment
 import com.claw.ai.R
 import com.claw.ai.databinding.ActivitySymbolMarketDataBinding
 import com.github.mikephil.charting.charts.LineChart
@@ -24,6 +27,8 @@ import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import com.google.android.material.tabs.TabLayout
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import com.tradingview.lightweightcharts.api.chart.models.color.IntColor
 import com.tradingview.lightweightcharts.api.chart.models.color.surface.SolidColor
 import com.tradingview.lightweightcharts.api.interfaces.SeriesApi
@@ -41,16 +46,22 @@ import com.tradingview.lightweightcharts.api.series.models.CandlestickData
 import com.tradingview.lightweightcharts.api.series.models.HistogramData
 import com.tradingview.lightweightcharts.api.series.models.PriceScaleId
 import com.tradingview.lightweightcharts.api.series.models.Time
+import factory.HomeViewModelFactory
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import market.symbol.repo.Candle
 import market.symbol.repo.MarketDataRepository
 import market.symbol.viewmodel.SymbolMarketDataViewModel
+import model_interfaces.OnWatchlistActionListener
+import models.Symbol
+import viewmodels.HomeViewModel
 import java.util.Locale
 
 class SymbolMarketDataActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySymbolMarketDataBinding
     private lateinit var viewModel: SymbolMarketDataViewModel
+    private lateinit var homeViewModel: HomeViewModel
+    private lateinit var watchListListener: OnWatchlistActionListener
     private var candleSeries: SeriesApi? = null
     private var volumeSeries: SeriesApi? = null
 
@@ -66,7 +77,7 @@ class SymbolMarketDataActivity : AppCompatActivity() {
     private var chartInitializedTime = 0L
     private val LOAD_MORE_COOLDOWN_MS = 3000L // 3 second cooldown
     private var lastLoadMoreTime = 0L
-
+    private var symbol: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,10 +85,10 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         binding = ActivitySymbolMarketDataBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        initializeViewModel()
         // Extract and display initial data immediately
         extractAndDisplayInitialData()
 
-        initializeViewModel()
         initializeChart()
         initializeTimeIntervalTabs()
         setupObservers()
@@ -85,15 +96,166 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         // Initialize with symbol and interval after UI is set up
         initializeWithSymbol()
 
-        onclicks()
+        // NEW: Initialize the onClicksAndDrags function
+        initializeClickHandlers()
     }
 
-    private fun onclicks() {
-        TODO("Not yet implemented")
+    // Add this new method to your class
+    private fun initializeClickHandlers() {
+        // You'll need to create instances of HomeViewModel and get FirebaseUser
+        // Assuming you have these available or can create them:
+
+        val firebaseUser = FirebaseAuth.getInstance().currentUser
+
+        // Call the extension function on your binding
+        binding.onClicksAndDrags(
+            firebaseUser = firebaseUser,
+            getSupportFragmentManager = { supportFragmentManager },
+            finishActivity = { finish() }
+        )
+    }
+
+    private fun ActivitySymbolMarketDataBinding.onClicksAndDrags(
+        firebaseUser: FirebaseUser?, // Pass your FirebaseUser here
+        getSupportFragmentManager: () -> androidx.fragment.app.FragmentManager, // Pass a lambda to get FragmentManager
+        finishActivity: () -> Unit // Pass a lambda to finish the activity
+    ) {
+        // Close Page OnClickListener
+        closePage.setOnClickListener {
+            finishActivity() // Call the lambda to finish the activity
+        }
+
+        // Add to Watchlist OnClickListener
+        marketChartLayout.addToWatchlist.setOnClickListener {
+            val userId = firebaseUser?.uid
+            if (userId == null) {
+                openSignUpBottomSheet(getSupportFragmentManager())
+                return@setOnClickListener // Use return@setOnClickListener to return from the lambda
+            }
+
+            // Retrieve necessary data from intent extras
+            // Assuming 'intent' is accessible from the current context (e.g., an Activity)
+            // You might need to pass the intent or access it via `this.intent` if this code is in an Activity
+            val intent = (root.context as? androidx.activity.ComponentActivity)?.intent
+            val symbolStr =
+                intent?.getStringExtra("SYMBOL") ?: "" // Renamed to avoid conflict with class name
+            val asset = intent?.getStringExtra("ASSET") ?: ""
+            val baseCurrency = intent?.getStringExtra("BASE_CURRENCY") ?: ""
+            val currentPrice = intent?.getDoubleExtra("CURRENT_PRICE", 0.0) ?: 0.0
+            val change24h = intent?.getDoubleExtra("CHANGE_24H", 0.0) ?: 0.0
+            val sparklineArray = intent?.getDoubleArrayExtra("SPARKLINE")
+
+            // Convert sparkline array to List<Double> using ArrayList for Java compatibility
+            val sparkline: List<Double> = sparklineArray?.let {
+                ArrayList(it.toList()) // Convert array to list and then to ArrayList
+            } ?: ArrayList() // Provide an empty ArrayList if null
+
+            // Create Symbol object with available data (default values for missing fields)
+            // IMPORTANT: Use positional arguments as Symbol is a Java class.
+            // The constructor signature from your Symbol.java:
+            // public Symbol(String symbol, String asset, String pair, String baseCurrency, double currentPrice, double _24hChange, double price, double change, double _24hVolume, List<Double> sparkline, boolean isInWatchlist) {
+            val symbolObj = Symbol(
+                symbolStr,           // 1. String symbol
+                asset,               // 2. String asset
+                "",             // 3. String pair (not available, set empty)
+                baseCurrency,        // 4. String baseCurrency
+                currentPrice,        // 5. double currentPrice
+                change24h,           // 6. double _24hChange
+                currentPrice,        // 7. double price (same as currentPrice)
+                change24h,           // 8. double change (same as 24h change)
+                0.0,      // 9. double _24hVolume (default 0)
+                sparkline,           // 10. List<Double> sparkline
+                false     // 11. boolean isInWatchlist (default false)
+            )
+
+            // Add to watchlist
+            watchListListener.onAddToWatchlist(userId, symbolObj, "Binance")
+        }
+
+        // Create Price Alert OnClickListener
+        marketChartLayout.createPriceAlert.setOnClickListener {
+            val symbol =
+                (root.context as? androidx.activity.ComponentActivity)?.intent?.getStringExtra("SYMBOL")
+                    ?: ""
+            val stringCurrentPrice = marketChartLayout.currentPrice.text.toString()
+            // Remove all non-numeric characters except dot and minus
+            val numeric = stringCurrentPrice.replace("[^\\d.-]".toRegex(), "")
+            val price =
+                numeric.toDoubleOrNull() ?: 0.0 // Safely parse to Double, default to 0.0 if invalid
+
+            firebaseUser?.let { user ->
+                val priceAlertFragment =
+                    PriceAlertsBottomSheetFragment.newInstance(user.uid, symbol, price)
+                priceAlertFragment.show(getSupportFragmentManager(), priceAlertFragment.tag)
+            } ?: run {
+                openSignUpBottomSheet(getSupportFragmentManager())
+            }
+        }
+    }
+
+    private fun openSignUpBottomSheet(supportFragmentManager: FragmentManager) {
+        val signUpBottomSheet = SignUpBottomSheet.newInstance()
+        signUpBottomSheet.show(supportFragmentManager, signUpBottomSheet.tag)
+    }
+
+    private fun initViews() {
+        // Load watchlist if user is logged in
+        val firebaseUser = FirebaseAuth.getInstance().currentUser
+        val userId = firebaseUser?.uid
+
+        watchListListener = object : OnWatchlistActionListener {
+            override fun onAddToWatchlist(
+                ignoredUserId: String,
+                symbol: Symbol,
+                source: String
+            ) { // userId from adapter is ignored
+                if (userId != null && symbol != null) {
+                    homeViewModel.addToWatchlist(userId, symbol, source)
+                } else {
+                    Toast.makeText(
+                        applicationContext,
+                        "Please sign in to modify watchlist.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+
+            override fun onRemoveFromWatchlist(
+                ignoredUserId: String,
+                symbolTicker: String
+            ) { // userId from adapter is ignored
+                if (userId != null && symbolTicker != null) {
+                    homeViewModel.removeFromWatchlist(userId, symbolTicker)
+                } else {
+                    Toast.makeText(
+                        applicationContext,
+                        "Please sign in to modify watchlist.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+
+        val sparklineArray = intent.getDoubleArrayExtra("SPARKLINE")
+
+        // Convert sparkline array to List<Double>
+        val sparkline: MutableList<Double> = java.util.ArrayList()
+        if (sparklineArray != null) {
+            for (value in sparklineArray) {
+                sparkline.add(value)
+            }
+        }
+
+        if (userId != null) {
+            homeViewModel.loadWatchlist(userId)
+        } else {
+            binding.marketChartLayout.addToWatchlist.visibility = View.GONE
+        }
     }
 
     private fun extractAndDisplayInitialData() {
-        val symbol = intent.getStringExtra("SYMBOL") ?: "BTCUSDT"
+        initViews()
+        symbol = intent.getStringExtra("SYMBOL") ?: "BTCUSDT"
         val asset = intent.getStringExtra("ASSET") ?: ""
         initialPrice = intent.getDoubleExtra("CURRENT_PRICE", 0.0).takeIf { it != 0.0 }
         initialChange = intent.getDoubleExtra("CHANGE_24H", 0.0)
@@ -133,6 +295,9 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             }
         }
         viewModel = ViewModelProvider(this, factory)[SymbolMarketDataViewModel::class.java]
+
+        val homeViewFactory = HomeViewModelFactory(application)
+        homeViewModel = ViewModelProvider(this, homeViewFactory)[HomeViewModel::class.java]
     }
 
     private fun initializeWithSymbol() {
@@ -143,16 +308,23 @@ class SymbolMarketDataActivity : AppCompatActivity() {
     }
 
     private fun setupObservers() {
-        // NEW: Observe the single, unified candle list from the ViewModel
+        // Observe watchlist to update button visibility - FIXED: Remove lifecycleScope for LiveData
+        homeViewModel.watchlist.observe(this) { symbols: List<Symbol>? ->
+            if (symbols != null) {
+                val isInWatchlist = symbols.any { it.symbol == symbol }
+                binding.marketChartLayout.addToWatchlist.visibility =
+                    if (isInWatchlist) View.GONE else View.VISIBLE
+            }
+        }
+
+        // Observe the unified candle list from the ViewModel (StateFlow/Flow)
         lifecycleScope.launch {
             viewModel.candles.collectLatest { candles ->
                 Log.d("SymbolMarketDataActivity", "Updating chart with ${candles.size} candles.")
                 if (candles.isNotEmpty()) {
-                    // setData is simpler and safer here to prevent inconsistencies.
-                    // It redraws the chart with the full, correct dataset.
+                    // Set the data for the series
                     candleSeries?.setData(candles.map { it.toCandlestickData() })
                     volumeSeries?.setData(candles.map { it.toVolumeData() })
-
                 } else {
                     // Clear the chart if there's no data
                     candleSeries?.setData(emptyList())
@@ -161,35 +333,55 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             }
         }
 
-        // REMOVED: The separate observer for historicalCandles is no longer needed.
-        // REMOVED: The separate observer for candleUpdates is no longer needed.
-
-        // Observe loading state (remains the same)
+        // Observe hasInitialDataLoaded to scroll the chart (StateFlow/Flow)
         lifecycleScope.launch {
-            viewModel.isLoading.collect { isLoading ->
-                binding.marketChartLayout.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+            viewModel.hasInitialDataLoaded.collect { hasLoaded ->
+                if (hasLoaded) {
+                    // Scroll to the most recent data point once loaded
+                    binding.marketChartLayout.candlesStickChart.api.timeScale.scrollToRealTime()
+                    Log.d(
+                        "SymbolMarketDataActivity",
+                        "Initial data loaded. Scrolling to real-time."
+                    )
+                }
             }
         }
 
-        // Observe real-time price and change updates (remains the same)
+        // Observe loading state (StateFlow/Flow)
+        lifecycleScope.launch {
+            viewModel.isLoading.collect { isLoading ->
+                binding.marketChartLayout.progressBar.visibility =
+                    if (isLoading) View.VISIBLE else View.GONE
+            }
+        }
+
+        // Observe real-time price and change updates (StateFlow/Flow)
         lifecycleScope.launch {
             viewModel.price.collect { price ->
                 price?.let {
-                    binding.marketChartLayout.currentPrice.text = String.format(Locale.US, "US$%.2f", it)
-                }
-            }
-        }
-        lifecycleScope.launch {
-            viewModel.change.collect { change ->
-                change?.let {
-                    binding.marketChartLayout.percentagePriceChange.text = String.format(Locale.US, "%.2f%%", it)
-                    val colorRes = if (it >= 0) R.color.green_chart_color else R.color.crimson_red
-                    binding.marketChartLayout.percentagePriceChange.setTextColor(ContextCompat.getColor(this@SymbolMarketDataActivity, colorRes))
+                    binding.marketChartLayout.currentPrice.text =
+                        String.format(Locale.US, "US$%.2f", it)
                 }
             }
         }
 
-        // Observe errors (remains the same)
+        lifecycleScope.launch {
+            viewModel.change.collect { change ->
+                change?.let {
+                    binding.marketChartLayout.percentagePriceChange.text =
+                        String.format(Locale.US, "%.2f%%", it)
+                    val colorRes = if (it >= 0) R.color.green_chart_color else R.color.crimson_red
+                    binding.marketChartLayout.percentagePriceChange.setTextColor(
+                        ContextCompat.getColor(
+                            this@SymbolMarketDataActivity,
+                            colorRes
+                        )
+                    )
+                }
+            }
+        }
+
+        // Observe errors (StateFlow/Flow)
         lifecycleScope.launch {
             viewModel.error.collect { error ->
                 error?.let {
@@ -368,7 +560,6 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                 timeVisible = true           // Show time on the scale
                 borderVisible = false        // Hide the border
                 fixLeftEdge = false // Allow scrolling past the left edge
-                fixRightEdge = true
                 rightBarStaysOnScroll = true // Keep the right bar visible during scrolling
                 localization = LocalizationOptions().apply {
                     locale = Locale.getDefault().toLanguageTag() // Use device locale
@@ -407,27 +598,22 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             baseLineWidth = LineWidth.TWO
             priceScaleId = PriceScaleId.LEFT
         }
+
         chartsView.api.addHistogramSeries(volumeOptions) { series ->
             volumeSeries = series
         }
 
-        // NEW: Set chart initialization time
-        chartInitializedTime = System.currentTimeMillis()
-
         chartsView.api.timeScale.subscribeVisibleTimeRangeChange { timeRange ->
             if (timeRange == null) return@subscribeVisibleTimeRangeChange
 
-            val currentTime = System.currentTimeMillis()
+            if (!viewModel.hasInitialDataLoaded.value) {
+                return@subscribeVisibleTimeRangeChange
+            }
 
-            // Check cooldown periods
-            val timeSinceInit = currentTime - chartInitializedTime
+            val currentTime = System.currentTimeMillis()
             val timeSinceLastLoad = currentTime - lastLoadMoreTime
 
-            if (timeSinceInit < LOAD_MORE_COOLDOWN_MS ||
-                timeSinceLastLoad < LOAD_MORE_COOLDOWN_MS ||
-                viewModel.isLoading.value) {
-                Log.d("SymbolMarketDataActivity",
-                    "Skipping load more - timeSinceInit: $timeSinceInit, timeSinceLastLoad: $timeSinceLastLoad, isLoading: ${viewModel.isLoading.value}")
+            if (timeSinceLastLoad < LOAD_MORE_COOLDOWN_MS || viewModel.isLoading.value) {
                 return@subscribeVisibleTimeRangeChange
             }
 
@@ -437,11 +623,19 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             val earliestTime = candles.first().time
             val fromTime = (timeRange.from as Time.Utc).timestamp
             val toTime = (timeRange.to as Time.Utc).timestamp
-            val visibleDuration = toTime - fromTime
-            val threshold = (visibleDuration * 0.1).toLong() // 10% of visible duration
+            val latestTime = candles.last().time
 
-            if (fromTime <= earliestTime + threshold) {
-                Log.d("SymbolMarketDataActivity", "Approaching earliest data, loading more")
+            Log.d("ChartScroll", "Visible: $fromTime to $toTime, Data: $earliestTime to $latestTime")
+
+            // Calculate the visible duration
+            val visibleDuration = toTime - fromTime
+
+            // Set a threshold, e.g., 10% of the visible duration
+            val threshold = (visibleDuration * 0.1).toLong()
+
+            // Trigger load more when fromTime is within the threshold of earliestTime
+            if (fromTime < earliestTime + threshold) {
+                Log.d("ChartScroll", "Approaching earliest data, loading more. fromTime: $fromTime, earliestTime: $earliestTime, threshold: $threshold")
                 lastLoadMoreTime = currentTime
                 viewModel.loadMoreHistoricalData()
             }
@@ -468,7 +662,6 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             color = color
         )
     }
-
 
     private fun updateSparkline(sparklineArray: DoubleArray?) {
         if (sparklineArray == null || sparklineArray.isEmpty()) return

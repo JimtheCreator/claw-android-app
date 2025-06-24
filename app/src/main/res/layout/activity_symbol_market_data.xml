@@ -11,8 +11,10 @@
     >
 
     <RelativeLayout
+        android:layout_marginTop="25dp"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize">
+        android:layout_height="?attr/actionBarSize"
+        >
 
         <ImageView
             android:id="@+id/close_page"

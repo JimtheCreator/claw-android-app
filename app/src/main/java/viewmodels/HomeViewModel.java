@@ -345,27 +345,20 @@ public class HomeViewModel extends ViewModel implements LifecycleEventObserver {
         try {
             JSONArray watchlistArray = json.optJSONArray("watchlist");
             if (watchlistArray != null) {
-                List<Symbol> currentWatchlist = watchlist.getValue();
-                if (currentWatchlist != null) {
-                    for (int i = 0; i < watchlistArray.length(); i++) {
-                        JSONObject stockData = watchlistArray.getJSONObject(i);
-                        String symbol = stockData.getString("symbol");
-                        double price = stockData.getDouble("price");
-                        double change = stockData.getDouble("change");
-                        List<Double> sparklineData = parseSparklineFromObject(stockData);
-                        for (Symbol s : currentWatchlist) {
-                            if (s.getSymbol().equals(symbol)) {
-                                s.setPrice(price);
-                                s.setChange(change);
-                                if (sparklineData != null) {
-                                    s.setSparkline(sparklineData);
-                                }
-                                break;
-                            }
-                        }
-                    }
-                    watchlist.postValue(currentWatchlist);
+                List<Symbol> newWatchlist = new ArrayList<>();
+                // Loop from the end to the start
+                for (int i = watchlistArray.length() - 1; i >= 0; i--) {
+                    JSONObject stockData = watchlistArray.getJSONObject(i);
+                    String symbol = stockData.getString("symbol");
+                    String asset = stockData.optString("asset", "");
+                    String baseCurrency = stockData.optString("baseCurrency", "");
+                    double price = stockData.getDouble("price");
+                    double change = stockData.getDouble("change");
+                    List<Double> sparklineData = parseSparklineFromObject(stockData);
+                    Symbol s = new Symbol(symbol, asset, "", baseCurrency, price, change, price, change, 0.0, sparklineData, true);
+                    newWatchlist.add(s);
                 }
+                watchlist.postValue(newWatchlist);
             }
         } catch (JSONException e) {
             Log.e("WebSocketDebug", "Error handling init message", e);
