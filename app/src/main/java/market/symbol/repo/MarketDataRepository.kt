@@ -36,6 +36,12 @@ data class Candle(
     val volume: Double
 )
 
+// A new data class to hold either type of update
+sealed class MarketUpdate {
+    data class Tick(val data: TickData) : MarketUpdate()
+    data class CandleUpdate(val data: Candle) : MarketUpdate()
+}
+
 class MarketDataRepository(
     private val TAG: String = "MarketDataRepository",
     private val apiService: ApiService = MainClient.getInstance().create(ApiService::class.java),
@@ -51,120 +57,44 @@ class MarketDataRepository(
     private var tickDataWebSocket: WebSocket? = null
     private var candleDataWebSocket: WebSocket? = null
 
-    fun subscribeToTickData(symbol: String): Flow<TickData> {
+    // A single subscription method
+    fun subscribeToMarketUpdates(symbol: String, interval: String): Flow<MarketUpdate> {
         return callbackFlow {
-            Log.d(TAG, "Creating tick data WebSocket flow for $symbol")
+            Log.d(TAG, "Creating market update WebSocket flow for $symbol with interval $interval")
 
             val listener = object : WebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
-                    Log.d(TAG, "Tick data WebSocket opened for $symbol")
-                    tickDataWebSocket = webSocket
+                    Log.d(TAG, "Market update WebSocket opened for $symbol")
                 }
 
                 override fun onMessage(webSocket: WebSocket, text: String) {
-                    Log.d(TAG, "Tick data WebSocket message: $text")
+                    Log.d(TAG, "Market update WebSocket message: $text")
                     try {
-                        val tickData = parseTickData(text)
-                        if (tickData != null) {
-                            Log.d(TAG, "Parsed tick data: $tickData")
-                            trySend(tickData).isSuccess
-                        } else {
-                            Log.w(TAG, "Failed to parse tick data from: $text")
+                        val jsonObject = gson.fromJson(text, JsonObject::class.java)
+                        if (jsonObject.has("type") && jsonObject.get("type").asString == "price") {
+                            val tickData = parseTickData(text)
+                            if (tickData != null) {
+                                trySend(MarketUpdate.Tick(tickData)).isSuccess
+                            }
+                        } else { // Assuming anything else is a candle
+                            val candle = parseCandleData(text)
+                            if (candle != null) {
+                                trySend(MarketUpdate.CandleUpdate(candle)).isSuccess
+                            }
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing tick data message: $text", e)
+                        Log.e(TAG, "Error parsing market update message: $text", e)
                     }
                 }
-
-                override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
-                    Log.e(TAG, "Tick data WebSocket failed for $symbol", t)
-                    tickDataWebSocket = null
-                    close(t)
-                }
-
-                override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                    Log.d(TAG, "Tick data WebSocket closing for $symbol: $code - $reason")
-                    tickDataWebSocket = null
-                    close()
-                }
-
-                override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                    Log.d(TAG, "Tick data WebSocket closed for $symbol: $code - $reason")
-                    tickDataWebSocket = null
-                }
+                // ... other listener methods
             }
 
-            // Connect to WebSocket for tick data (price updates only)
-            try {
-                webSocketService.connectToStream(symbol, "1m", false, listener)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to connect to tick data stream", e)
-                close(e)
-            }
+            // Connect once with include_ohlcv = true
+            webSocketService.connectToStream(symbol, interval, true, listener)
 
             awaitClose {
-                Log.d(TAG, "Tick data flow closed for $symbol")
-                tickDataWebSocket?.close(1000, "Flow closed")
-                tickDataWebSocket = null
-            }
-        }
-    }
-
-    fun subscribeToCandleUpdates(symbol: String, interval: String): Flow<Candle> {
-        return callbackFlow {
-            Log.d(TAG, "Creating candle data WebSocket flow for $symbol with interval $interval")
-
-            val listener = object : WebSocketListener() {
-                override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
-                    Log.d(TAG, "Candle data WebSocket opened for $symbol")
-                    candleDataWebSocket = webSocket
-                }
-
-                override fun onMessage(webSocket: WebSocket, text: String) {
-                    Log.d(TAG, "Candle data WebSocket message: $text")
-                    try {
-                        val candle = parseCandleData(text)
-                        if (candle != null) {
-                            Log.d(TAG, "Parsed candle data: $candle")
-                            trySend(candle).isSuccess
-                        } else {
-                            Log.w(TAG, "Failed to parse candle data from: $text")
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing candle data message: $text", e)
-                    }
-                }
-
-                override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
-                    Log.e(TAG, "Candle data WebSocket failed for $symbol", t)
-                    candleDataWebSocket = null
-                    close(t)
-                }
-
-                override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                    Log.d(TAG, "Candle data WebSocket closing for $symbol: $code - $reason")
-                    candleDataWebSocket = null
-                    close()
-                }
-
-                override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                    Log.d(TAG, "Candle data WebSocket closed for $symbol: $code - $reason")
-                    candleDataWebSocket = null
-                }
-            }
-
-            // Connect to WebSocket for candle data (OHLCV updates)
-            try {
-                webSocketService.connectToStream(symbol, interval, true, listener)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to connect to candle data stream", e)
-                close(e)
-            }
-
-            awaitClose {
-                Log.d(TAG, "Candle data flow closed for $symbol")
-                candleDataWebSocket?.close(1000, "Flow closed")
-                candleDataWebSocket = null
+                Log.d(TAG, "Market update flow closed for $symbol")
+                webSocketService.disconnect()
             }
         }
     }
@@ -225,9 +155,10 @@ class MarketDataRepository(
                     parseCandleFromOhlcv(ohlcv)
                 }
                 // Check if this is a direct candle format
+                // Modify this branch
                 jsonObject.has("open_time") && jsonObject.has("open") -> {
                     Candle(
-                        time = jsonObject.get("open_time").asLong,
+                        time = jsonObject.get("open_time").asLong / 1000, // Convert ms to seconds
                         open = jsonObject.get("open").asDouble,
                         high = jsonObject.get("high").asDouble,
                         low = jsonObject.get("low").asDouble,
@@ -250,7 +181,8 @@ class MarketDataRepository(
         return if (ohlcv != null) {
             try {
                 Candle(
-                    time = ohlcv.get("open_time")?.asLong ?: 0L,
+                    // Also modify this part
+                    time = ohlcv.get("open_time")?.asLong?.div(1000) ?: 0L, // Convert ms to seconds
                     open = ohlcv.get("open")?.asDouble ?: 0.0,
                     high = ohlcv.get("high")?.asDouble ?: 0.0,
                     low = ohlcv.get("low")?.asDouble ?: 0.0,

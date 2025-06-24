@@ -32,6 +32,7 @@ import com.tradingview.lightweightcharts.api.options.models.GridLineOptions
 import com.tradingview.lightweightcharts.api.options.models.GridOptions
 import com.tradingview.lightweightcharts.api.options.models.HistogramSeriesOptions
 import com.tradingview.lightweightcharts.api.options.models.LayoutOptions
+import com.tradingview.lightweightcharts.api.options.models.LocalizationOptions
 import com.tradingview.lightweightcharts.api.options.models.PriceScaleMargins
 import com.tradingview.lightweightcharts.api.options.models.PriceScaleOptions
 import com.tradingview.lightweightcharts.api.options.models.TimeScaleOptions
@@ -57,6 +58,16 @@ class SymbolMarketDataActivity : AppCompatActivity() {
     private var initialPrice: Double? = null
     private var initialChange: Double? = null
 
+    // Define colors for candles and volume bars
+    private val upColor = IntColor(Color.parseColor("#26a69a"))
+    private val downColor = IntColor(Color.parseColor("#ef5350"))
+
+    // NEW: Add cooldown properties
+    private var chartInitializedTime = 0L
+    private val LOAD_MORE_COOLDOWN_MS = 3000L // 3 second cooldown
+    private var lastLoadMoreTime = 0L
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -73,6 +84,12 @@ class SymbolMarketDataActivity : AppCompatActivity() {
 
         // Initialize with symbol and interval after UI is set up
         initializeWithSymbol()
+
+        onclicks()
+    }
+
+    private fun onclicks() {
+        TODO("Not yet implemented")
     }
 
     private fun extractAndDisplayInitialData() {
@@ -93,7 +110,8 @@ class SymbolMarketDataActivity : AppCompatActivity() {
 
         // Show initial change if available
         initialChange?.let { change ->
-            binding.marketChartLayout.percentagePriceChange.text = String.format(Locale.US, "%.2f%%", change)
+            binding.marketChartLayout.percentagePriceChange.text =
+                String.format(Locale.US, "%.2f%%", change)
             val colorRes = if (change >= 0) R.color.green_chart_color else R.color.crimson_red
             binding.marketChartLayout.percentagePriceChange.setTextColor(
                 ContextCompat.getColor(this, colorRes)
@@ -109,8 +127,7 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         val factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(SymbolMarketDataViewModel::class.java)) {
-                    @Suppress("UNCHECKED_CAST")
-                    return SymbolMarketDataViewModel(repository) as T
+                    @Suppress("UNCHECKED_CAST") return SymbolMarketDataViewModel(repository) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
@@ -126,70 +143,56 @@ class SymbolMarketDataActivity : AppCompatActivity() {
     }
 
     private fun setupObservers() {
-        // Observe historical data with proper clearing
+        // NEW: Observe the single, unified candle list from the ViewModel
         lifecycleScope.launch {
-            viewModel.historicalCandles.collectLatest { candles ->
-                Log.d("SymbolMarketDataActivity", "Received ${candles.size} historical candles")
+            viewModel.candles.collectLatest { candles ->
+                Log.d("SymbolMarketDataActivity", "Updating chart with ${candles.size} candles.")
                 if (candles.isNotEmpty()) {
+                    // setData is simpler and safer here to prevent inconsistencies.
+                    // It redraws the chart with the full, correct dataset.
                     candleSeries?.setData(candles.map { it.toCandlestickData() })
                     volumeSeries?.setData(candles.map { it.toVolumeData() })
+
                 } else {
+                    // Clear the chart if there's no data
                     candleSeries?.setData(emptyList())
                     volumeSeries?.setData(emptyList())
                 }
             }
         }
 
-        // Observe loading state
+        // REMOVED: The separate observer for historicalCandles is no longer needed.
+        // REMOVED: The separate observer for candleUpdates is no longer needed.
+
+        // Observe loading state (remains the same)
         lifecycleScope.launch {
             viewModel.isLoading.collect { isLoading ->
-                Log.d("SymbolMarketDataActivity", "Loading state: $isLoading")
-                binding.marketChartLayout.progressBar.visibility =
-                    if (isLoading) View.VISIBLE else View.GONE
+                binding.marketChartLayout.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
             }
         }
 
-        // Observe real-time price updates (only update if different from initial)
+        // Observe real-time price and change updates (remains the same)
         lifecycleScope.launch {
             viewModel.price.collect { price ->
                 price?.let {
-                    Log.d("SymbolMarketDataActivity", "Received price update: $it")
-                    binding.marketChartLayout.currentPrice.text =
-                        String.format(Locale.US, "US$%.2f", it)
+                    binding.marketChartLayout.currentPrice.text = String.format(Locale.US, "US$%.2f", it)
                 }
             }
         }
-
-        // Observe real-time change updates
         lifecycleScope.launch {
             viewModel.change.collect { change ->
                 change?.let {
-                    Log.d("SymbolMarketDataActivity", "Received change update: $it")
-                    binding.marketChartLayout.percentagePriceChange.text =
-                        String.format(Locale.US, "%.2f%%", it)
+                    binding.marketChartLayout.percentagePriceChange.text = String.format(Locale.US, "%.2f%%", it)
                     val colorRes = if (it >= 0) R.color.green_chart_color else R.color.crimson_red
-                    binding.marketChartLayout.percentagePriceChange.setTextColor(
-                        ContextCompat.getColor(this@SymbolMarketDataActivity, colorRes)
-                    )
+                    binding.marketChartLayout.percentagePriceChange.setTextColor(ContextCompat.getColor(this@SymbolMarketDataActivity, colorRes))
                 }
             }
         }
 
-        // Observe real-time candle updates
-        lifecycleScope.launch {
-            viewModel.candleUpdates.collect { candle ->
-                candle?.let {
-                    Log.d("SymbolMarketDataActivity", "Received candle update: $it")
-                    candleSeries?.update(it.toCandlestickData())
-                }
-            }
-        }
-
-        // Observe errors
+        // Observe errors (remains the same)
         lifecycleScope.launch {
             viewModel.error.collect { error ->
                 error?.let {
-                    Log.e("SymbolMarketDataActivity", "Error: $it")
                     Toast.makeText(this@SymbolMarketDataActivity, it, Toast.LENGTH_SHORT).show()
                 }
             }
@@ -198,7 +201,7 @@ class SymbolMarketDataActivity : AppCompatActivity() {
 
     private fun initializeTimeIntervalTabs() {
         val intervals = listOf(
-            "1m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "1d", "3d", "1w", "1M"
+            "1m", "5m", "15m", "30m", "1h", "2h", "1d", "1w", "1M"
         )
 
         // Clear any existing tabs
@@ -220,7 +223,8 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             val text = customTab.findViewById<TextView>(R.id.tabTitle)
             val tabHolder = customTab.findViewById<LinearLayout>(R.id.tab_holder)
 
-            tabHolder.background = ContextCompat.getDrawable(applicationContext, R.drawable.bg_unselected)
+            tabHolder.background =
+                ContextCompat.getDrawable(applicationContext, R.drawable.bg_unselected)
             text.text = interval
             text.setTextColor(ContextCompat.getColor(applicationContext, R.color.gray_inactive))
 
@@ -293,7 +297,10 @@ class SymbolMarketDataActivity : AppCompatActivity() {
 
     private fun adjustTabSpacing() {
         for (i in 0 until binding.marketChartLayout.timeIntervalTabLayout.tabCount) {
-            val tabView = (binding.marketChartLayout.timeIntervalTabLayout.getChildAt(0) as ViewGroup).getChildAt(i)
+            val tabView =
+                (binding.marketChartLayout.timeIntervalTabLayout.getChildAt(0) as ViewGroup).getChildAt(
+                    i
+                )
             val params = getMarginLayoutParams(tabView, i)
             tabView.layoutParams = params
         }
@@ -316,15 +323,17 @@ class SymbolMarketDataActivity : AppCompatActivity() {
 
     private fun getMarginLayoutParams(tabView: View, i: Int): MarginLayoutParams {
         val params = tabView.layoutParams as MarginLayoutParams
-        when {
-            i == 0 -> {
+        when (i) {
+            0 -> {
                 params.marginStart = 0
                 params.marginEnd = 15
             }
-            i == binding.marketChartLayout.timeIntervalTabLayout.tabCount - 1 -> {
+
+            binding.marketChartLayout.timeIntervalTabLayout.tabCount - 1 -> {
                 params.marginStart = 15
                 params.marginEnd = 0
             }
+
             else -> {
                 params.marginStart = 15
                 params.marginEnd = 15
@@ -336,12 +345,15 @@ class SymbolMarketDataActivity : AppCompatActivity() {
     private fun initializeChart() {
         val chartsView = binding.marketChartLayout.candlesStickChart
 
-        // Apply chart options
         chartsView.api.applyOptions {
+            // Layout configuration
             layout = LayoutOptions().apply {
-                background = SolidColor(ContextCompat.getColor(applicationContext, R.color.darkTheme))
+                background =
+                    SolidColor(ContextCompat.getColor(applicationContext, R.color.darkTheme))
                 textColor = IntColor(Color.WHITE)
             }
+
+            // Grid configuration
             grid = GridOptions().apply {
                 vertLines = GridLineOptions().apply {
                     color = IntColor(0xFF1c1c1c.toInt())
@@ -350,67 +362,110 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                     color = IntColor(0xFF1c1c1c.toInt())
                 }
             }
+
+            // Time scale configuration
             timeScale = TimeScaleOptions().apply {
-                timeVisible = true
-                borderVisible = false
+                timeVisible = true           // Show time on the scale
+                borderVisible = false        // Hide the border
+                fixLeftEdge = false // Allow scrolling past the left edge
+                fixRightEdge = true
+                rightBarStaysOnScroll = true // Keep the right bar visible during scrolling
+                localization = LocalizationOptions().apply {
+                    locale = Locale.getDefault().toLanguageTag() // Use device locale
+                }
             }
+
+            // Price scale configuration
             rightPriceScale = PriceScaleOptions().apply {
                 borderVisible = false
-                scaleMargins = PriceScaleMargins().apply {
-                    top = 0.1f
-                    bottom = 0.3f
-                }
+            }
+            leftPriceScale = PriceScaleOptions().apply {
+                scaleMargins = PriceScaleMargins(0.85f, 0.02f)
+                visible = false
             }
         }
 
-        // Add candlestick series (uses the rightPriceScale by default)
+        // Add candlestick series (example)
         val candleOptions = CandlestickSeriesOptions().apply {
-            upColor = IntColor(Color.parseColor("#26a69a"))      // Green for up candles
-            downColor = IntColor(Color.parseColor("#ef5350"))    // Red for down candles
-            borderUpColor = IntColor(Color.parseColor("#26a69a"))
-            borderDownColor = IntColor(Color.parseColor("#ef5350"))
-            wickUpColor = IntColor(Color.parseColor("#26a69a"))
-            wickDownColor = IntColor(Color.parseColor("#ef5350"))
+            upColor = this@SymbolMarketDataActivity.upColor
+            downColor = this@SymbolMarketDataActivity.downColor
+            borderUpColor = this@SymbolMarketDataActivity.upColor
+            borderDownColor = this@SymbolMarketDataActivity.downColor
+            wickUpColor = this@SymbolMarketDataActivity.upColor
+            wickDownColor = this@SymbolMarketDataActivity.downColor
             borderVisible = true
             wickVisible = true
         }
-
         chartsView.api.addCandlestickSeries(candleOptions) { series ->
             candleSeries = series
             Log.d("SymbolMarketDataActivity", "Candlestick series initialized")
         }
 
-        // Add histogram series for volume with a new price scale
+        // Add histogram series for volume (example)
         val volumeOptions = HistogramSeriesOptions().apply {
-            color = IntColor(Color.parseColor("#26a69a")) // Green
-            base = 0.0f                            // Start from zero
-            baseLineWidth = LineWidth.TWO          // Line width, assuming enum exists
-            priceScaleId = PriceScaleId("left")    // Use the left price scale
-            scaleMargins = PriceScaleMargins().apply {
-                top = 0.85f
-                bottom = 0.02f
-            }
+            base = 0.0f
+            baseLineWidth = LineWidth.TWO
+            priceScaleId = PriceScaleId.LEFT
         }
-
         chartsView.api.addHistogramSeries(volumeOptions) { series ->
             volumeSeries = series
         }
+
+        // NEW: Set chart initialization time
+        chartInitializedTime = System.currentTimeMillis()
+
+        chartsView.api.timeScale.subscribeVisibleTimeRangeChange { timeRange ->
+            if (timeRange == null) return@subscribeVisibleTimeRangeChange
+
+            val currentTime = System.currentTimeMillis()
+
+            // Check cooldown periods
+            val timeSinceInit = currentTime - chartInitializedTime
+            val timeSinceLastLoad = currentTime - lastLoadMoreTime
+
+            if (timeSinceInit < LOAD_MORE_COOLDOWN_MS ||
+                timeSinceLastLoad < LOAD_MORE_COOLDOWN_MS ||
+                viewModel.isLoading.value) {
+                Log.d("SymbolMarketDataActivity",
+                    "Skipping load more - timeSinceInit: $timeSinceInit, timeSinceLastLoad: $timeSinceLastLoad, isLoading: ${viewModel.isLoading.value}")
+                return@subscribeVisibleTimeRangeChange
+            }
+
+            val candles = viewModel.candles.value
+            if (candles.isEmpty()) return@subscribeVisibleTimeRangeChange
+
+            val earliestTime = candles.first().time
+            val fromTime = (timeRange.from as Time.Utc).timestamp
+            val toTime = (timeRange.to as Time.Utc).timestamp
+            val visibleDuration = toTime - fromTime
+            val threshold = (visibleDuration * 0.1).toLong() // 10% of visible duration
+
+            if (fromTime <= earliestTime + threshold) {
+                Log.d("SymbolMarketDataActivity", "Approaching earliest data, loading more")
+                lastLoadMoreTime = currentTime
+                viewModel.loadMoreHistoricalData()
+            }
+        }
     }
 
+    // Data conversion
     private fun Candle.toCandlestickData(): CandlestickData {
         return CandlestickData(
-            Time.Utc(time),
-            open.toFloat(),
-            high.toFloat(),
-            low.toFloat(),
-            close.toFloat()
+            time = Time.Utc(this.time),
+            open = this.open.toFloat(),
+            high = this.high.toFloat(),
+            low = this.low.toFloat(),
+            close = this.close.toFloat()
         )
     }
 
     private fun Candle.toVolumeData(): HistogramData {
+        val color = if (close >= open) upColor else downColor
+
         return HistogramData(
-            time = Time.Utc(time),
-            value = volume.toFloat()
+            time = Time.Utc(this.time),
+            value = this.volume.toFloat(),
+            color = color
         )
     }
 

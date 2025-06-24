@@ -103,7 +103,6 @@ public class PatternAlertsBottomSheetFragment extends BottomSheetDialogFragment 
     }
 
     private void onClicks() {
-        // ... your existing onClicks
         binding.closeButton.setOnClickListener(v -> closeDialog());
         binding.cancelAction.setOnClickListener(v -> closeDialog());
         binding.symbolLayout.setOnClickListener(v -> toggleSymbolSearchVisibility());
@@ -369,9 +368,8 @@ public class PatternAlertsBottomSheetFragment extends BottomSheetDialogFragment 
                 "1m", "5m",
                 "15m", "30m",
                 "1h", "2h",
-                "4h", "6h",
-                "1d", "3d",
-                "1w", "1M"
+                "1d", "1w",
+                "1M"
         };
 
         // Clear any tabs first if needed
