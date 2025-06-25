@@ -57,10 +57,20 @@ class MarketDataRepository(
     private var tickDataWebSocket: WebSocket? = null
     private var candleDataWebSocket: WebSocket? = null
 
+    // Track active streams
+    private var activeStreamSymbol: String? = null
+    private var activeStreamInterval: String? = null
+    private var isStreamActive: Boolean = false
+
     // A single subscription method
     fun subscribeToMarketUpdates(symbol: String, interval: String): Flow<MarketUpdate> {
         return callbackFlow {
             Log.d(TAG, "Creating market update WebSocket flow for $symbol with interval $interval")
+
+            // Update active stream tracking
+            activeStreamSymbol = symbol
+            activeStreamInterval = interval
+            isStreamActive = true
 
             val listener = object : WebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
@@ -86,7 +96,16 @@ class MarketDataRepository(
                         Log.e(TAG, "Error parsing market update message: $text", e)
                     }
                 }
-                // ... other listener methods
+
+                override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                    Log.d(TAG, "Market update WebSocket closed for $symbol: $reason")
+                    isStreamActive = false
+                }
+
+                override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
+                    Log.e(TAG, "Market update WebSocket failure for $symbol", t)
+                    isStreamActive = false
+                }
             }
 
             // Connect once with include_ohlcv = true
@@ -94,10 +113,52 @@ class MarketDataRepository(
 
             awaitClose {
                 Log.d(TAG, "Market update flow closed for $symbol")
+                isStreamActive = false
+                activeStreamSymbol = null
+                activeStreamInterval = null
                 webSocketService.disconnect()
             }
         }
     }
+
+    /**
+     * Cancel the currently active stream
+     * This function can be called from outside to stop the current market data stream
+     */
+    fun cancelStream() {
+        Log.d(TAG, "Cancelling active stream for symbol: $activeStreamSymbol")
+
+        if (isStreamActive) {
+            // Close WebSocket connections
+            tickDataWebSocket?.close(1000, "Stream cancelled")
+            tickDataWebSocket = null
+
+            candleDataWebSocket?.close(1000, "Stream cancelled")
+            candleDataWebSocket = null
+
+            // Disconnect the WebSocket service
+            webSocketService.disconnect()
+
+            // Reset tracking variables
+            isStreamActive = false
+            activeStreamSymbol = null
+            activeStreamInterval = null
+
+            Log.d(TAG, "Stream cancelled successfully")
+        } else {
+            Log.d(TAG, "No active stream to cancel")
+        }
+    }
+
+    /**
+     * Check if there's an active stream
+     */
+    fun isStreamActive(): Boolean = isStreamActive
+
+    /**
+     * Get information about the current active stream
+     */
+    fun getActiveStreamInfo(): Pair<String?, String?> = Pair(activeStreamSymbol, activeStreamInterval)
 
     /**
      * Parse tick data (price updates) from WebSocket message
@@ -262,5 +323,10 @@ class MarketDataRepository(
 
         // Also disconnect the service
         webSocketService.disconnect()
+
+        // Reset tracking variables
+        isStreamActive = false
+        activeStreamSymbol = null
+        activeStreamInterval = null
     }
 }

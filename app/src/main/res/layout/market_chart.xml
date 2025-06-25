@@ -4,7 +4,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/bottom_stroke_background"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    >
 
     <LinearLayout
         android:layout_above="@+id/border"
@@ -19,6 +20,7 @@
             android:orientation="vertical">
 
             <RelativeLayout
+                android:id="@+id/header"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
@@ -67,6 +69,7 @@
 
 
             <View
+                android:id="@+id/parent_border"
                 android:layout_width="match_parent"
                 android:layout_height="1.5dp"
                 android:layout_marginStart="15dp"
@@ -251,6 +254,7 @@
                 android:background="@drawable/ai_circle">
 
                 <ImageView
+                    android:id="@+id/close_panel"
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:layout_centerInParent="true"

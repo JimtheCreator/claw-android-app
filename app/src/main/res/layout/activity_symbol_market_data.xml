@@ -7,14 +7,13 @@
     android:layout_height="match_parent"
     android:background="@color/thick_beige"
     android:orientation="vertical"
-    tools:context="market.SymbolMarketDataActivity"
-    >
+    android:weightSum="1"
+    tools:context="market.symbol.SymbolMarketDataActivity">
 
     <RelativeLayout
         android:layout_marginTop="25dp"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        >
+        android:layout_height="?attr/actionBarSize">
 
         <ImageView
             android:id="@+id/close_page"
@@ -42,43 +41,39 @@
         android:id="@+id/topSection"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        >
+        android:orientation="vertical">
 
         <include
             android:id="@+id/market_chart_layout"
-            layout="@layout/market_chart"
-            />
-
+            layout="@layout/market_chart" />
 
     </LinearLayout>
 
     <RelativeLayout
         android:id="@+id/dragHandle"
         android:layout_width="match_parent"
-        android:layout_height="20dp">
+        android:layout_height="15dp"
+        android:visibility="gone">
 
         <View
             android:layout_width="35dp"
             android:layout_height="5dp"
             android:layout_centerInParent="true"
-            android:background="@drawable/rounded_handle"
-            />
+            android:background="@drawable/rounded_handle" />
 
     </RelativeLayout>
 
     <LinearLayout
         android:id="@+id/bottomSection"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
         android:background="@drawable/top_stroke_background"
         android:orientation="vertical"
-        app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
+        android:visibility="gone">
 
         <include
             android:id="@+id/analysispagelayout"
-            layout="@layout/analysispage"
-            />
+            layout="@layout/analysispage" />
 
     </LinearLayout>
 

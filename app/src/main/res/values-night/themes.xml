@@ -19,4 +19,9 @@
         <item name="android:textColorHint">@color/thickGrey</item>
         <!-- Customize query text appearance -->
     </style>
+
+    <style name="CustomFontHint" parent="TextAppearance.MaterialComponents.Subtitle1">
+        <item name="android:fontFamily">@font/sf_pro_text_medium</item>
+        <item name="android:textColor">@color/off_white</item>
+    </style>
 </resources>

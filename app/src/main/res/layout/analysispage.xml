@@ -1,95 +1,115 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="wrap_content"
     android:background="@drawable/dark_upper_rounded"
-    android:orientation="vertical">
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="15dp"
-        android:layout_marginTop="20dp"
-        android:layout_marginEnd="15dp"
         android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="15dp"
+            android:layout_marginTop="20dp"
+            android:layout_marginEnd="15dp"
+            android:orientation="vertical">
+
+            <!-- Custom Spinner Layout -->
+            <FrameLayout
+                android:id="@+id/spinner_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/spinner_background"
+                android:clickable="true"
+                android:focusable="true">
+
+                <TextView
+                    android:fontFamily="@font/sf_pro_text_semibold"
+                    android:id="@+id/selected_timeframe_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp"
+                    android:text="Select Timeframe"
+                    android:textColor="@color/off_white"
+                    android:textSize="16sp" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end|center_vertical"
+                    android:layout_marginEnd="16dp"
+                    android:src="@drawable/drop_down_icon"
+                    app:tint="@color/colorGrey" />
+
+            </FrameLayout>
+
+            <!-- Custom Dropdown RecyclerView (Initially Hidden) -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/timeframe_recycler_view"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/spinner_background"
+                android:visibility="gone"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+
+
+        </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="@font/sf_pro_text_medium"
-            android:text="Timeframe"
-            android:textColor="@color/off_white"
-            android:textSize="17sp" />
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="15dp"
+            android:layout_marginTop="7.5dp"
+            android:layout_marginEnd="15dp"
+            android:fontFamily="@font/sf_pro_text_regular"
+            android:text="@string/analysis_guidelines"
+            android:textColor="@color/colorLight"
+            android:textSize="13sp" />
 
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/timeframe_input_layout"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense.ExposedDropdownMenu"
+        <RelativeLayout
+            android:id="@+id/analyze_button"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Select Timeframe"
-            app:boxBackgroundColor="@color/black_shade"
-            app:endIconMode="dropdown_menu"
-            app:hintTextColor="@color/off_white">
+            android:layout_height="50dp"
+            android:layout_marginStart="15dp"
+            android:layout_marginTop="30dp"
+            android:layout_marginEnd="15dp"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/ai_rectangle"
+            android:clickable="true"
+            android:focusable="true">
 
-            <com.google.android.material.textfield.MaterialAutoCompleteTextView
-                android:id="@+id/auto_complete_timeframe"
-                style="@style/DropdownMenu"
-                android:layout_width="match_parent"
+            <LinearLayout
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:inputType="none"
-                android:textColor="@color/off_white" />
+                android:layout_centerInParent="true"
+                android:orientation="horizontal">
 
-        </com.google.android.material.textfield.TextInputLayout>
+                <ImageView
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginEnd="5dp"
+                    android:src="@drawable/ai_stars" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginStart="5dp"
+                    android:fontFamily="@font/sf_pro_text_medium"
+                    android:text="Analyze"
+                    android:textColor="@color/black2_0"
+                    android:textSize="15sp" />
+            </LinearLayout>
+        </RelativeLayout>
 
     </LinearLayout>
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_vertical"
-        android:layout_marginStart="15dp"
-        android:layout_marginTop="7.5dp"
-        android:layout_marginEnd="15dp"
-        android:fontFamily="@font/sf_pro_text_regular"
-        android:text="@string/analysis_guidelines"
-        android:textColor="@color/colorLight"
-        android:textSize="13sp" />
-
-    <RelativeLayout
-        android:id="@+id/analyze_button"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:layout_marginStart="15dp"
-        android:layout_marginTop="30dp"
-        android:layout_marginEnd="15dp"
-        android:layout_marginBottom="20dp"
-        android:background="@drawable/ai_rectangle"
-        android:clickable="true"
-        android:focusable="true">
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            android:orientation="horizontal">
-
-            <ImageView
-                android:layout_width="25dp"
-                android:layout_height="25dp"
-                android:layout_gravity="center_vertical"
-                android:layout_marginEnd="5dp"
-                android:src="@drawable/ai_stars" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
-                android:layout_marginStart="5dp"
-                android:fontFamily="@font/sf_pro_text_medium"
-                android:text="Analyze"
-                android:textColor="@color/black2_0"
-                android:textSize="15sp" />
-        </LinearLayout>
-    </RelativeLayout>
-</LinearLayout>
+</ScrollView>

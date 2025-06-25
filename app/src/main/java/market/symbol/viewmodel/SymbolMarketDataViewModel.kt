@@ -31,10 +31,6 @@ class SymbolMarketDataViewModel(
     private val _candles = MutableStateFlow<List<Candle>>(emptyList())
     val candles: StateFlow<List<Candle>> = _candles
 
-    // REMOVED: No longer need separate flows for historical and single updates
-    // private val _candleUpdates = MutableStateFlow<Candle?>(null)
-    // private val _historicalCandles = MutableStateFlow<List<Candle>>(emptyList())
-
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
@@ -54,6 +50,9 @@ class SymbolMarketDataViewModel(
     private val _hasInitialDataLoaded = MutableStateFlow(false)
     val hasInitialDataLoaded: StateFlow<Boolean> = _hasInitialDataLoaded
 
+    // Add StateFlow to track stream status
+    private val _isStreamActive = MutableStateFlow(false)
+    val isStreamActive: StateFlow<Boolean> = _isStreamActive
 
     fun setSymbol(symbol: String) {
         if (currentSymbol == symbol) return
@@ -75,7 +74,8 @@ class SymbolMarketDataViewModel(
         _error.value = null
         _candles.value = emptyList()
         // Reset the initial data loaded flag
-        _hasInitialDataLoaded.value = false //
+        _hasInitialDataLoaded.value = false
+        _isStreamActive.value = false
     }
 
     private fun loadData() {
@@ -94,10 +94,12 @@ class SymbolMarketDataViewModel(
         marketDataJob = viewModelScope.launch {
             try {
                 Timber.d("Starting market data stream for $symbol")
+                _isStreamActive.value = true
                 repository.subscribeToMarketUpdates(symbol, currentInterval)
                     .catch { e ->
                         Timber.e(e, "Market data stream error for $symbol")
                         _error.value = "Data stream error: ${e.message}"
+                        _isStreamActive.value = false
                     }
                     .collect { marketUpdate ->
                         when (marketUpdate) {
@@ -123,7 +125,58 @@ class SymbolMarketDataViewModel(
             } catch (e: Exception) {
                 Timber.e(e, "Failed to start market data stream for $symbol")
                 _error.value = "Failed to connect to data stream: ${e.message}"
+                _isStreamActive.value = false
             }
+        }
+    }
+
+    /**
+     * Cancel the active market data stream
+     * This function can be called from outside (e.g., from Activity) to stop the stream
+     */
+    fun cancelStream() {
+        Timber.d("Cancelling market data stream")
+
+        // Cancel the coroutine job
+        marketDataJob?.cancel()
+        marketDataJob = null
+
+        // Cancel the stream at repository level
+        repository.cancelStream()
+
+        // Update stream status
+        _isStreamActive.value = false
+
+        Timber.d("Market data stream cancelled")
+    }
+
+    /**
+     * Check if the stream is currently active
+     */
+    fun isMarketStreamActive(): Boolean {
+        return repository.isStreamActive()
+    }
+
+    /**
+     * Get information about the current active stream
+     */
+    fun getActiveStreamInfo(): Pair<String?, String?> {
+        return repository.getActiveStreamInfo()
+    }
+
+    /**
+     * Restart the market data stream for current symbol
+     */
+    fun restartStream() {
+        val symbol = currentSymbol ?: return
+        Timber.d("Restarting stream for symbol: $symbol")
+
+        cancelStream()
+
+        // Small delay to ensure cleanup is complete
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(100)
+            startMarketDataStream(symbol)
         }
     }
 
@@ -186,7 +239,7 @@ class SymbolMarketDataViewModel(
 
     // Function to load more historical data
     fun loadMoreHistoricalData() {
-        if (!_hasInitialDataLoaded.value || isLoadingMore || _candles.value.isEmpty()) { //
+        if (!_hasInitialDataLoaded.value || isLoadingMore || _candles.value.isEmpty()) {
             Timber.d("Skipping loadMoreHistoricalData: hasInitialDataLoaded=${_hasInitialDataLoaded.value}, isLoadingMore=$isLoadingMore, candles.size=${_candles.value.size}")
             return
         }
@@ -256,6 +309,7 @@ class SymbolMarketDataViewModel(
         Timber.d("Cancelling all active jobs")
         historicalDataJob?.cancel()
         marketDataJob?.cancel()
+        _isStreamActive.value = false
     }
 
     override fun onCleared() {
