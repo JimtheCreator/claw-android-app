@@ -1,11 +1,7 @@
 package market.symbol
 
 import accounts.SignUpBottomSheet
-import market.symbol.adapters.TimeframeDropdownAdapter
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
-import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
@@ -13,16 +9,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.MarginLayoutParams
-import android.view.animation.AccelerateInterpolator
-import android.view.animation.DecelerateInterpolator
-import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentManager
@@ -30,7 +22,6 @@ import androidx.interpolator.view.animation.FastOutSlowInInterpolator
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.RecyclerView
 import androidx.transition.AutoTransition
 import androidx.transition.TransitionManager
 import bottomsheets.PriceAlertsBottomSheetFragment
@@ -48,7 +39,15 @@ import com.google.firebase.auth.FirebaseUser
 import com.tradingview.lightweightcharts.api.chart.models.color.IntColor
 import com.tradingview.lightweightcharts.api.chart.models.color.surface.SolidColor
 import com.tradingview.lightweightcharts.api.interfaces.SeriesApi
-import com.tradingview.lightweightcharts.api.options.models.*
+import com.tradingview.lightweightcharts.api.options.models.CandlestickSeriesOptions
+import com.tradingview.lightweightcharts.api.options.models.GridLineOptions
+import com.tradingview.lightweightcharts.api.options.models.GridOptions
+import com.tradingview.lightweightcharts.api.options.models.HistogramSeriesOptions
+import com.tradingview.lightweightcharts.api.options.models.LayoutOptions
+import com.tradingview.lightweightcharts.api.options.models.LocalizationOptions
+import com.tradingview.lightweightcharts.api.options.models.PriceScaleMargins
+import com.tradingview.lightweightcharts.api.options.models.PriceScaleOptions
+import com.tradingview.lightweightcharts.api.options.models.TimeScaleOptions
 import com.tradingview.lightweightcharts.api.series.enums.LineWidth
 import com.tradingview.lightweightcharts.api.series.models.CandlestickData
 import com.tradingview.lightweightcharts.api.series.models.HistogramData
@@ -64,7 +63,7 @@ import market.symbol.viewmodel.SymbolMarketDataViewModel
 import model_interfaces.OnWatchlistActionListener
 import models.Symbol
 import viewmodels.HomeViewModel
-import java.util.*
+import java.util.Locale
 
 class SymbolMarketDataActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySymbolMarketDataBinding
@@ -96,7 +95,8 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         analysisPanelManager = AnalysisPanelManager(binding) { selectedTimeframe ->
             // This callback is triggered when a user selects a timeframe for analysis
             // You can trigger your analysis logic here
-            Toast.makeText(this, "Analysis for $selectedTimeframe requested", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Analysis for $selectedTimeframe requested", Toast.LENGTH_SHORT)
+                .show()
         }
 
         initializeViewModel()
@@ -125,7 +125,8 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             val text = customTab.findViewById<TextView>(R.id.tabTitle)
             val tabHolder = customTab.findViewById<LinearLayout>(R.id.tab_holder)
 
-            tabHolder.background = ContextCompat.getDrawable(applicationContext, R.drawable.bg_unselected)
+            tabHolder.background =
+                ContextCompat.getDrawable(applicationContext, R.drawable.bg_unselected)
             text.text = interval
             text.setTextColor(ContextCompat.getColor(applicationContext, R.color.gray_inactive))
 
@@ -144,11 +145,7 @@ class SymbolMarketDataActivity : AppCompatActivity() {
 
                     Log.d("SymbolMarketDataActivity", "Tab selected: $interval")
 
-                    // **FIX: Explicitly cancel previous stream before starting a new one**
-                    // You will need to implement `cancelDataStream()` in your ViewModel.
-                    // See the implementation guide at the end of the response.
                     viewModel.cancelStream()
-
                     Log.d("SymbolMarketDataActivity", "Previous Stream cancelled")
 
                     binding.marketChartLayout.progressBar.visibility = View.VISIBLE
@@ -156,8 +153,10 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                     volumeSeries?.setData(emptyList())
                     viewModel.setInterval(interval)
 
-                    // Delegate timeframe list updates to the manager
-                    collapsePanel(binding.main, binding.bottomSection, binding.dragHandle, binding.topSection, binding.marketChartLayout)
+                    // NEW: Simplified - just use the manager's collapse function
+                    analysisPanelManager.collapsePanel()
+                    isExpanded = false
+
                     analysisPanelManager.updateTimeframesForInterval(interval)
                 }
             }
@@ -165,6 +164,7 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             override fun onTabUnselected(tab: TabLayout.Tab?) {
                 tab?.let { updateTabAppearance(it, false) }
             }
+
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
@@ -176,39 +176,12 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         }
     }
 
-    private fun collapsePanel(
-        main: LinearLayout,
-        bottomSection: LinearLayout,
-        dragHandle: RelativeLayout,
-        topSection: LinearLayout,
-        marketChartLayout: MarketChartBinding)
-    {
-        // THE FIX: Close the dropdown but pass 'false' to disable its personal animation.
-        analysisPanelManager.closeDropdown(animated = false)
+    // Key changes to SymbolMarketDataActivity.kt:
 
-        // This single, parent transition will now smoothly animate BOTH the panel collapsing
-        // AND the dropdown disappearing, as it's a child view whose visibility has changed.
-        val transition = AutoTransition().apply {
-            duration = 300
-            interpolator = FastOutSlowInInterpolator()
-        }
-        TransitionManager.beginDelayedTransition(main, transition)
-
-        // These layout changes will be animated as before
-        topSection.layoutParams = (topSection.layoutParams as LinearLayout.LayoutParams).apply {
-            height = ViewGroup.LayoutParams.WRAP_CONTENT
-            weight = 0f
-        }
-        bottomSection.layoutParams = (bottomSection.layoutParams as LinearLayout.LayoutParams).apply {
-            height = 0
-            weight = 0f
-        }
-        main.postDelayed({
-            bottomSection.visibility = View.GONE
-            dragHandle.visibility = View.GONE
-        }, 300)
-        marketChartLayout.aiButton.setBackgroundResource(R.drawable.ai_circle)
-        marketChartLayout.closePanel.setImageResource(R.drawable.ai_stars)
+    // 1. Update the collapsePanel function to use the new manager method:
+    private fun collapsePanel() {
+        // NEW: Use the manager's collapse function instead of handling it here
+        analysisPanelManager.collapsePanel()
         isExpanded = false
     }
 
@@ -217,8 +190,8 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         bottomSection: LinearLayout,
         main: LinearLayout,
         topSection: LinearLayout,
-        marketChartLayout: MarketChartBinding)
-    {
+        marketChartLayout: MarketChartBinding
+    ) {
         dragHandle.visibility = View.VISIBLE
         bottomSection.visibility = View.VISIBLE
         main.post {
@@ -230,10 +203,11 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             TransitionManager.beginDelayedTransition(main, transition)
 
             // The rest of the function remains the same...
-            bottomSection.layoutParams = (bottomSection.layoutParams as LinearLayout.LayoutParams).apply {
-                height = LinearLayout.LayoutParams.WRAP_CONTENT
-                weight = 0f
-            }
+            bottomSection.layoutParams =
+                (bottomSection.layoutParams as LinearLayout.LayoutParams).apply {
+                    height = LinearLayout.LayoutParams.WRAP_CONTENT
+                    weight = 0f
+                }
             topSection.layoutParams = (topSection.layoutParams as LinearLayout.LayoutParams).apply {
                 height = 0
                 weight = 1f
@@ -245,24 +219,27 @@ class SymbolMarketDataActivity : AppCompatActivity() {
     }
 
 
-
     private fun initializeAnalysisPanel() {
         binding.bottomSection.visibility = View.GONE
         binding.dragHandle.visibility = View.GONE
-        binding.bottomSection.layoutParams = (binding.bottomSection.layoutParams as LinearLayout.LayoutParams).apply { height = 0 }
+        binding.bottomSection.layoutParams =
+            (binding.bottomSection.layoutParams as LinearLayout.LayoutParams).apply { height = 0 }
         isExpanded = false
     }
 
     private fun initializeClickHandlers() {
         val firebaseUser = FirebaseAuth.getInstance().currentUser
-        binding.onClicksAndDrags(firebaseUser = firebaseUser, getSupportFragmentManager = { supportFragmentManager }, finishActivity = { finish() })
+        binding.onClicksAndDrags(
+            firebaseUser = firebaseUser,
+            getSupportFragmentManager = { supportFragmentManager },
+            finishActivity = { finish() })
     }
 
     private fun ActivitySymbolMarketDataBinding.onClicksAndDrags(
         firebaseUser: FirebaseUser?,
         getSupportFragmentManager: () -> FragmentManager,
-        finishActivity: () -> Unit)
-    {
+        finishActivity: () -> Unit
+    ) {
         closePage.setOnClickListener { finishActivity() }
         marketChartLayout.addToWatchlist.setOnClickListener {
             val userId = firebaseUser?.uid
@@ -277,17 +254,32 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             val currentPrice = intent?.getDoubleExtra("CURRENT_PRICE", 0.0) ?: 0.0
             val change24h = intent?.getDoubleExtra("CHANGE_24H", 0.0) ?: 0.0
             val sparklineArray = intent?.getDoubleArrayExtra("SPARKLINE")
-            val sparkline: List<Double> = sparklineArray?.let { ArrayList(it.toList()) } ?: ArrayList()
-            val symbolObj = Symbol(symbolStr, asset, "", baseCurrency, currentPrice, change24h, currentPrice, change24h, 0.0, sparkline, false)
+            val sparkline: List<Double> =
+                sparklineArray?.let { ArrayList(it.toList()) } ?: ArrayList()
+            val symbolObj = Symbol(
+                symbolStr,
+                asset,
+                "",
+                baseCurrency,
+                currentPrice,
+                change24h,
+                currentPrice,
+                change24h,
+                0.0,
+                sparkline,
+                false
+            )
             watchListListener.onAddToWatchlist(userId, symbolObj, "Binance")
         }
         marketChartLayout.createPriceAlert.setOnClickListener {
-            val symbol = (root.context as? ComponentActivity)?.intent?.getStringExtra("SYMBOL") ?: ""
+            val symbol =
+                (root.context as? ComponentActivity)?.intent?.getStringExtra("SYMBOL") ?: ""
             val stringCurrentPrice = marketChartLayout.currentPrice.text.toString()
             val numeric = stringCurrentPrice.replace("[^\\d.-]".toRegex(), "")
             val price = numeric.toDoubleOrNull() ?: 0.0
             firebaseUser?.let { user ->
-                val priceAlertFragment = PriceAlertsBottomSheetFragment.newInstance(user.uid, symbol, price)
+                val priceAlertFragment =
+                    PriceAlertsBottomSheetFragment.newInstance(user.uid, symbol, price)
                 priceAlertFragment.show(getSupportFragmentManager(), priceAlertFragment.tag)
             } ?: run {
                 openSignUpBottomSheet(getSupportFragmentManager())
@@ -298,7 +290,9 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             if (!isExpanded) {
                 expandPanel(dragHandle, bottomSection, main, topSection, marketChartLayout)
             } else {
-                collapsePanel(main, bottomSection, dragHandle, topSection, marketChartLayout)
+                // NEW: Simplified - just use the manager's collapse function
+                analysisPanelManager.collapsePanel()
+                isExpanded = false
             }
         }
     }
@@ -317,14 +311,23 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                 if (userId != null) {
                     homeViewModel.addToWatchlist(userId, symbol, source)
                 } else {
-                    Toast.makeText(applicationContext, "Please sign in to modify watchlist.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        applicationContext,
+                        "Please sign in to modify watchlist.",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
+
             override fun onRemoveFromWatchlist(ignoredUserId: String, symbolTicker: String) {
                 if (userId != null) {
                     homeViewModel.removeFromWatchlist(userId, symbolTicker)
                 } else {
-                    Toast.makeText(applicationContext, "Please sign in to modify watchlist.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        applicationContext,
+                        "Please sign in to modify watchlist.",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
         }
@@ -344,11 +347,19 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         val sparklineArray = intent.getDoubleArrayExtra("SPARKLINE")
         binding.marketChartLayout.symbol.text = symbol
         binding.marketChartLayout.asset.text = asset
-        initialPrice?.let { price -> binding.marketChartLayout.currentPrice.text = String.format(Locale.US, "US$%.2f", price) }
+        initialPrice?.let { price ->
+            binding.marketChartLayout.currentPrice.text = String.format(Locale.US, "US$%.2f", price)
+        }
         initialChange?.let { change ->
-            binding.marketChartLayout.percentagePriceChange.text = String.format(Locale.US, "%.2f%%", change)
+            binding.marketChartLayout.percentagePriceChange.text =
+                String.format(Locale.US, "%.2f%%", change)
             val colorRes = if (change >= 0) R.color.green_chart_color else R.color.crimson_red
-            binding.marketChartLayout.percentagePriceChange.setTextColor(ContextCompat.getColor(this, colorRes))
+            binding.marketChartLayout.percentagePriceChange.setTextColor(
+                ContextCompat.getColor(
+                    this,
+                    colorRes
+                )
+            )
         }
         updateSparkline(sparklineArray)
     }
@@ -378,7 +389,8 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         homeViewModel.watchlist.observe(this) { symbols: List<Symbol>? ->
             if (symbols != null) {
                 val isInWatchlist = symbols.any { it.symbol == symbol }
-                binding.marketChartLayout.addToWatchlist.visibility = if (isInWatchlist) View.GONE else View.VISIBLE
+                binding.marketChartLayout.addToWatchlist.visibility =
+                    if (isInWatchlist) View.GONE else View.VISIBLE
             }
         }
         lifecycleScope.launch {
@@ -401,26 +413,38 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         }
         lifecycleScope.launch {
             viewModel.isLoading.collect { isLoading ->
-                binding.marketChartLayout.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+                binding.marketChartLayout.progressBar.visibility =
+                    if (isLoading) View.VISIBLE else View.GONE
             }
         }
         lifecycleScope.launch {
             viewModel.price.collect { price ->
-                price?.let { binding.marketChartLayout.currentPrice.text = String.format(Locale.US, "US$%.2f", it) }
+                price?.let {
+                    binding.marketChartLayout.currentPrice.text =
+                        String.format(Locale.US, "US$%.2f", it)
+                }
             }
         }
         lifecycleScope.launch {
             viewModel.change.collect { change ->
                 change?.let {
-                    binding.marketChartLayout.percentagePriceChange.text = String.format(Locale.US, "%.2f%%", it)
+                    binding.marketChartLayout.percentagePriceChange.text =
+                        String.format(Locale.US, "%.2f%%", it)
                     val colorRes = if (it >= 0) R.color.green_chart_color else R.color.crimson_red
-                    binding.marketChartLayout.percentagePriceChange.setTextColor(ContextCompat.getColor(this@SymbolMarketDataActivity, colorRes))
+                    binding.marketChartLayout.percentagePriceChange.setTextColor(
+                        ContextCompat.getColor(
+                            this@SymbolMarketDataActivity,
+                            colorRes
+                        )
+                    )
                 }
             }
         }
         lifecycleScope.launch {
             viewModel.error.collect { error ->
-                error?.let { Toast.makeText(this@SymbolMarketDataActivity, it, Toast.LENGTH_SHORT).show() }
+                error?.let {
+                    Toast.makeText(this@SymbolMarketDataActivity, it, Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -444,7 +468,10 @@ class SymbolMarketDataActivity : AppCompatActivity() {
 
     private fun adjustTabSpacing() {
         for (i in 0 until binding.marketChartLayout.timeIntervalTabLayout.tabCount) {
-            val tabView = (binding.marketChartLayout.timeIntervalTabLayout.getChildAt(0) as ViewGroup).getChildAt(i)
+            val tabView =
+                (binding.marketChartLayout.timeIntervalTabLayout.getChildAt(0) as ViewGroup).getChildAt(
+                    i
+                )
             val params = getMarginLayoutParams(tabView, i)
             tabView.layoutParams = params
         }
@@ -472,10 +499,12 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                 params.marginStart = 0
                 params.marginEnd = 15
             }
+
             binding.marketChartLayout.timeIntervalTabLayout.tabCount - 1 -> {
                 params.marginStart = 15
                 params.marginEnd = 0
             }
+
             else -> {
                 params.marginStart = 15
                 params.marginEnd = 15
@@ -488,7 +517,8 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         val chartsView = binding.marketChartLayout.candlesStickChart
         chartsView.api.applyOptions {
             layout = LayoutOptions().apply {
-                background = SolidColor(ContextCompat.getColor(applicationContext, R.color.darkTheme))
+                background =
+                    SolidColor(ContextCompat.getColor(applicationContext, R.color.darkTheme))
                 textColor = IntColor(Color.WHITE)
             }
             grid = GridOptions().apply {
@@ -500,7 +530,8 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                 borderVisible = false
                 fixLeftEdge = false
                 rightBarStaysOnScroll = true
-                localization = LocalizationOptions().apply { locale = Locale.getDefault().toLanguageTag() }
+                localization =
+                    LocalizationOptions().apply { locale = Locale.getDefault().toLanguageTag() }
             }
             rightPriceScale = PriceScaleOptions().apply { borderVisible = false }
             leftPriceScale = PriceScaleOptions().apply {
@@ -542,14 +573,32 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         }
     }
 
-    private fun Candle.toCandlestickData(): CandlestickData = CandlestickData(Time.Utc(this.time), this.open.toFloat(), this.high.toFloat(), this.low.toFloat(), this.close.toFloat())
-    private fun Candle.toVolumeData(): HistogramData = HistogramData(Time.Utc(this.time), this.volume.toFloat(), if (close >= open) upColor else downColor)
+    private fun Candle.toCandlestickData(): CandlestickData = CandlestickData(
+        Time.Utc(this.time),
+        this.open.toFloat(),
+        this.high.toFloat(),
+        this.low.toFloat(),
+        this.close.toFloat()
+    )
+
+    private fun Candle.toVolumeData(): HistogramData = HistogramData(
+        Time.Utc(this.time),
+        this.volume.toFloat(),
+        if (close >= open) upColor else downColor
+    )
 
     private fun updateSparkline(sparklineArray: DoubleArray?) {
         if (sparklineArray == null || sparklineArray.isEmpty()) return
         val chart = binding.marketChartLayout.sparklineChart
         val entries = mutableListOf<Entry>()
-        sparklineArray.forEachIndexed { index, value -> entries.add(Entry(index.toFloat(), value.toFloat())) }
+        sparklineArray.forEachIndexed { index, value ->
+            entries.add(
+                Entry(
+                    index.toFloat(),
+                    value.toFloat()
+                )
+            )
+        }
         setupSparklineChart(chart, entries)
     }
 

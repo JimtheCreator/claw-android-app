@@ -104,4 +104,7 @@ dependencies {
     implementation libs.rxandroid
     implementation libs.rxjava
     implementation libs.adapter.rxjava2
+
+    //LOTTIE-FILES
+    implementation libs.lottie // use latest if available
 }
