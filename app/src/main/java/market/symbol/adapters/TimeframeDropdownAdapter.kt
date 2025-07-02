@@ -43,10 +43,12 @@ class TimeframeDropdownAdapter(
 
         init {
             itemView.setOnClickListener {
-                if (adapterPosition != RecyclerView.NO_POSITION) {
-                    onTimeframeSelected(items[adapterPosition])
+                val position = bindingAdapterPosition
+                if (position != RecyclerView.NO_POSITION) {
+                    onTimeframeSelected(items[position])
                 }
             }
+
         }
 
         fun bind(text: String) {

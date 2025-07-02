@@ -180,6 +180,69 @@ class SymbolMarketDataViewModel(
         }
     }
 
+    /**
+     * Load historical data until we reach the target time
+     * @param targetTimeSeconds The target time in seconds (Unix timestamp)
+     * @param onComplete Callback with success status
+     */
+    fun loadHistoricalDataUntil(targetTimeSeconds: Long, onComplete: (Boolean) -> Unit) {
+        val symbol = currentSymbol ?: run {
+            onComplete(false)
+            return
+        }
+
+        if (isLoadingMore) {
+            Timber.d("Already loading more data, skipping request")
+            onComplete(false)
+            return
+        }
+
+        historicalDataJob = viewModelScope.launch {
+            _isLoading.value = true
+            isLoadingMore = true
+
+            try {
+                var currentCandles = _candles.value.toMutableList()
+                var earliestTime = if (currentCandles.isNotEmpty()) currentCandles.first().time else Long.MAX_VALUE
+                val tenYearsAgo = (System.currentTimeMillis() / 1000) - 10L * 365 * 24 * 60 * 60
+
+                while (earliestTime > targetTimeSeconds && earliestTime > tenYearsAgo) {
+                    val endTime = Date(earliestTime * 1000L - 1) // Just before the earliest candle
+                    val startTime = Date(maxOf(targetTimeSeconds * 1000L, tenYearsAgo * 1000L))
+                    val newCandles = repository.getHistoricalCandles(symbol, currentInterval, startTime, endTime)
+                    if (newCandles.isEmpty()) break // No more data available
+
+                    currentCandles = (newCandles + currentCandles).sortedBy { it.time }.toMutableList()
+                    earliestTime = currentCandles.first().time
+                }
+
+                // Ensure data extends to current time by appending real-time candles if needed
+                val latestTime = currentCandles.lastOrNull()?.time ?: targetTimeSeconds
+                val nowSeconds = System.currentTimeMillis() / 1000
+                if (latestTime < nowSeconds) {
+                    val recentCandles = repository.getHistoricalCandles(
+                        symbol,
+                        currentInterval,
+                        Date(latestTime * 1000L + 1),
+                        Date(nowSeconds * 1000L)
+                    )
+                    currentCandles.addAll(recentCandles)
+                    currentCandles.sortBy { it.time }
+                }
+
+                _candles.value = currentCandles.distinctBy { it.time } // Remove duplicates
+                onComplete(true)
+            } catch (e: Exception) {
+                _error.value = "Failed to load historical data: ${e.message}"
+                Timber.e(e, "Error loading historical data until target time")
+                onComplete(false)
+            } finally {
+                _isLoading.value = false
+                isLoadingMore = false
+            }
+        }
+    }
+
     private suspend fun loadHistoricalData(symbol: String) {
         _isLoading.value = true
         try {

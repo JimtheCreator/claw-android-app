@@ -28,37 +28,18 @@ import bottomsheets.PriceAlertsBottomSheetFragment
 import com.claw.ai.R
 import com.claw.ai.databinding.ActivitySymbolMarketDataBinding
 import com.claw.ai.databinding.MarketChartBinding
-import com.github.mikephil.charting.charts.LineChart
-import com.github.mikephil.charting.components.XAxis
-import com.github.mikephil.charting.data.Entry
-import com.github.mikephil.charting.data.LineData
-import com.github.mikephil.charting.data.LineDataSet
 import com.google.android.material.tabs.TabLayout
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
-import com.tradingview.lightweightcharts.api.chart.models.color.IntColor
-import com.tradingview.lightweightcharts.api.chart.models.color.surface.SolidColor
-import com.tradingview.lightweightcharts.api.interfaces.SeriesApi
-import com.tradingview.lightweightcharts.api.options.models.CandlestickSeriesOptions
-import com.tradingview.lightweightcharts.api.options.models.GridLineOptions
-import com.tradingview.lightweightcharts.api.options.models.GridOptions
-import com.tradingview.lightweightcharts.api.options.models.HistogramSeriesOptions
-import com.tradingview.lightweightcharts.api.options.models.LayoutOptions
-import com.tradingview.lightweightcharts.api.options.models.LocalizationOptions
-import com.tradingview.lightweightcharts.api.options.models.PriceScaleMargins
-import com.tradingview.lightweightcharts.api.options.models.PriceScaleOptions
-import com.tradingview.lightweightcharts.api.options.models.TimeScaleOptions
-import com.tradingview.lightweightcharts.api.series.enums.LineWidth
-import com.tradingview.lightweightcharts.api.series.models.CandlestickData
-import com.tradingview.lightweightcharts.api.series.models.HistogramData
-import com.tradingview.lightweightcharts.api.series.models.PriceScaleId
 import com.tradingview.lightweightcharts.api.series.models.Time
+import com.tradingview.lightweightcharts.api.series.models.TimeRange
 import factory.HomeViewModelFactory
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import market.symbol.repo.Candle
 import market.symbol.repo.MarketDataRepository
 import market.symbol.ui.analysis.AnalysisPanelManager
+import market.symbol.ui.market_chart.ChartManager
 import market.symbol.viewmodel.SymbolMarketDataViewModel
 import model_interfaces.OnWatchlistActionListener
 import models.Symbol
@@ -70,19 +51,15 @@ class SymbolMarketDataActivity : AppCompatActivity() {
     private lateinit var viewModel: SymbolMarketDataViewModel
     private lateinit var homeViewModel: HomeViewModel
     private lateinit var watchListListener: OnWatchlistActionListener
-    private var candleSeries: SeriesApi? = null
-    private var volumeSeries: SeriesApi? = null
+    private lateinit var chartManager: ChartManager
     private var isExpanded = false
     private var currentAnimator: ValueAnimator? = null
     private var symbol: String? = null
     private var initialPrice: Double? = null
     private var initialChange: Double? = null
-    private val upColor = IntColor(Color.parseColor("#26a69a"))
-    private val downColor = IntColor(Color.parseColor("#ef5350"))
     private val LOAD_MORE_COOLDOWN_MS = 3000L
     private var lastLoadMoreTime = 0L
 
-    // The new manager for the analysis panel UI
     private lateinit var analysisPanelManager: AnalysisPanelManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -91,17 +68,10 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         binding = ActivitySymbolMarketDataBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Initialize the new manager to handle all analysis panel logic
-        analysisPanelManager = AnalysisPanelManager(binding) { selectedTimeframe ->
-            // This callback is triggered when a user selects a timeframe for analysis
-            // You can trigger your analysis logic here
-            Toast.makeText(this, "Analysis for $selectedTimeframe requested", Toast.LENGTH_SHORT)
-                .show()
-        }
-
         initializeViewModel()
+        initializeChartManager()
+        initializeAnalysisPanelManager()
         extractAndDisplayInitialData()
-        initializeChart()
         initializeTimeIntervalTabs()
         setupObservers()
         initializeWithSymbol()
@@ -109,6 +79,11 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         initializeClickHandlers()
     }
 
+    private fun initializeChartManager() {
+        chartManager = ChartManager(this, binding.marketChartLayout) { from, to ->
+            handleVisibleTimeRangeChange(from, to)
+        }
+    }
 
     private fun initializeTimeIntervalTabs() {
         val intervals = listOf("1m", "5m", "15m", "30m", "1h", "2h", "1d", "1w", "1M")
@@ -118,7 +93,6 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         tabLayout.tabGravity = TabLayout.GRAVITY_START
         configureTabScrollView()
 
-        // Add tabs
         for (interval in intervals) {
             val tab = tabLayout.newTab()
             val customTab = LayoutInflater.from(this).inflate(R.layout.tab_item, tabLayout, false)
@@ -149,14 +123,12 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                     Log.d("SymbolMarketDataActivity", "Previous Stream cancelled")
 
                     binding.marketChartLayout.progressBar.visibility = View.VISIBLE
-                    candleSeries?.setData(emptyList())
-                    volumeSeries?.setData(emptyList())
+                    chartManager.setCandleData(emptyList())
+                    chartManager.setVolumeData(emptyList())
                     viewModel.setInterval(interval)
 
-                    // NEW: Simplified - just use the manager's collapse function
                     analysisPanelManager.collapsePanel()
                     isExpanded = false
-
                     analysisPanelManager.updateTimeframesForInterval(interval)
                 }
             }
@@ -168,21 +140,11 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
-        // Set initial selection
         tabLayout.getTabAt(0)?.let { firstTab ->
             firstTab.select()
             updateTabAppearance(firstTab, true)
             analysisPanelManager.updateTimeframesForInterval("1m")
         }
-    }
-
-    // Key changes to SymbolMarketDataActivity.kt:
-
-    // 1. Update the collapsePanel function to use the new manager method:
-    private fun collapsePanel() {
-        // NEW: Use the manager's collapse function instead of handling it here
-        analysisPanelManager.collapsePanel()
-        isExpanded = false
     }
 
     private fun expandPanel(
@@ -192,17 +154,19 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         topSection: LinearLayout,
         marketChartLayout: MarketChartBinding
     ) {
+        // NEW: Reset the swipe control when the panel expands
+        analysisPanelManager.resetSwipeState()
+
         dragHandle.visibility = View.VISIBLE
         bottomSection.visibility = View.VISIBLE
         main.post {
+            // ... rest of the expandPanel function is unchanged
             val transition = AutoTransition().apply {
-                duration = 300 // MODIFIED: Reduced duration slightly for a quicker response
-                // MODIFIED: Switched to a smoother, more standard interpolator.
+                duration = 300
                 interpolator = FastOutSlowInInterpolator()
             }
             TransitionManager.beginDelayedTransition(main, transition)
 
-            // The rest of the function remains the same...
             bottomSection.layoutParams =
                 (bottomSection.layoutParams as LinearLayout.LayoutParams).apply {
                     height = LinearLayout.LayoutParams.WRAP_CONTENT
@@ -217,7 +181,6 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             isExpanded = true
         }
     }
-
 
     private fun initializeAnalysisPanel() {
         binding.bottomSection.visibility = View.GONE
@@ -290,13 +253,11 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             if (!isExpanded) {
                 expandPanel(dragHandle, bottomSection, main, topSection, marketChartLayout)
             } else {
-                // NEW: Simplified - just use the manager's collapse function
                 analysisPanelManager.collapsePanel()
                 isExpanded = false
             }
         }
     }
-
 
     private fun openSignUpBottomSheet(supportFragmentManager: FragmentManager) {
         val signUpBottomSheet = SignUpBottomSheet.newInstance()
@@ -361,7 +322,7 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                 )
             )
         }
-        updateSparkline(sparklineArray)
+        chartManager.updateSparkline(sparklineArray)
     }
 
     private fun initializeViewModel() {
@@ -396,18 +357,18 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         lifecycleScope.launch {
             viewModel.candles.collectLatest { candles ->
                 if (candles.isNotEmpty()) {
-                    candleSeries?.setData(candles.map { it.toCandlestickData() })
-                    volumeSeries?.setData(candles.map { it.toVolumeData() })
+                    chartManager.setCandleData(candles)
+                    chartManager.setVolumeData(candles)
                 } else {
-                    candleSeries?.setData(emptyList())
-                    volumeSeries?.setData(emptyList())
+                    chartManager.setCandleData(emptyList())
+                    chartManager.setVolumeData(emptyList())
                 }
             }
         }
         lifecycleScope.launch {
             viewModel.hasInitialDataLoaded.collect { hasLoaded ->
                 if (hasLoaded) {
-                    binding.marketChartLayout.candlesStickChart.api.timeScale.scrollToRealTime()
+                    chartManager.scrollToRealTime()
                 }
             }
         }
@@ -477,7 +438,6 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         }
     }
 
-
     private fun updateTabAppearance(tab: TabLayout.Tab, isSelected: Boolean) {
         val text = tab.customView?.findViewById<TextView>(R.id.tabTitle)
         val tabHolder = tab.customView?.findViewById<LinearLayout>(R.id.tab_holder)
@@ -513,120 +473,81 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         return params
     }
 
-    private fun initializeChart() {
-        val chartsView = binding.marketChartLayout.candlesStickChart
-        chartsView.api.applyOptions {
-            layout = LayoutOptions().apply {
-                background =
-                    SolidColor(ContextCompat.getColor(applicationContext, R.color.darkTheme))
-                textColor = IntColor(Color.WHITE)
-            }
-            grid = GridOptions().apply {
-                vertLines = GridLineOptions().apply { color = IntColor(0xFF1c1c1c.toInt()) }
-                horzLines = GridLineOptions().apply { color = IntColor(0xFF1c1c1c.toInt()) }
-            }
-            timeScale = TimeScaleOptions().apply {
-                timeVisible = true
-                borderVisible = false
-                fixLeftEdge = false
-                rightBarStaysOnScroll = true
-                localization =
-                    LocalizationOptions().apply { locale = Locale.getDefault().toLanguageTag() }
-            }
-            rightPriceScale = PriceScaleOptions().apply { borderVisible = false }
-            leftPriceScale = PriceScaleOptions().apply {
-                scaleMargins = PriceScaleMargins(0.85f, 0.02f)
-                visible = false
-            }
+    private fun handleVisibleTimeRangeChange(from: Time.Utc, to: Time.Utc) {
+        if (!viewModel.hasInitialDataLoaded.value) return
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastLoadMoreTime < LOAD_MORE_COOLDOWN_MS || viewModel.isLoading.value) return
+        val candles = viewModel.candles.value
+        if (candles.isEmpty()) return
+        val earliestTime = candles.first().time
+        val fromTime = from.timestamp
+        val visibleDuration = to.timestamp - fromTime
+        val threshold = (visibleDuration * 0.1).toLong()
+        if (fromTime < earliestTime + threshold) {
+            lastLoadMoreTime = currentTime
+            viewModel.loadMoreHistoricalData()
         }
-        val candleOptions = CandlestickSeriesOptions().apply {
-            upColor = this@SymbolMarketDataActivity.upColor
-            downColor = this@SymbolMarketDataActivity.downColor
-            borderUpColor = this@SymbolMarketDataActivity.upColor
-            borderDownColor = this@SymbolMarketDataActivity.downColor
-            wickUpColor = this@SymbolMarketDataActivity.upColor
-            wickDownColor = this@SymbolMarketDataActivity.downColor
-            borderVisible = true
-            wickVisible = true
-        }
-        chartsView.api.addCandlestickSeries(candleOptions) { series -> candleSeries = series }
-        val volumeOptions = HistogramSeriesOptions().apply {
-            base = 0.0f
-            baseLineWidth = LineWidth.TWO
-            priceScaleId = PriceScaleId.LEFT
-        }
-        chartsView.api.addHistogramSeries(volumeOptions) { series -> volumeSeries = series }
-        chartsView.api.timeScale.subscribeVisibleTimeRangeChange { timeRange ->
-            if (timeRange == null || !viewModel.hasInitialDataLoaded.value) return@subscribeVisibleTimeRangeChange
-            val currentTime = System.currentTimeMillis()
-            if (currentTime - lastLoadMoreTime < LOAD_MORE_COOLDOWN_MS || viewModel.isLoading.value) return@subscribeVisibleTimeRangeChange
-            val candles = viewModel.candles.value
-            if (candles.isEmpty()) return@subscribeVisibleTimeRangeChange
-            val earliestTime = candles.first().time
-            val fromTime = (timeRange.from as Time.Utc).timestamp
-            val visibleDuration = (timeRange.to as Time.Utc).timestamp - fromTime
-            val threshold = (visibleDuration * 0.1).toLong()
-            if (fromTime < earliestTime + threshold) {
-                lastLoadMoreTime = currentTime
-                viewModel.loadMoreHistoricalData()
+    }
+
+    private fun scrollChartToTimeframe(timeframe: String) {
+        val timeframeMinutes = parseTimeframeToMinutes(timeframe) ?: return
+        val currentTimeMillis = System.currentTimeMillis()
+        val targetTimeMillis = currentTimeMillis - (timeframeMinutes * 60 * 1000L)
+
+        val candles = viewModel.candles.value
+        if (candles.isNotEmpty()) {
+            val earliestCandleTime = candles.first().time * 1000
+            if (targetTimeMillis < earliestCandleTime) {
+                viewModel.loadHistoricalDataUntil(targetTimeMillis / 1000) { success ->
+                    if (success) {
+                        performChartScroll(targetTimeMillis)
+                    }
+                }
+            } else {
+                performChartScroll(targetTimeMillis)
             }
         }
     }
 
-    private fun Candle.toCandlestickData(): CandlestickData = CandlestickData(
-        Time.Utc(this.time),
-        this.open.toFloat(),
-        this.high.toFloat(),
-        this.low.toFloat(),
-        this.close.toFloat()
-    )
+    private fun performChartScroll(targetTimeMillis: Long) {
+        val fromTime = Time.Utc(targetTimeMillis / 1000)
+        val toTime = Time.Utc(System.currentTimeMillis() / 1000)
+        val timeRange = TimeRange(fromTime, toTime)
 
-    private fun Candle.toVolumeData(): HistogramData = HistogramData(
-        Time.Utc(this.time),
-        this.volume.toFloat(),
-        if (close >= open) upColor else downColor
-    )
+        Log.d("ChartDebug", "Setting visible range from $fromTime to $toTime")
 
-    private fun updateSparkline(sparklineArray: DoubleArray?) {
-        if (sparklineArray == null || sparklineArray.isEmpty()) return
-        val chart = binding.marketChartLayout.sparklineChart
-        val entries = mutableListOf<Entry>()
-        sparklineArray.forEachIndexed { index, value ->
-            entries.add(
-                Entry(
-                    index.toFloat(),
-                    value.toFloat()
-                )
-            )
-        }
-        setupSparklineChart(chart, entries)
+        binding.marketChartLayout.candlesStickChart.api.timeScale.setVisibleRange(timeRange)
+
     }
 
-    private fun setupSparklineChart(chart: LineChart, entries: List<Entry>) {
-        if (entries.isEmpty()) return
-        val isDowntrend = entries.last().y < entries.first().y
-        val lineColor = if (isDowntrend) Color.RED else Color.GREEN
-        val shadeColor = if (isDowntrend) R.drawable.chart_fill_red else R.drawable.chart_fill_green
-        val dataSet = LineDataSet(entries, "Price").apply {
-            this.color = lineColor
-            setDrawCircles(false)
-            lineWidth = 1.5f
-            setDrawValues(false)
-            setDrawFilled(true)
-            fillDrawable = ContextCompat.getDrawable(chart.context, shadeColor)
+    private fun parseTimeframeToMinutes(timeframe: String): Long? {
+        if (timeframe.isEmpty()) return null
+        val regex = Regex("^(\\d+)([mhdwMY])$")
+        val matchResult = regex.find(timeframe.lowercase()) ?: return null
+        val (numberStr, unit) = matchResult.destructured
+        val number = numberStr.toLongOrNull() ?: return null
+
+        return when (unit) {
+            "m" -> number
+            "h" -> number * 60
+            "d" -> number * 60 * 24
+            "w" -> number * 60 * 24 * 7
+            "M" -> number * 60 * 24 * 30
+            "y" -> number * 60 * 24 * 365
+            else -> null
         }
-        chart.data = LineData(dataSet)
-        chart.xAxis.apply {
-            position = XAxis.XAxisPosition.BOTTOM
-            setDrawLabels(false)
-            setDrawGridLines(false)
-        }
-        chart.axisLeft.isEnabled = false
-        chart.axisRight.isEnabled = false
-        chart.legend.isEnabled = false
-        chart.description.isEnabled = false
-        chart.setTouchEnabled(false)
-        chart.invalidate()
+    }
+
+    private fun initializeAnalysisPanelManager() {
+        // Ensure viewModel and chartManager are initialized before this function is called.
+        analysisPanelManager = AnalysisPanelManager(
+            binding,
+            { selectedTimeframe ->
+                scrollChartToTimeframe(selectedTimeframe)
+            },
+            viewModel, // Pass the viewModel instance
+            chartManager // Pass the chartManager instance
+        )
     }
 
     override fun onDestroy() {

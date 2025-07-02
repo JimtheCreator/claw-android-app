@@ -19,7 +19,6 @@
             android:layout_marginEnd="15dp"
             android:orientation="vertical">
 
-            <!-- Custom Spinner Layout -->
             <FrameLayout
                 android:id="@+id/spinner_container"
                 android:layout_width="match_parent"
@@ -48,7 +47,6 @@
 
             </FrameLayout>
 
-            <!-- Custom Dropdown RecyclerView (Initially Hidden) -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/timeframe_recycler_view"
                 android:layout_width="match_parent"
@@ -57,7 +55,6 @@
                 android:background="@drawable/spinner_background"
                 android:visibility="gone"
                 app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
-
 
         </LinearLayout>
 
@@ -74,40 +71,56 @@
             android:textSize="13sp" />
 
         <RelativeLayout
-            android:id="@+id/swipe_to_analyze"
+            android:id="@+id/swipe_to_analyze_container"
             android:layout_width="match_parent"
-            android:layout_height="50dp"
+            android:layout_height="76dp"
             android:layout_marginStart="15dp"
             android:layout_marginTop="30dp"
             android:layout_marginEnd="15dp"
             android:layout_marginBottom="10dp"
-            android:background="@drawable/ai_rectangle"
-            android:clickable="true"
-            android:focusable="true">
+            android:background="@drawable/swipe_track_background"
+            >
 
-            <LinearLayout
+            <com.facebook.shimmer.ShimmerFrameLayout
+                android:id="@+id/shimmer_view_container"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_centerInParent="true"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="25dp"
-                    android:layout_height="25dp"
-                    android:layout_gravity="center_vertical"
-                    android:layout_marginEnd="5dp"
-                    android:src="@drawable/ai_stars" />
+                app:shimmer_auto_start="true"
+                app:shimmer_duration="1500"
+                app:shimmer_repeat_mode="restart"
+                app:shimmer_tilt="0">
 
                 <TextView
+                    android:id="@+id/swipe_to_analyze_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical"
-                    android:layout_marginStart="5dp"
                     android:fontFamily="@font/sf_pro_text_medium"
-                    android:text="Analyze"
-                    android:textColor="@color/black2_0"
-                    android:textSize="15sp" />
-            </LinearLayout>
+                    android:text="Swipe to Analyze"
+                    android:textColor="@color/off_white"
+                    android:textSize="17sp" />
+
+            </com.facebook.shimmer.ShimmerFrameLayout>
+
+            <FrameLayout
+                android:id="@+id/swipe_thumb"
+                android:layout_width="68dp"
+                android:layout_height="68dp"
+                android:layout_centerVertical="true"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"
+                android:background="@drawable/swipe_thumb_background"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ai_stars"
+                    app:tint="@color/black2_0" />
+            </FrameLayout>
+
         </RelativeLayout>
 
     </LinearLayout>

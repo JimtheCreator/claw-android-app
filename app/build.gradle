@@ -107,4 +107,8 @@ dependencies {
 
     //LOTTIE-FILES
     implementation libs.lottie // use latest if available
+
+    
+    implementation libs.shimmer
+
 }
