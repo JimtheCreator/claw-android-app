@@ -83,8 +83,8 @@ dependencies {
     annotationProcessor libs.compiler
 
     //CHARTS LIBRARY
-    implementation libs.mpandroidchart
     implementation libs.lightweightcharts
+    implementation libs.mpandroidchart
 
     //Retrofit
     implementation libs.retrofit
@@ -108,7 +108,7 @@ dependencies {
     //LOTTIE-FILES
     implementation libs.lottie // use latest if available
 
-    
+    //Facebook Shimmer Effect
     implementation libs.shimmer
 
 }

@@ -7,23 +7,6 @@
     android:orientation="vertical"
     >
 
-<!--    <com.airbnb.lottie.LottieAnimationView-->
-<!--        android:layout_centerInParent="true"-->
-<!--        android:id="@+id/lottieAnimationView"-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="match_parent"-->
-<!--        app:lottie_autoPlay="true"-->
-<!--        app:lottie_loop="true"-->
-<!--        app:lottie_rawRes="@raw/loading_analysis" />-->
-
-        <com.airbnb.lottie.LottieAnimationView
-            android:layout_centerInParent="true"
-            android:id="@+id/lottieAnimationView"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            app:lottie_autoPlay="true"
-            app:lottie_loop="true"/>
-
     <LinearLayout
         android:layout_above="@+id/border"
         android:id="@+id/frame"
@@ -75,8 +58,8 @@
 
                 <ImageView
                     android:id="@+id/create_price_alert"
-                    android:layout_width="25dp"
-                    android:layout_height="25dp"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     android:layout_marginEnd="15dp"
@@ -172,7 +155,6 @@
             android:layout_marginEnd="15dp"
             android:background="@color/black_shade" />
 
-
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/time_interval_tabLayout"
             style="@style/CustomTabText"
@@ -263,28 +245,62 @@
             android:orientation="horizontal">
 
             <RelativeLayout
-                android:id="@+id/ai_button"
+                android:id="@+id/trendline_button"
                 android:layout_width="30dp"
                 android:layout_height="30dp"
                 android:layout_gravity="center_vertical"
-                android:layout_marginEnd="5dp"
-                android:background="@drawable/ai_circle">
+                android:layout_marginEnd="10dp"
+                android:background="@drawable/white_circle">
 
                 <ImageView
-                    android:id="@+id/close_panel"
+                    android:id="@+id/trendline_img"
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:layout_centerInParent="true"
-                    android:src="@drawable/ai_stars" />
+                    android:src="@drawable/trendlines_ic" />
 
             </RelativeLayout>
 
             <RelativeLayout
-                android:id="@+id/add_to_watchlist"
+                android:id="@+id/support_resistance_button"
                 android:layout_width="30dp"
                 android:layout_height="30dp"
                 android:layout_gravity="center_vertical"
-                android:layout_marginStart="5dp"
+                android:background="@drawable/white_circle">
+
+                <ImageView
+                    android:id="@+id/support_resistance_img"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_centerInParent="true"
+                    android:src="@drawable/sr_ic" />
+
+            </RelativeLayout>
+
+<!--            <RelativeLayout-->
+<!--                android:id="@+id/ai_button"-->
+<!--                android:layout_width="35dp"-->
+<!--                android:layout_height="35dp"-->
+<!--                android:layout_gravity="center_vertical"-->
+<!--                android:layout_marginEnd="10dp"-->
+<!--                android:background="@drawable/ai_circle">-->
+
+<!--                <ImageView-->
+<!--                    android:id="@+id/close_panel"-->
+<!--                    android:layout_width="25dp"-->
+<!--                    android:layout_height="25dp"-->
+<!--                    android:layout_centerInParent="true"-->
+<!--                    android:src="@drawable/ai_stars" />-->
+
+<!--            </RelativeLayout>-->
+
+
+            <RelativeLayout
+                android:id="@+id/add_to_watchlist"
+                android:layout_marginStart="10dp"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_gravity="center_vertical"
                 android:background="@drawable/cool_black_circle"
                 android:visibility="gone">
 
@@ -295,6 +311,15 @@
                     android:src="@drawable/beige_add" />
 
             </RelativeLayout>
+
+            <ImageView
+                android:id="@+id/rotate_to_fullscreen"
+                android:layout_marginStart="10dp"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:src="@drawable/ic_fullscreen"
+                android:layout_gravity="center_vertical"
+                />
 
         </LinearLayout>
 

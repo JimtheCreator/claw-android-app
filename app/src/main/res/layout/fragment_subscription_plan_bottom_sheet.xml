@@ -51,11 +51,11 @@
                     android:textSize="17sp" />
 
                 <androidx.cardview.widget.CardView
-                    android:visibility="gone"
                     android:id="@+id/test_drive_plan_cardview"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="50dp"
+                    android:visibility="gone"
                     app:cardBackgroundColor="@color/lightBlack"
                     app:cardCornerRadius="25dp"
                     app:cardElevation="0dp">
@@ -217,13 +217,61 @@
                                     android:layout_gravity="center_vertical"
                                     android:src="@drawable/grey_check" />
 
+
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_gravity="center_vertical"
                                     android:layout_marginStart="8dp"
                                     android:fontFamily="@font/sf_pro_text_regular"
-                                    android:text="Download your Market Analysis in Video format (4K, 1080p and more)"
+                                    android:text="Smart Support &amp; Resistance detection"
+                                    android:textColor="@color/grey"
+                                    android:textSize="14sp" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:layout_width="15dp"
+                                    android:layout_height="15dp"
+                                    android:layout_gravity="center_vertical"
+                                    android:src="@drawable/grey_check" />
+
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginStart="8dp"
+                                    android:fontFamily="@font/sf_pro_text_regular"
+                                    android:text="Pattern &amp; Trendline Analysis"
+                                    android:textColor="@color/grey"
+                                    android:textSize="14sp" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:layout_width="15dp"
+                                    android:layout_height="15dp"
+                                    android:layout_gravity="center_vertical"
+                                    android:src="@drawable/grey_check" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginStart="8dp"
+                                    android:fontFamily="@font/sf_pro_text_regular"
+                                    android:text="Download your Analysis in High res Photo"
                                     android:textColor="@color/grey"
                                     android:textSize="14sp" />
 
@@ -248,31 +296,6 @@
                                     android:layout_marginStart="8dp"
                                     android:fontFamily="@font/sf_pro_text_regular"
                                     android:text="Price &amp; Pattern Alerts"
-                                    android:textColor="@color/grey"
-                                    android:textSize="14sp" />
-
-                            </LinearLayout>
-
-
-                            <LinearLayout
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:orientation="horizontal">
-
-                                <ImageView
-                                    android:layout_width="15dp"
-                                    android:layout_height="15dp"
-                                    android:layout_gravity="center_vertical"
-                                    android:src="@drawable/grey_check" />
-
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_gravity="center_vertical"
-                                    android:layout_marginStart="8dp"
-                                    android:fontFamily="@font/sf_pro_text_regular"
-                                    android:text="Market Analysis"
                                     android:textColor="@color/grey"
                                     android:textSize="14sp" />
 
@@ -310,14 +333,14 @@
                                 android:layout_marginTop="20dp"
                                 android:fontFamily="@font/sf_pro_text_bold"
                                 android:text="@string/usage_limits"
-                                android:textColor="@color/thickGrey" />
+                                android:textColor="@color/thickGrey"
+                                />
 
                         </LinearLayout>
 
                     </LinearLayout>
 
                 </androidx.cardview.widget.CardView>
-
 
                 <androidx.cardview.widget.CardView
                     android:id="@+id/starter_plan_cardview"
@@ -545,7 +568,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="40dp"
                                 android:fontFamily="@font/sf_pro_text_medium"
-                                android:text="Everything in Test Drive, plus:"
+                                android:text="Benefits:"
                                 android:textColor="@color/grey"
                                 android:textSize="14sp" />
 
@@ -919,6 +942,31 @@
                                 android:textColor="@color/grey"
                                 android:textSize="14sp" />
 
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:layout_width="15dp"
+                                    android:layout_height="15dp"
+                                    android:layout_gravity="center_vertical"
+                                    android:src="@drawable/grey_check" />
+
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginStart="8dp"
+                                    android:fontFamily="@font/sf_pro_text_regular"
+                                    android:text="Unlimited Pattern &amp; Trendline Analysis"
+                                    android:textColor="@color/grey"
+                                    android:textSize="14sp" />
+
+                            </LinearLayout>
+
                             <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
@@ -936,7 +984,31 @@
                                     android:layout_gravity="center_vertical"
                                     android:layout_marginStart="8dp"
                                     android:fontFamily="@font/sf_pro_text_regular"
-                                    android:text="Download your Market Analysis in Video format (4K, 1080P+)"
+                                    android:text="Download your Analysis in High res Photo"
+                                    android:textColor="@color/grey"
+                                    android:textSize="14sp" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:layout_width="15dp"
+                                    android:layout_height="15dp"
+                                    android:layout_gravity="center_vertical"
+                                    android:src="@drawable/grey_check" />
+
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_marginStart="8dp"
+                                    android:fontFamily="@font/sf_pro_text_regular"
+                                    android:text="Unlimited Support &amp; Resistance detection"
                                     android:textColor="@color/grey"
                                     android:textSize="14sp" />
 
@@ -999,31 +1071,6 @@
                                     android:textSize="12sp" />
 
                             </LinearLayout>
-
-                            <LinearLayout
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:orientation="horizontal">
-
-                                <ImageView
-                                    android:layout_width="15dp"
-                                    android:layout_height="15dp"
-                                    android:layout_gravity="center_vertical"
-                                    android:src="@drawable/grey_check" />
-
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_gravity="center_vertical"
-                                    android:layout_marginStart="8dp"
-                                    android:fontFamily="@font/sf_pro_text_regular"
-                                    android:text="Unlimited Market Analysis"
-                                    android:textColor="@color/grey"
-                                    android:textSize="14sp" />
-
-                            </LinearLayout>
-
 
                             <LinearLayout
                                 android:layout_width="wrap_content"

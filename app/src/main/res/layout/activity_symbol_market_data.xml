@@ -1,81 +1,130 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/thick_beige"
-    android:orientation="vertical"
-    android:weightSum="1"
     tools:context="market.symbol.SymbolMarketDataActivity">
 
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:layout_marginTop="25dp">
-
-        <ImageView
-            android:id="@+id/close_page"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentStart="true"
-            android:layout_centerVertical="true"
-            android:layout_marginStart="10dp"
-            android:src="@drawable/baseline_arrow_back_ios_new_24"
-            app:tint="@color/black2_0" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            android:fontFamily="@font/sf_pro_text_medium"
-            android:text="Market"
-            android:textColor="@color/black2_0"
-            android:textSize="20sp" />
-
-    </RelativeLayout>
-
     <LinearLayout
-        android:id="@+id/topSection"
+        android:id="@+id/main"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@drawable/bottom_stroke_background"
-        android:orientation="vertical">
-
-        <include
-            android:id="@+id/market_chart_layout"
-            layout="@layout/market_chart" />
-
-    </LinearLayout>
-
-    <RelativeLayout
-        android:id="@+id/dragHandle"
-        android:layout_width="match_parent"
-        android:layout_height="7.5dp"
-        android:visibility="gone">
-
-        <View
-            android:layout_width="15dp"
-            android:layout_height="3.5dp"
-            android:layout_centerInParent="true"
-            android:background="@drawable/rounded_handle" />
-
-    </RelativeLayout>
-
-    <LinearLayout
-        android:id="@+id/bottomSection"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:background="@drawable/top_stroke_background"
+        android:layout_height="match_parent"
         android:orientation="vertical"
-        android:visibility="gone">
+        android:weightSum="1">
 
-        <include
-            android:id="@+id/analysispagelayout"
-            layout="@layout/analysispage" />
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:layout_marginTop="25dp">
+
+            <ImageView
+                android:id="@+id/close_page"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:layout_marginStart="10dp"
+                android:src="@drawable/baseline_arrow_back_ios_new_24"
+                app:tint="@color/black2_0" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:fontFamily="@font/sf_pro_text_medium"
+                android:text="Market"
+                android:textColor="@color/black2_0"
+                android:textSize="20sp" />
+
+        </RelativeLayout>
+
+        <LinearLayout
+            android:id="@+id/topSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bottom_stroke_background"
+            android:orientation="vertical">
+
+            <include
+                android:id="@+id/market_chart_layout"
+                layout="@layout/market_chart" />
+
+        </LinearLayout>
+
+        <RelativeLayout
+            android:id="@+id/dragHandle"
+            android:layout_width="match_parent"
+            android:layout_height="7.5dp"
+            android:visibility="gone">
+
+            <View
+                android:layout_width="15dp"
+                android:layout_height="3.5dp"
+                android:layout_centerInParent="true"
+                android:background="@drawable/rounded_handle" />
+
+        </RelativeLayout>
+
+        <LinearLayout
+            android:id="@+id/bottomSection"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:background="@drawable/top_stroke_background"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <include
+                android:id="@+id/analysispagelayout"
+                layout="@layout/analysispage" />
+
+        </LinearLayout>
 
     </LinearLayout>
 
+    <!-- Inside the root layout, e.g., ConstraintLayout or FrameLayout -->
+    <FrameLayout
+        android:id="@+id/overlayContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone">
 
-</LinearLayout>
+        <!-- Blur view as the background -->
+        <View
+            android:id="@+id/blurView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#80000000" /> <!-- Example blur effect; adjust as needed -->
+
+        <!-- LinearLayout to stack Lottie and TextView vertically -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <!-- Lottie Animation -->
+            <com.airbnb.lottie.LottieAnimationView
+                android:id="@+id/fullScreenLoader"
+                android:layout_width="250dp"
+                android:layout_height="250dp"
+                app:lottie_autoPlay="true"
+                app:lottie_loop="true"
+                app:lottie_rawRes="@raw/loading_analysis" /> <!-- Adjust file name as per your asset -->
+
+            <!-- Status TextView -->
+            <TextView
+                android:id="@+id/loadingStatusText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Network status..."
+                android:fontFamily="@font/sf_pro_text_medium"
+                android:textColor="@android:color/white"
+                android:textSize="16sp" />
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+</RelativeLayout>

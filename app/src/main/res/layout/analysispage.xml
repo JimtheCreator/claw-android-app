@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/dark_upper_rounded"
@@ -11,118 +11,44 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="15dp"
-            android:layout_marginTop="20dp"
-            android:layout_marginEnd="15dp"
-            android:orientation="vertical">
-
-            <FrameLayout
-                android:id="@+id/spinner_container"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@drawable/spinner_background"
-                android:clickable="true"
-                android:focusable="true">
-
-                <TextView
-                    android:fontFamily="@font/sf_pro_text_semibold"
-                    android:id="@+id/selected_timeframe_text"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:padding="16dp"
-                    android:text="Select Timeframe"
-                    android:textColor="@color/off_white"
-                    android:textSize="16sp" />
-
-                <ImageView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="end|center_vertical"
-                    android:layout_marginEnd="16dp"
-                    android:src="@drawable/drop_down_icon"
-                    app:tint="@color/colorGrey" />
-
-            </FrameLayout>
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/timeframe_recycler_view"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:background="@drawable/spinner_background"
-                android:visibility="gone"
-                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
-
-        </LinearLayout>
-
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
+            android:layout_gravity="center_horizontal"
             android:layout_marginStart="15dp"
-            android:layout_marginTop="7.5dp"
+            android:layout_marginTop="15dp"
             android:layout_marginEnd="15dp"
-            android:fontFamily="@font/sf_pro_text_regular"
-            android:text="@string/analysis_guidelines"
-            android:textColor="@color/colorLight"
-            android:textSize="13sp" />
+            android:fontFamily="@font/sf_pro_text_bold"
+            android:text="Support &amp; Resistance"
+            android:textColor="@color/off_white"
+            android:textSize="16sp" />
 
-        <RelativeLayout
-            android:id="@+id/swipe_to_analyze_container"
+        <NumberPicker
+            android:id="@+id/number_picker"
             android:layout_width="match_parent"
-            android:layout_height="76dp"
-            android:layout_marginStart="15dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
             android:layout_marginTop="30dp"
-            android:layout_marginEnd="15dp"
-            android:layout_marginBottom="10dp"
-            android:background="@drawable/swipe_track_background"
-            >
+            android:layout_marginEnd="20dp"
+            android:theme="@style/NumberPickerWhiteText" />
 
-            <com.facebook.shimmer.ShimmerFrameLayout
-                android:id="@+id/shimmer_view_container"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerInParent="true"
-                app:shimmer_auto_start="true"
-                app:shimmer_duration="1500"
-                app:shimmer_repeat_mode="restart"
-                app:shimmer_tilt="0">
-
-                <TextView
-                    android:id="@+id/swipe_to_analyze_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/sf_pro_text_medium"
-                    android:text="Swipe to Analyze"
-                    android:textColor="@color/off_white"
-                    android:textSize="17sp" />
-
-            </com.facebook.shimmer.ShimmerFrameLayout>
-
-            <FrameLayout
-                android:id="@+id/swipe_thumb"
-                android:layout_width="68dp"
-                android:layout_height="68dp"
-                android:layout_centerVertical="true"
-                android:layout_marginStart="4dp"
-                android:layout_marginEnd="4dp"
-                android:background="@drawable/swipe_thumb_background"
-                android:clickable="true"
-                android:focusable="true">
-
-                <ImageView
-                    android:layout_width="34dp"
-                    android:layout_height="34dp"
-                    android:layout_gravity="center"
-                    android:src="@drawable/ai_stars"
-                    app:tint="@color/black2_0" />
-            </FrameLayout>
-
-        </RelativeLayout>
+        <include
+            android:id="@+id/swipe_to_analyze_action_layout"
+            layout="@layout/swipe_to_analyze_layout" />
 
     </LinearLayout>
 
-</ScrollView>
+    <LinearLayout
+        android:visibility="gone"
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="300dp"/>
+
+
+    </LinearLayout>
+
+</RelativeLayout>

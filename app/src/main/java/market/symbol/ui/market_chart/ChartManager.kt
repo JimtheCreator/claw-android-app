@@ -13,26 +13,51 @@ import com.github.mikephil.charting.data.LineDataSet
 import com.tradingview.lightweightcharts.api.chart.models.color.IntColor
 import com.tradingview.lightweightcharts.api.chart.models.color.surface.SolidColor
 import com.tradingview.lightweightcharts.api.interfaces.SeriesApi
-import com.tradingview.lightweightcharts.api.options.models.*
+import com.tradingview.lightweightcharts.api.interfaces.TimeScaleApi
+import com.tradingview.lightweightcharts.api.options.models.CandlestickSeriesOptions
+import com.tradingview.lightweightcharts.api.options.models.GridLineOptions
+import com.tradingview.lightweightcharts.api.options.models.GridOptions
+import com.tradingview.lightweightcharts.api.options.models.HandleScaleOptions
+import com.tradingview.lightweightcharts.api.options.models.HistogramSeriesOptions
+import com.tradingview.lightweightcharts.api.options.models.LayoutOptions
+import com.tradingview.lightweightcharts.api.options.models.LocalizationOptions
+import com.tradingview.lightweightcharts.api.options.models.PriceLineOptions
+import com.tradingview.lightweightcharts.api.options.models.PriceScaleMargins
+import com.tradingview.lightweightcharts.api.options.models.PriceScaleOptions
+import com.tradingview.lightweightcharts.api.options.models.TimeScaleOptions
+import com.tradingview.lightweightcharts.api.series.common.PriceLine
+import com.tradingview.lightweightcharts.api.series.enums.LineStyle
 import com.tradingview.lightweightcharts.api.series.enums.LineWidth
 import com.tradingview.lightweightcharts.api.series.models.CandlestickData
 import com.tradingview.lightweightcharts.api.series.models.HistogramData
 import com.tradingview.lightweightcharts.api.series.models.PriceScaleId
+import com.tradingview.lightweightcharts.api.series.models.SeriesMarker
 import com.tradingview.lightweightcharts.api.series.models.Time
+import market.symbol.model.AnalysisResult
 import market.symbol.repo.Candle
-import java.util.*
+import java.util.Locale
 
 class ChartManager(
     private val context: Context,
     private val chartBinding: MarketChartBinding,
     private val onVisibleTimeRangeChanged: (Time.Utc, Time.Utc) -> Unit
 ) {
+    private var candleSeries: SeriesApi? = null
+    private var volumeSeries: SeriesApi? = null
+    private var timeScaleApi: TimeScaleApi? = null
 
-    var candleSeries: SeriesApi? = null
-    var volumeSeries: SeriesApi? = null
+    // State for tracking analysis drawings
+    private val analysisMarkers = mutableListOf<SeriesMarker>()
+    private val analysisPriceLines = mutableListOf<PriceLine>()
+    private val analysisSeries = mutableListOf<SeriesApi>()
 
+    // Colors
     private val upColor = IntColor(Color.parseColor("#26a69a"))
     private val downColor = IntColor(Color.parseColor("#ef5350"))
+    private val supportColor = IntColor(Color.parseColor("#26a69a")) // Green
+    private val resistanceColor = IntColor(Color.parseColor("#ef5350")) // Red
+    private val demandZoneColor = IntColor(Color.parseColor("#26a69a"))
+    private val supplyZoneColor = IntColor(Color.parseColor("#ef5350"))
 
     init {
         initializeMainChart()
@@ -45,16 +70,16 @@ class ChartManager(
                 background = SolidColor(ContextCompat.getColor(context, R.color.darkTheme))
                 textColor = IntColor(Color.WHITE)
             }
-            grid = GridOptions().apply {
-                vertLines = GridLineOptions().apply { color = IntColor(0xFF1c1c1c.toInt()) }
-                horzLines = GridLineOptions().apply { color = IntColor(0xFF1c1c1c.toInt()) }
-            }
+            grid = GridOptions(
+                vertLines = GridLineOptions(color = IntColor(0xFF1c1c1c.toInt())),
+                horzLines = GridLineOptions(color = IntColor(0xFF1c1c1c.toInt()))
+            )
             timeScale = TimeScaleOptions().apply {
                 timeVisible = true
                 borderVisible = false
                 fixLeftEdge = false
                 rightBarStaysOnScroll = true
-                localization = LocalizationOptions().apply { locale = Locale.getDefault().toLanguageTag() }
+                localization = LocalizationOptions(locale = Locale.getDefault().toLanguageTag())
             }
             rightPriceScale = PriceScaleOptions().apply { borderVisible = false }
             leftPriceScale = PriceScaleOptions().apply {
@@ -63,39 +88,162 @@ class ChartManager(
             }
         }
 
-        val candleOptions = CandlestickSeriesOptions().apply {
-            upColor = this@ChartManager.upColor
-            downColor = this@ChartManager.downColor
-            borderUpColor = this@ChartManager.upColor
-            borderDownColor = this@ChartManager.downColor
-            wickUpColor = this@ChartManager.upColor
-            wickDownColor = this@ChartManager.downColor
-            borderVisible = true
+        timeScaleApi = chartsView.api.timeScale
+
+        val candleOptions = CandlestickSeriesOptions(
+            upColor = this.upColor,
+            downColor = this.downColor,
+            borderUpColor = this.upColor,
+            borderDownColor = this.downColor,
+            wickUpColor = this.upColor,
+            wickDownColor = this.downColor,
+            borderVisible = true,
             wickVisible = true
-        }
+        )
         chartsView.api.addCandlestickSeries(candleOptions) { series -> candleSeries = series }
 
-        val volumeOptions = HistogramSeriesOptions().apply {
-            base = 0.0f
-            baseLineWidth = LineWidth.TWO
+        val volumeOptions = HistogramSeriesOptions(
+            base = 0.0f,
+            baseLineWidth = LineWidth.TWO,
             priceScaleId = PriceScaleId.LEFT
-        }
+        )
         chartsView.api.addHistogramSeries(volumeOptions) { series -> volumeSeries = series }
 
-        chartsView.api.timeScale.subscribeVisibleTimeRangeChange { timeRange ->
+        timeScaleApi?.subscribeVisibleTimeRangeChange { timeRange ->
             timeRange?.let {
                 onVisibleTimeRangeChanged(it.from as Time.Utc, it.to as Time.Utc)
             }
         }
     }
 
+    fun setCandleData(candles: List<Candle>) {
+        val candlestickData = candles.map { it.toCandlestickData() }
+        candleSeries?.setData(candlestickData)
+    }
+
+    fun setVolumeData(candles: List<Candle>) {
+        volumeSeries?.setData(candles.map { it.toVolumeData() })
+    }
+
+    fun scrollToRealTime() {
+        timeScaleApi?.scrollToRealTime()
+    }
+
+    private fun disableInteraction() {
+        chartBinding.candlesStickChart.api.applyOptions {
+            handleScale = HandleScaleOptions(pinch = false, mouseWheel = false)
+        }
+    }
+
+    private fun enableInteraction() {
+        chartBinding.candlesStickChart.api.applyOptions {
+            handleScale = HandleScaleOptions(pinch = true, mouseWheel = true)
+        }
+    }
+
+    /**
+     * Renders the entire analysis result from the new API response.
+     */
+    /**
+     * Renders only support and resistance levels from the analysis result.
+     * Excludes demand/supply zones as requested.
+     */
+    fun renderAnalysisData(analysis: AnalysisResult, candles: List<Candle>) {
+        clearAnalysis()
+
+        // 1. Render Support Levels Only
+        analysis.supportLevels.forEach { level ->
+            renderPriceLine(
+                price = level.price,
+                isSupport = true,
+                title = "Support (${String.format("%.2f", level.confidenceScore)})"
+            )
+        }
+
+        // 2. Render Resistance Levels Only
+        analysis.resistanceLevels.forEach { level ->
+            renderPriceLine(
+                price = level.price,
+                isSupport = false,
+                title = "Resistance (${String.format("%.2f", level.confidenceScore)})"
+            )
+        }
+
+        // 3. Optional: Render Psychological Levels (uncomment if needed)
+        // analysis.psychologicalLevels.forEach { level ->
+        //     renderPriceLine(level.price, isSupport = true, level.type, LineStyle.DOTTED)
+        // }
+
+        // Fallback to real-time view
+        scrollToRealTime()
+
+        // Lock the chart after drawing is complete
+        disableInteraction()
+    }
+
+    /**
+     * Clears all existing analysis drawings from the chart.
+     */
+    fun clearAnalysis() {
+        enableInteraction()
+        analysisPriceLines.forEach { candleSeries?.removePriceLine(it) }
+        analysisPriceLines.clear()
+        analysisSeries.forEach { chartBinding.candlesStickChart.api.removeSeries(it) }
+        analysisSeries.clear()
+        analysisMarkers.clear()
+        candleSeries?.setMarkers(emptyList())
+    }
+
+    /**
+     * Renders a horizontal line for support, resistance, or psychological levels.
+     */
+    private fun renderPriceLine(
+        price: Double,
+        isSupport: Boolean,
+        title: String,
+        style: LineStyle = LineStyle.DASHED
+    ) {
+        val options = PriceLineOptions(
+            price = price.toFloat(),
+            color = if (isSupport) supportColor else resistanceColor,
+            lineWidth = LineWidth.TWO,
+            lineStyle = style,
+            axisLabelVisible = true,
+            title = title
+        )
+        candleSeries?.createPriceLine(options)?.let { analysisPriceLines.add(it) }
+    }
+
+    /**
+     * Renders a demand or supply zone using two horizontal lines.
+     */
+    private fun renderZone(zone: market.symbol.model.Zone, isDemand: Boolean) {
+        val zoneColor = if (isDemand) demandZoneColor else supplyZoneColor
+        val zoneType = if (isDemand) "Demand" else "Supply"
+
+        val topOptions = PriceLineOptions(
+            price = zone.top.toFloat(),
+            color = zoneColor,
+            lineWidth = LineWidth.ONE,
+            lineStyle = LineStyle.SOLID,
+            axisLabelVisible = false,
+            title = "$zoneType Top"
+        )
+        val bottomOptions = topOptions.copy(
+            price = zone.bottom.toFloat(),
+            title = "$zoneType Bottom"
+        )
+
+        candleSeries?.createPriceLine(topOptions)?.let { analysisPriceLines.add(it) }
+        candleSeries?.createPriceLine(bottomOptions)?.let { analysisPriceLines.add(it) }
+    }
+
+    // --- Utility and Legacy Functions ---
     fun updateSparkline(sparklineArray: DoubleArray?) {
         if (sparklineArray == null || sparklineArray.isEmpty()) return
         val chart = chartBinding.sparklineChart
-        val entries = mutableListOf<Entry>()
-        sparklineArray.forEachIndexed { index, value ->
-            entries.add(Entry(index.toFloat(), value.toFloat()))
-        }
+        val entries =
+            sparklineArray.mapIndexed { index, value -> Entry(index.toFloat(), value.toFloat()) }
         setupSparklineChart(chart, entries)
     }
 
@@ -126,22 +274,6 @@ class ChartManager(
         chart.invalidate()
     }
 
-    fun setCandleData(candles: List<Candle>) {
-        candleSeries?.setData(candles.map { it.toCandlestickData() })
-    }
-
-    fun setVolumeData(candles: List<Candle>) {
-        volumeSeries?.setData(candles.map { it.toVolumeData() })
-    }
-
-    fun scrollToRealTime() {
-        chartBinding.candlesStickChart.api.timeScale.scrollToRealTime()
-    }
-
-    fun scrollToPosition(position: Float, animated: Boolean) {
-        chartBinding.candlesStickChart.api.timeScale.scrollToPosition(position, animated)
-    }
-
     private fun Candle.toCandlestickData(): CandlestickData = CandlestickData(
         Time.Utc(this.time),
         this.open.toFloat(),
@@ -151,8 +283,6 @@ class ChartManager(
     )
 
     private fun Candle.toVolumeData(): HistogramData = HistogramData(
-        Time.Utc(this.time),
-        this.volume.toFloat(),
-        if (close >= open) upColor else downColor
+        Time.Utc(this.time), this.volume.toFloat(), if (close >= open) upColor else downColor
     )
 }

@@ -1,23 +1,25 @@
 package market.symbol.ui.analysis
 
 import android.animation.ObjectAnimator
+import android.graphics.Color
+import android.graphics.Paint
 import android.util.Log
+import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.TextView
+import android.widget.NumberPicker
+import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator
 import androidx.transition.AutoTransition
 import androidx.transition.TransitionManager
 import com.claw.ai.R
 import com.claw.ai.databinding.ActivitySymbolMarketDataBinding
 import com.facebook.shimmer.ShimmerFrameLayout
-import com.tradingview.lightweightcharts.api.series.models.Time
-import com.tradingview.lightweightcharts.api.series.models.TimeRange
-import market.symbol.adapters.TimeframeDropdownAdapter
-import market.symbol.ui.dialogs.CustomTimeframeDialog
 import market.symbol.ui.market_chart.ChartManager
 import market.symbol.viewmodel.SymbolMarketDataViewModel
 
@@ -30,37 +32,50 @@ class AnalysisPanelManager(
     private val context = binding.root.context
     private val analysisLayout = binding.analysispagelayout
     private val bottomSection = binding.bottomSection
+    private val rotate_to_fullscreen = binding.marketChartLayout.rotateToFullscreen
     private val chartFrame = binding.marketChartLayout.frame
-    private val lottieAnimationView = binding.marketChartLayout.lottieAnimationView
-    private val timeframeAdapter: TimeframeDropdownAdapter
     private var currentInterval: String = "1m"
 
-    // NEW: References for the iOS-style swipe control
-    private val swipeContainer = binding.analysispagelayout.swipeToAnalyzeContainer
-    private val swipeThumb = binding.analysispagelayout.swipeThumb
-    private val swipeText = binding.analysispagelayout.swipeToAnalyzeText
-    private val shimmerContainer = binding.analysispagelayout.shimmerViewContainer
+    // NumberPicker reference
+    private val numberPicker = binding.analysispagelayout.numberPicker
+    private var timeframeOptions: Array<String> = emptyArray()
+
+    // References for the iOS-style swipe control
+    private val swipeContainer = binding.analysispagelayout.swipeToAnalyzeActionLayout.swipeToAnalyzeContainer
+    private val swipeThumb = binding.analysispagelayout.swipeToAnalyzeActionLayout.swipeThumb
+    private val swipeText = binding.analysispagelayout.swipeToAnalyzeActionLayout.swipeToAnalyzeText
+    private val shimmerContainer = binding.analysispagelayout.swipeToAnalyzeActionLayout.shimmerViewContainer
 
     private val main = binding.main
     private val dragHandle = binding.dragHandle
     private val topSection = binding.topSection
     private val marketChartLayout = binding.marketChartLayout
 
-    init {
-        timeframeAdapter = TimeframeDropdownAdapter(emptyList()) { selectedTimeframe ->
-            handleTimeframeSelection(selectedTimeframe)
-        }
-        analysisLayout.timeframeRecyclerView.adapter = timeframeAdapter
-        analysisLayout.spinnerContainer.setOnClickListener {
-            val isDropdownVisible = analysisLayout.timeframeRecyclerView.visibility == View.VISIBLE
-            toggleDropdown(show = !isDropdownVisible)
-        }
+    private var selectedTimeframe: String? = null
 
-        // NEW: Setup the touch listener for the new swipe control
+    init {
+        setupNumberPicker()
         setupSwipeToAnalyzeListener()
     }
 
-    // NEW: Encapsulated touch handling logic for the swipe control
+    private fun setupNumberPicker() {
+        numberPicker.apply {
+            // Disable keyboard input and focus
+            descendantFocusability = NumberPicker.FOCUS_BLOCK_DESCENDANTS
+
+            // Disable infinite scroll (wrapping)
+            wrapSelectorWheel = false
+
+            // Set value change listener
+            setOnValueChangedListener { _, _, newVal ->
+                if (timeframeOptions.isNotEmpty() && newVal < timeframeOptions.size) {
+                    selectedTimeframe = timeframeOptions[newVal]
+                    onTimeframeSelectedForAnalysis(selectedTimeframe!!)
+                }
+            }
+        }
+    }
+
     private fun setupSwipeToAnalyzeListener() {
         var initialTouchX = 0f
         var initialThumbX = 0f
@@ -71,33 +86,26 @@ class AnalysisPanelManager(
                 MotionEvent.ACTION_DOWN -> {
                     initialTouchX = event.rawX
                     initialThumbX = swipeThumb.translationX
-                    shimmerContainer.stopShimmer() // Stop shimmer on touch
-                    true // Consume the event
+                    shimmerContainer.stopShimmer()
+                    true
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = event.rawX - initialTouchX
                     var newTranslationX = initialThumbX + dx
-
-                    // Clamp the translation within bounds
                     newTranslationX = newTranslationX.coerceIn(0f, maxTranslationX)
                     swipeThumb.translationX = newTranslationX
-
-                    // Fade out the text as the user swipes
                     val swipeProgress = newTranslationX / maxTranslationX
-                    swipeText.alpha = 1.0f - swipeProgress * 1.5f // Fade out faster
-
+                    swipeText.alpha = 1.0f - swipeProgress * 1.5f
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    val threshold = maxTranslationX * 0.75 // 75% swipe to trigger
-
+                    val threshold = maxTranslationX * 0.75
                     if (swipeThumb.translationX >= threshold) {
-                        // Action triggered
+                        val timeframe = selectedTimeframe ?: getDefaultTimeframeForInterval()
                         collapsePanel {
-                            showLoadingAnimation()
+                            viewModel.startAnalysis(timeframe)
                         }
                     } else {
-                        // Animate back to start
                         resetSwipeState(animated = true)
                     }
                     true
@@ -107,7 +115,36 @@ class AnalysisPanelManager(
         }
     }
 
-    // NEW: Public method to reset the swipe control's state
+    private fun getDefaultTimeframeForInterval(): String {
+        return when (currentInterval) {
+            "1m" -> "1h"
+            "5m" -> "1h"
+            "15m" -> "1h"
+            "30m" -> "4h"
+            "1h", "2h" -> "1d"
+            "1d" -> "1w"
+            "1w" -> "1M"
+            "1M" -> "3M"
+            else -> "1h"
+        }
+    }
+
+    fun showLoadingAnimation() {
+        binding.overlayContainer.visibility = View.VISIBLE
+        binding.fullScreenLoader.visibility = View.VISIBLE
+        binding.fullScreenLoader.playAnimation()
+        binding.blurView.visibility = View.VISIBLE
+        binding.fullScreenLoader.bringToFront()
+        binding.loadingStatusText.bringToFront()
+    }
+
+    fun hideLoadingAnimation() {
+        binding.overlayContainer.visibility = View.GONE
+        binding.fullScreenLoader.visibility = View.GONE
+        binding.fullScreenLoader.cancelAnimation()
+        binding.blurView.visibility = View.GONE
+    }
+
     fun resetSwipeState(animated: Boolean = false) {
         if (animated) {
             val animator = ObjectAnimator.ofFloat(swipeThumb, "translationX", 0f)
@@ -121,72 +158,10 @@ class AnalysisPanelManager(
         shimmerContainer.startShimmer()
     }
 
-    private fun handleTimeframeSelection(timeframe: String) {
-        if (timeframe == TimeframeDropdownAdapter.CUSTOM_ITEM) {
-            showAddCustomTimeframeDialog()
-        } else {
-            val formattedTime = "Last $timeframe"
-            analysisLayout.selectedTimeframeText.text = formattedTime
-            toggleDropdown(show = false)
-            scrollChartToTimeframe(timeframe)
-            onTimeframeSelectedForAnalysis(timeframe)
-        }
-    }
-
-    private fun scrollChartToTimeframe(timeframe: String) {
-        val timeframeMinutes = parseTimeframeToMinutes(timeframe) ?: return
-        val currentTimeMillis = System.currentTimeMillis()
-        val targetTimeMillis = currentTimeMillis - (timeframeMinutes * 60 * 1000L)
-
-        val candles = viewModel.candles.value
-        if (candles.isNotEmpty()) {
-            val earliestCandleTime = candles.first().time * 1000
-            if (targetTimeMillis < earliestCandleTime) {
-                viewModel.loadHistoricalDataUntil(targetTimeMillis / 1000) { success ->
-                    if (success) {
-                        performChartScroll(targetTimeMillis)
-                    } else {
-                        chartManager.scrollToPosition(0f, true) // Fallback to earliest data
-                    }
-                }
-            } else {
-                performChartScroll(targetTimeMillis)
-            }
-        }
-    }
-
-    private fun performChartScroll(targetTimeMillis: Long) {
-        val fromTime = Time.Utc(targetTimeMillis / 1000)
-        val toTime = Time.Utc(System.currentTimeMillis() / 1000)
-        val timeRange = TimeRange(fromTime, toTime)
-        Log.d("ChartDebug", "Setting visible range from $fromTime to $toTime")
-        binding.marketChartLayout.candlesStickChart.api.timeScale.setVisibleRange(timeRange)
-    }
-
-    private fun parseTimeframeToMinutes(timeframe: String): Long? {
-        if (timeframe.isEmpty()) return null
-        when (timeframe.lowercase()) {
-            "all time" -> return 365L * 24 * 60 * 10 // 10 years in minutes
-            else -> {}
-        }
-        val regex = Regex("^(\\d+)([mhdwMY])$")
-        val matchResult = regex.find(timeframe.lowercase()) ?: return null
-        val (numberStr, unit) = matchResult.destructured
-        val number = numberStr.toLongOrNull() ?: return null
-        return when (unit) {
-            "m" -> number
-            "h" -> number * 60
-            "d" -> number * 60 * 24
-            "w" -> number * 60 * 24 * 7
-            "M" -> number * 60 * 24 * 30 // Month (approximate)
-            "y" -> number * 60 * 24 * 365 // Year (approximate)
-            else -> null
-        }
-    }
-
     fun updateTimeframesForInterval(interval: String) {
         this.currentInterval = interval
-        var timeframes = when (interval) {
+
+        val timeframes = when (interval) {
             "1m" -> listOf("5m", "15m", "30m", "1h", "4h")
             "5m" -> listOf("15m", "30m", "1h", "4h", "1d")
             "15m" -> listOf("30m", "1h", "4h", "1d", "3d")
@@ -195,69 +170,91 @@ class AnalysisPanelManager(
             "1d" -> listOf("3d", "1w", "1M", "3M", "6M")
             "1w" -> listOf("1M", "3M", "6M", "1Y")
             "1M" -> listOf("3M", "6M", "1Y", "All Time")
-            else -> listOf()
-        }.toMutableList()
-        if (interval == "1m") {
-            timeframes =
-                timeframes.filter { !it.contains("M") && !it.contains("Y") }.toMutableList()
+            else -> listOf("1h")
+        }.let { list ->
+            // Filter out monthly/yearly options for 1m interval
+            if (interval == "1m") {
+                list.filter { !it.contains("M") && !it.contains("Y") }
+            } else {
+                list
+            }
         }
-        timeframeAdapter.updateData(timeframes)
-        analysisLayout.selectedTimeframeText.text = "Select Timeframe"
+
+        // Update NumberPicker with new options
+        timeframeOptions = timeframes.toTypedArray()
+
+        numberPicker.apply {
+            // Force the picker to discard its old recycled views
+            displayedValues = null
+
+            // Set the new range and values
+            minValue = 0
+            maxValue = timeframeOptions.size - 1
+            value = 0 // Reset to first option before setting displayed values
+            displayedValues = timeframeOptions.map { "Last $it" }.toTypedArray()
+
+            // --- The Fix ---
+            // 1. Programmatically apply the style to its children
+            styleNumberPicker(this, ContextCompat.getColor(context, R.color.off_white))
+            // 2. Force the view to redraw itself now
+            invalidate()
+        }
+
+
+        // Set default selected timeframe
+        selectedTimeframe = if (timeframeOptions.isNotEmpty()) timeframeOptions[0] else getDefaultTimeframeForInterval()
+        onTimeframeSelectedForAnalysis(selectedTimeframe!!)
     }
 
-    private fun showAddCustomTimeframeDialog() {
-        CustomTimeframeDialog.show(
-            context = context,
-            currentInterval = currentInterval,
-            onAdd = { customText -> handleTimeframeSelection(customText) },
-            onCancel = { toggleDropdown(show = true) }
-        )
-    }
+    private fun styleNumberPicker(picker: NumberPicker, color: Int) {
+        // This function correctly finds the EditText child to style it.
+        for (i in 0 until picker.childCount) {
+            val child = picker.getChildAt(i)
+            if (child is EditText) {
+                try {
+                    child.setTextColor(color)
+                    child.setHintTextColor(color)
+                    child.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+                    child.isCursorVisible = false
 
-    fun showLoadingAnimation() {
-        val animationView = lottieAnimationView
-        animationView.playAnimation()
-    }
-
-    fun toggleDropdown(show: Boolean) {
-        val recyclerView = analysisLayout.timeframeRecyclerView
-        TransitionManager.beginDelayedTransition(binding.root as ViewGroup)
-        recyclerView.visibility = if (show) View.VISIBLE else View.GONE
-        chartFrame.visibility = if (show) View.GONE else View.VISIBLE
-    }
-
-    fun closeDropdown() {
-        if (analysisLayout.timeframeRecyclerView.visibility == View.VISIBLE) {
-            toggleDropdown(show = false)
+                    val typeface = ResourcesCompat.getFont(picker.context, R.font.sf_pro_text_medium)
+                    if (typeface != null) {
+                        child.typeface = typeface
+                    }
+                } catch (e: Exception) {
+                    Log.w("AnalysisPanelManager", "Failed to style NumberPicker EditText.", e)
+                }
+            }
         }
     }
 
     fun collapsePanel(onComplete: (() -> Unit)? = null) {
-        val dropdownAnimationDuration = 300L
         val panelAnimationDuration = 300L
-        closeDropdown()
+
+        val transition = AutoTransition().apply {
+            duration = panelAnimationDuration
+            interpolator = FastOutSlowInInterpolator()
+        }
+
+        TransitionManager.beginDelayedTransition(main, transition)
+
+        topSection.layoutParams = (topSection.layoutParams as LinearLayout.LayoutParams).apply {
+            height = ViewGroup.LayoutParams.WRAP_CONTENT
+            weight = 0f
+        }
+
+        bottomSection.layoutParams = (bottomSection.layoutParams as LinearLayout.LayoutParams).apply {
+            height = 0
+            weight = 0f
+        }
+
         main.postDelayed({
-            val transition = AutoTransition().apply {
-                duration = panelAnimationDuration
-                interpolator = FastOutSlowInInterpolator()
-            }
-            TransitionManager.beginDelayedTransition(main, transition)
-            topSection.layoutParams = (topSection.layoutParams as LinearLayout.LayoutParams).apply {
-                height = ViewGroup.LayoutParams.WRAP_CONTENT
-                weight = 0f
-            }
-            bottomSection.layoutParams =
-                (bottomSection.layoutParams as LinearLayout.LayoutParams).apply {
-                    height = 0
-                    weight = 0f
-                }
-            main.postDelayed({
-                bottomSection.visibility = View.GONE
-                dragHandle.visibility = View.GONE
-                marketChartLayout.aiButton.setBackgroundResource(R.drawable.ai_circle)
-                marketChartLayout.closePanel.setImageResource(R.drawable.ai_stars)
-                onComplete?.invoke()
-            }, panelAnimationDuration)
-        }, dropdownAnimationDuration)
+            bottomSection.visibility = View.GONE
+            dragHandle.visibility = View.GONE
+            marketChartLayout.supportResistanceButton.setBackgroundResource(R.drawable.white_circle)
+            marketChartLayout.supportResistanceImg.setImageResource(R.drawable.sr_ic)
+            rotate_to_fullscreen.visibility = View.VISIBLE
+            onComplete?.invoke()
+        }, panelAnimationDuration)
     }
 }

@@ -101,4 +101,18 @@
         <item name="backgroundTint">@color/black_shade</item>
     </style>
 
+    <style name="NumberPickerWhiteText">
+        <item name="android:textColor">@color/off_white</item>
+        <item name="android:textColorHint">@color/off_white</item>
+        <item name="android:fontFamily">@font/sf_pro_text_medium</item>
+        <item name="android:textColorPrimary">@color/off_white</item>
+        <item name="android:colorForeground">@color/off_white</item>
+        <item name="android:colorControlNormal">@color/off_white</item>
+        <!-- Additional properties for NumberPicker text visibility -->
+        <item name="android:textColorSecondary">@color/off_white</item>
+        <item name="android:textColorTertiary">@color/off_white</item>
+        <item name="colorOnSurface">@color/off_white</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+
 </resources>

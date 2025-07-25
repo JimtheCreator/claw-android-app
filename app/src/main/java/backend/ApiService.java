@@ -5,16 +5,17 @@ import androidx.annotation.Nullable;
 import java.util.List;
 
 import backend.requests.AddWatchlistRequest;
-import backend.requests.CancelAlertRequest;
+import backend.requests.CancelSubscriptionRequest;
+import backend.requests.CreateAlertRequest;
 import backend.requests.CreatePatternAlertRequest;
 import backend.requests.RemoveWatchlistRequest;
 import backend.requests.SubscribeRequest;
-import backend.requests.CancelSubscriptionRequest;
 import backend.results.CancellationResponseSchema;
-import backend.requests.CreateAlertRequest;
 import backend.results.MarketDataResponse;
 import backend.results.NativeCheckoutResponse;
 import io.reactivex.Completable;
+import market.symbol.model.AnalysisRequest;
+import market.symbol.model.AnalysisResult;
 import models.CachedSymbol;
 import models.Pattern;
 import models.PatternAlert;
@@ -28,7 +29,6 @@ import retrofit2.http.DELETE;
 import retrofit2.http.GET;
 import retrofit2.http.HTTP;
 import retrofit2.http.Header;
-import retrofit2.http.PATCH;
 import retrofit2.http.POST;
 import retrofit2.http.Path;
 import retrofit2.http.Query;
@@ -83,6 +83,10 @@ public interface ApiService {
             @Query("page_size") int pageSize
     );
 
+    @POST("analyze/sr")
+    Call<AnalysisResult> analyzeMarket(
+            @Body AnalysisRequest request
+    );
 
     @POST("watchlist/add")
     Completable addToWatchlist(

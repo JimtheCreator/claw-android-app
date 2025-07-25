@@ -2,7 +2,6 @@ package market.symbol
 
 import accounts.SignUpBottomSheet
 import android.animation.ValueAnimator
-import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -36,7 +35,6 @@ import com.tradingview.lightweightcharts.api.series.models.TimeRange
 import factory.HomeViewModelFactory
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import market.symbol.repo.Candle
 import market.symbol.repo.MarketDataRepository
 import market.symbol.ui.analysis.AnalysisPanelManager
 import market.symbol.ui.market_chart.ChartManager
@@ -80,7 +78,11 @@ class SymbolMarketDataActivity : AppCompatActivity() {
     }
 
     private fun initializeChartManager() {
-        chartManager = ChartManager(this, binding.marketChartLayout) { from, to ->
+        chartManager = ChartManager(
+            this,
+            binding.marketChartLayout
+        )
+        { from, to ->
             handleVisibleTimeRangeChange(from, to)
         }
     }
@@ -118,7 +120,8 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                     val interval = textView?.text?.toString() ?: "1m"
 
                     Log.d("SymbolMarketDataActivity", "Tab selected: $interval")
-
+                    chartManager.clearAnalysis()
+                    Log.d("SymbolMarketDataActivity", "Cleared analysis")
                     viewModel.cancelStream()
                     Log.d("SymbolMarketDataActivity", "Previous Stream cancelled")
 
@@ -176,8 +179,9 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                 height = 0
                 weight = 1f
             }
-            marketChartLayout.aiButton.setBackgroundResource(R.drawable.cool_black_circle)
-            marketChartLayout.closePanel.setImageResource(R.drawable.white_close_ic)
+            marketChartLayout.supportResistanceButton.setBackgroundResource(R.drawable.cool_black_circle)
+            marketChartLayout.supportResistanceImg.setImageResource(R.drawable.close_ic_grey)
+            marketChartLayout.rotateToFullscreen.visibility = View.GONE
             isExpanded = true
         }
     }
@@ -248,7 +252,7 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                 openSignUpBottomSheet(getSupportFragmentManager())
             }
         }
-        marketChartLayout.aiButton.setOnClickListener {
+        marketChartLayout.supportResistanceButton.setOnClickListener {
             currentAnimator?.cancel()
             if (!isExpanded) {
                 expandPanel(dragHandle, bottomSection, main, topSection, marketChartLayout)
@@ -406,6 +410,34 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                 error?.let {
                     Toast.makeText(this@SymbolMarketDataActivity, it, Toast.LENGTH_SHORT).show()
                 }
+            }
+        }
+
+        // New observers for analysis status
+        lifecycleScope.launch {
+            viewModel.isAnalyzing.collect { isAnalyzing ->
+                if (isAnalyzing) {
+                    analysisPanelManager.showLoadingAnimation()
+                } else {
+                    analysisPanelManager.hideLoadingAnimation()
+                }
+            }
+        }
+
+        // This lifecycleScope.launch block provides the required coroutine context.
+        lifecycleScope.launch {
+            viewModel.analysisResult.collect { result ->
+                if (result != null) {
+                    // This is the call site. It is now correctly calling a suspend function
+                    // from within a coroutine.
+                    chartManager.renderAnalysisData(result, viewModel.candles.value)
+                }
+            }
+        }
+
+        lifecycleScope.launch {
+            viewModel.analysisStatus.collect { status ->
+                binding.loadingStatusText.text = status
             }
         }
     }

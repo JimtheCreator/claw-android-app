@@ -2,11 +2,13 @@ package market.symbol.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
+import market.symbol.model.AnalysisResult
 import market.symbol.repo.Candle
 import market.symbol.repo.MarketDataRepository
 import market.symbol.repo.MarketUpdate
@@ -53,6 +55,16 @@ class SymbolMarketDataViewModel(
     // Add StateFlow to track stream status
     private val _isStreamActive = MutableStateFlow(false)
     val isStreamActive: StateFlow<Boolean> = _isStreamActive
+
+    // New StateFlows for analysis
+    private val _isAnalyzing = MutableStateFlow(false)
+    val isAnalyzing: StateFlow<Boolean> = _isAnalyzing
+
+    private val _analysisStatus = MutableStateFlow("")
+    val analysisStatus: StateFlow<String> = _analysisStatus
+
+    private val _analysisResult = MutableStateFlow<AnalysisResult?>(null)
+    val analysisResult: StateFlow<AnalysisResult?> = _analysisResult
 
     fun setSymbol(symbol: String) {
         if (currentSymbol == symbol) return
@@ -364,6 +376,34 @@ class SymbolMarketDataViewModel(
             } finally {
                 _isLoading.value = false
                 isLoadingMore = false
+            }
+        }
+    }
+
+    fun startAnalysis(timeframe: String) {
+        val symbol = currentSymbol ?: return
+        val firebaseUser = FirebaseAuth.getInstance().currentUser
+        val userid = firebaseUser?.uid ?: return
+        _isAnalyzing.value = true
+        _analysisStatus.value = "Analyzing market..." // Simplified status
+        viewModelScope.launch {
+            try {
+                // This now represents the entire analysis process
+                val result = repository.analyzeMarketData(userid, symbol, currentInterval, timeframe)
+
+                if (result != null) {
+                    _analysisStatus.value = "Generating report..."
+                    _analysisResult.value = result // Trigger the rendering
+                    _analysisStatus.value = "Analysis complete"
+                } else {
+                    _analysisStatus.value = "Analysis failed"
+                    _analysisResult.value = null // Clear previous results
+                }
+            } catch (e: Exception) {
+                _analysisStatus.value = "Analysis error: ${e.message}"
+                _analysisResult.value = null // Clear previous results
+            } finally {
+                _isAnalyzing.value = false // This will now happen immediately after rendering
             }
         }
     }
