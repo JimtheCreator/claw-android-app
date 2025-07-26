@@ -93,6 +93,7 @@ dependencies {
     //OkHttp
     implementation libs.okhttp
     implementation libs.logging.interceptor
+    implementation libs.okhttp.sse
 
     //Timber for Logs
     implementation libs.timber

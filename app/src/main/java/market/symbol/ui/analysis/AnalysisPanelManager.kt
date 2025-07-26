@@ -21,6 +21,7 @@ import com.claw.ai.R
 import com.claw.ai.databinding.ActivitySymbolMarketDataBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 import market.symbol.ui.market_chart.ChartManager
+import market.symbol.viewmodel.AnalysisMode
 import market.symbol.viewmodel.SymbolMarketDataViewModel
 
 class AnalysisPanelManager(
@@ -53,9 +54,28 @@ class AnalysisPanelManager(
 
     private var selectedTimeframe: String? = null
 
+    private var currentMode: AnalysisMode = AnalysisMode.SUPPORT_RESISTANCE
+
     init {
         setupNumberPicker()
         setupSwipeToAnalyzeListener()
+    }
+
+    // New function to set the panel's mode and update UI accordingly
+    fun setMode(mode: AnalysisMode) {
+        this.currentMode = mode
+        val title = when (mode) {
+            AnalysisMode.SUPPORT_RESISTANCE -> "Support & Resistance"
+            AnalysisMode.TRENDLINES -> "Trendline Analysis"
+        }
+        analysisLayout.analysisType.text = title
+
+        // Reset views: hide results and show the input selectors
+        analysisLayout.trendlineAnalysisLayout.visibility = View.GONE
+        analysisLayout.numberPicker.visibility = View.VISIBLE
+        analysisLayout.swipeToAnalyzeActionLayout.root.visibility = View.VISIBLE
+
+        resetSwipeState()
     }
 
     private fun setupNumberPicker() {
@@ -102,10 +122,20 @@ class AnalysisPanelManager(
                     val threshold = maxTranslationX * 0.75
                     if (swipeThumb.translationX >= threshold) {
                         val timeframe = selectedTimeframe ?: getDefaultTimeframeForInterval()
-                        collapsePanel {
+
+                        // ✅ **THE FIX: Conditionally collapse the panel**
+                        if (currentMode == AnalysisMode.TRENDLINES) {
+                            // For Trendlines, just start the analysis. The panel stays open.
+                            // The Activity's observers will replace the swiper with the loader.
                             viewModel.startAnalysis(timeframe)
+                        } else {
+                            // For S/R analysis, collapse the panel as before.
+                            collapsePanel {
+                                viewModel.startAnalysis(timeframe)
+                            }
                         }
                     } else {
+                        // Swipe was not completed, reset the thumb's position.
                         resetSwipeState(animated = true)
                     }
                     true
@@ -251,8 +281,14 @@ class AnalysisPanelManager(
         main.postDelayed({
             bottomSection.visibility = View.GONE
             dragHandle.visibility = View.GONE
-            marketChartLayout.supportResistanceButton.setBackgroundResource(R.drawable.white_circle)
-            marketChartLayout.supportResistanceImg.setImageResource(R.drawable.sr_ic)
+            if (currentMode == AnalysisMode.TRENDLINES) {
+                marketChartLayout.trendlineButton.setBackgroundResource(R.drawable.white_circle)
+                marketChartLayout.trendlineImg.setImageResource(R.drawable.trendlines_ic)
+            } else {
+                marketChartLayout.supportResistanceButton.setBackgroundResource(R.drawable.white_circle)
+                marketChartLayout.supportResistanceImg.setImageResource(R.drawable.sr_ic)
+            }
+
             rotate_to_fullscreen.visibility = View.VISIBLE
             onComplete?.invoke()
         }, panelAnimationDuration)

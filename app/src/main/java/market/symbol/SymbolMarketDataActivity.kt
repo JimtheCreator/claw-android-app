@@ -24,6 +24,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.transition.AutoTransition
 import androidx.transition.TransitionManager
 import bottomsheets.PriceAlertsBottomSheetFragment
+import com.bumptech.glide.Glide
 import com.claw.ai.R
 import com.claw.ai.databinding.ActivitySymbolMarketDataBinding
 import com.claw.ai.databinding.MarketChartBinding
@@ -38,6 +39,7 @@ import kotlinx.coroutines.launch
 import market.symbol.repo.MarketDataRepository
 import market.symbol.ui.analysis.AnalysisPanelManager
 import market.symbol.ui.market_chart.ChartManager
+import market.symbol.viewmodel.AnalysisMode
 import market.symbol.viewmodel.SymbolMarketDataViewModel
 import model_interfaces.OnWatchlistActionListener
 import models.Symbol
@@ -151,6 +153,7 @@ class SymbolMarketDataActivity : AppCompatActivity() {
     }
 
     private fun expandPanel(
+        isFromTrendline: Boolean,
         dragHandle: RelativeLayout,
         bottomSection: LinearLayout,
         main: LinearLayout,
@@ -179,8 +182,15 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                 height = 0
                 weight = 1f
             }
-            marketChartLayout.supportResistanceButton.setBackgroundResource(R.drawable.cool_black_circle)
-            marketChartLayout.supportResistanceImg.setImageResource(R.drawable.close_ic_grey)
+
+            if (isFromTrendline){
+                marketChartLayout.trendlineButton.setBackgroundResource(R.drawable.cool_black_circle)
+                marketChartLayout.trendlineImg.setImageResource(R.drawable.close_ic_grey)
+            }else{
+                marketChartLayout.supportResistanceButton.setBackgroundResource(R.drawable.cool_black_circle)
+                marketChartLayout.supportResistanceImg.setImageResource(R.drawable.close_ic_grey)
+            }
+
             marketChartLayout.rotateToFullscreen.visibility = View.GONE
             isExpanded = true
         }
@@ -252,10 +262,29 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                 openSignUpBottomSheet(getSupportFragmentManager())
             }
         }
+        // MODIFIED S/R Button Listener
         marketChartLayout.supportResistanceButton.setOnClickListener {
             currentAnimator?.cancel()
+            // Set the mode in the ViewModel before opening the panel
+            viewModel.setAnalysisMode(AnalysisMode.SUPPORT_RESISTANCE)
+            analysisPanelManager.setMode(AnalysisMode.SUPPORT_RESISTANCE)
+
             if (!isExpanded) {
-                expandPanel(dragHandle, bottomSection, main, topSection, marketChartLayout)
+                expandPanel(false, dragHandle, bottomSection, main, topSection, marketChartLayout)
+            } else {
+                analysisPanelManager.collapsePanel()
+                isExpanded = false
+            }
+        }
+        // ADDED Trendline Button Listener
+        marketChartLayout.trendlineButton.setOnClickListener {
+            currentAnimator?.cancel()
+            // Set the mode for trendlines
+            viewModel.setAnalysisMode(AnalysisMode.TRENDLINES)
+            analysisPanelManager.setMode(AnalysisMode.TRENDLINES)
+
+            if (!isExpanded) {
+                expandPanel(true, dragHandle, bottomSection, main, topSection, marketChartLayout)
             } else {
                 analysisPanelManager.collapsePanel()
                 isExpanded = false
@@ -435,9 +464,59 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             }
         }
 
+        // Observer for S/R analysis (if you want a specific loader for it)
+        lifecycleScope.launch {
+            viewModel.isSRAnalysisInProgress.collect { isInProgress ->
+                // Handle S/R loading state if needed
+            }
+        }
+
         lifecycleScope.launch {
             viewModel.analysisStatus.collect { status ->
                 binding.loadingStatusText.text = status
+            }
+        }
+
+        // This observer controls the visibility of the in-panel loading/result states
+        lifecycleScope.launch {
+            viewModel.isTrendlineAnalysisInProgress.collect { isInProgress ->
+                val analysisPage = binding.analysispagelayout
+                if (isInProgress) {
+                    // Analysis has started, show the in-panel loading state
+                    analysisPage.numberPicker.visibility = View.GONE
+                    analysisPage.swipeToAnalyzeActionLayout.root.visibility = View.GONE
+
+                    analysisPage.trendlineAnalysisLayout.visibility = View.VISIBLE
+                    analysisPage.trendlineAnalysisLoadingState.visibility = View.VISIBLE
+                    analysisPage.trendlineAnalysisResults.visibility = View.GONE
+                }
+            }
+        }
+
+        // This observer updates the text of the in-panel loading state
+        lifecycleScope.launch {
+            viewModel.trendlineAnalysisStatus.collect { status ->
+                if (status.isNotEmpty()) {
+                    binding.analysispagelayout.loadingState.text = status
+                }
+            }
+        }
+
+        // This observer handles the final result
+        lifecycleScope.launch {
+            viewModel.trendlineChartUrl.collect { url ->
+                if (url != null) {
+                    val analysisPage = binding.analysispagelayout
+
+                    // Analysis is complete, hide the loader and show the result
+                    analysisPage.trendlineAnalysisLoadingState.visibility = View.GONE
+                    analysisPage.trendlineAnalysisResults.visibility = View.VISIBLE
+
+                    // Load the image from the URL into the ImageView
+                    Glide.with(this@SymbolMarketDataActivity)
+                        .load(url)
+                        .into(analysisPage.trendlineChart)
+                }
             }
         }
     }

@@ -6,6 +6,7 @@ import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import market.symbol.model.AnalysisResult
@@ -15,6 +16,12 @@ import market.symbol.repo.MarketUpdate
 import timber.log.Timber
 import java.util.Calendar
 import java.util.Date
+
+// Add this enum inside or outside the class
+enum class AnalysisMode {
+    SUPPORT_RESISTANCE,
+    TRENDLINES
+}
 
 class SymbolMarketDataViewModel(
     private val repository: MarketDataRepository
@@ -63,8 +70,30 @@ class SymbolMarketDataViewModel(
     private val _analysisStatus = MutableStateFlow("")
     val analysisStatus: StateFlow<String> = _analysisStatus
 
+    private val _isAnalyzingTrendlines = MutableStateFlow(false)
+    val isAnalyzingTrendlines: StateFlow<Boolean> = _isAnalyzingTrendlines.asStateFlow()
+
+    // --- State for Analysis Panel Mode ---
+    private val _analysisMode = MutableStateFlow(AnalysisMode.SUPPORT_RESISTANCE)
+    val analysisMode: StateFlow<AnalysisMode> = _analysisMode.asStateFlow()
+
+    // --- States for S/R Analysis ---
+    private val _isSRAnalysisInProgress = MutableStateFlow(false)
+    val isSRAnalysisInProgress: StateFlow<Boolean> = _isSRAnalysisInProgress.asStateFlow()
+    private val _srAnalysisStatus = MutableStateFlow("")
+    val srAnalysisStatus: StateFlow<String> = _srAnalysisStatus.asStateFlow()
     private val _analysisResult = MutableStateFlow<AnalysisResult?>(null)
     val analysisResult: StateFlow<AnalysisResult?> = _analysisResult
+
+    // --- States for Trendline Analysis ---
+    private val _isTrendlineAnalysisInProgress = MutableStateFlow(false)
+    val isTrendlineAnalysisInProgress: StateFlow<Boolean> = _isTrendlineAnalysisInProgress.asStateFlow()
+    private val _trendlineAnalysisStatus = MutableStateFlow("")
+    val trendlineAnalysisStatus: StateFlow<String> = _trendlineAnalysisStatus.asStateFlow()
+    private val _trendlineChartUrl = MutableStateFlow<String?>(null)
+    val trendlineChartUrl: StateFlow<String?> = _trendlineChartUrl.asStateFlow()
+
+    private var sseJob: Job? = null
 
     fun setSymbol(symbol: String) {
         if (currentSymbol == symbol) return
@@ -380,7 +409,20 @@ class SymbolMarketDataViewModel(
         }
     }
 
+    fun setAnalysisMode(mode: AnalysisMode) {
+        _analysisMode.value = mode
+        _analysisResult.value = null
+        _trendlineChartUrl.value = null
+    }
+
     fun startAnalysis(timeframe: String) {
+        when (_analysisMode.value) {
+            AnalysisMode.SUPPORT_RESISTANCE -> startSRAnalysis(timeframe)
+            AnalysisMode.TRENDLINES -> startTrendlineAnalysis(timeframe)
+        }
+    }
+
+    fun startSRAnalysis(timeframe: String) {
         val symbol = currentSymbol ?: return
         val firebaseUser = FirebaseAuth.getInstance().currentUser
         val userid = firebaseUser?.uid ?: return
@@ -404,6 +446,46 @@ class SymbolMarketDataViewModel(
                 _analysisResult.value = null // Clear previous results
             } finally {
                 _isAnalyzing.value = false // This will now happen immediately after rendering
+            }
+        }
+    }
+
+    private fun startTrendlineAnalysis(timeframe: String) {
+        val symbol = currentSymbol ?: return
+        val userid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+
+        sseJob?.cancel()
+        viewModelScope.launch {
+            _isTrendlineAnalysisInProgress.value = true // <<< This triggers the in-panel loading view
+            _trendlineAnalysisStatus.value = "Initiating..."
+            _trendlineChartUrl.value = null
+
+            val taskResponse = repository.startTrendlineAnalysisTask(userid, symbol, currentInterval, timeframe)
+
+            if (taskResponse != null) {
+                _trendlineAnalysisStatus.value = "Analysis in progress..."
+                sseJob = launch {
+                    repository.subscribeToAnalysisUpdates(taskResponse.analysisId)
+                        .catch { e ->
+                            _trendlineAnalysisStatus.value = "Stream error: ${e.message}"
+                            _isTrendlineAnalysisInProgress.value = false
+                        }
+                        .collect { update ->
+                            _trendlineAnalysisStatus.value = update.progress ?: update.status
+                            if (update.status == "completed") {
+                                _trendlineChartUrl.value = update.chartUrl // This triggers the result view
+                                _isTrendlineAnalysisInProgress.value = false
+                                sseJob?.cancel()
+                            } else if (update.status == "failed") {
+                                _trendlineAnalysisStatus.value = "Analysis failed: ${update.errorMessage}"
+                                _isTrendlineAnalysisInProgress.value = false
+                                sseJob?.cancel()
+                            }
+                        }
+                }
+            } else {
+                _trendlineAnalysisStatus.value = "Failed to start analysis."
+                _isTrendlineAnalysisInProgress.value = false
             }
         }
     }

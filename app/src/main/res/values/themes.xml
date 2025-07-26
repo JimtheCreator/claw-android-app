@@ -115,4 +115,9 @@
         <item name="android:textSize">16sp</item>
     </style>
 
+    <style name="RoundedCorners">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item> <!-- For circle, or use dp for rounded corners -->
+    </style>
+
 </resources>

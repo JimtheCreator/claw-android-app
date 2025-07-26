@@ -1,21 +1,27 @@
 package market.symbol.repo
 
+import backend.ApiService // Make sure ApiService is imported
+import com.google.gson.Gson
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import market.symbol.model.AnalysisProgressUpdate
+import market.symbol.model.AnalysisRequest
+import market.symbol.model.AnalysisTaskResponse
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.sse.EventSource
+import okhttp3.sse.EventSourceListener
+import okhttp3.sse.EventSources
 import android.util.Log
-import backend.ApiService
 import backend.MainClient
 import backend.WebSocketService
-import com.google.gson.Gson
 import com.google.gson.JsonObject
 import data.remote.WebSocketServiceImpl
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import market.symbol.model.AnalysisRequest
 import market.symbol.model.AnalysisResult
-import models.MarketDataEntity
-import okhttp3.OkHttpClient
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import java.text.SimpleDateFormat
@@ -298,6 +304,76 @@ class MarketDataRepository(
         } catch (e: Exception) {
             Log.e(TAG, "Exception in analyzeMarketData", e)
             null
+        }
+    }
+
+    // New function to start the trendline analysis task
+    // Fixed version if startTrendlineAnalysis returns Call<AnalysisTaskResponse>
+    suspend fun startTrendlineAnalysisTask(
+        userid: String,
+        symbol: String,
+        interval: String,
+        timeframe: String
+    ): AnalysisTaskResponse? = withContext(Dispatchers.IO) {
+        val request = AnalysisRequest(userid, symbol, interval, timeframe)
+        try {
+            // Add .execute() to make the call synchronously
+            val response = apiService.startTrendlineAnalysis(request).execute()
+            if (response.isSuccessful) {
+                response.body()
+            } else {
+                Log.e(TAG, "Trendline Analysis API Error: ${response.code()} - ${response.message()}")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception in startTrendlineAnalysisTask", e)
+            null
+        }
+    }
+
+    // New function to subscribe to SSE updates
+    fun subscribeToAnalysisUpdates(analysisId: String): Flow<AnalysisProgressUpdate> {
+        return callbackFlow {
+            Log.d(TAG, "Connecting to SSE for analysis ID: $analysisId")
+            // IMPORTANT: Replace "http://your_backend_ip:port" with your actual backend URL
+            val sseUrl = "https://stable-wholly-crappie.ngrok-free.app/api/v1/analyze/trendlines/progress/sse/$analysisId"
+
+            val sseClient = OkHttpClient.Builder()
+                .readTimeout(0, java.util.concurrent.TimeUnit.MINUTES) // Essential for long-lived connections
+                .build()
+
+            val request = Request.Builder().url(sseUrl).build()
+
+            val listener = object : EventSourceListener() {
+                override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
+                    Log.d(TAG, "SSE event received: $data")
+                    try {
+                        val update = gson.fromJson(data, AnalysisProgressUpdate::class.java)
+                        trySend(update)
+                        if (update.status == "completed" || update.status == "failed") {
+                            close() // Close the flow on final message
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing SSE message", e)
+                    }
+                }
+
+                override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
+                    Log.e(TAG, "SSE connection failed", t)
+                    close(t ?: IllegalStateException("SSE failed with response: ${response?.message}"))
+                }
+
+                override fun onClosed(eventSource: EventSource) {
+                    Log.d(TAG, "SSE connection closed for $analysisId")
+                }
+            }
+
+            val eventSource = EventSources.createFactory(sseClient).newEventSource(request, listener)
+
+            awaitClose {
+                Log.d(TAG, "Closing SSE flow for $analysisId")
+                eventSource.cancel()
+            }
         }
     }
 

@@ -16,6 +16,7 @@ import backend.results.NativeCheckoutResponse;
 import io.reactivex.Completable;
 import market.symbol.model.AnalysisRequest;
 import market.symbol.model.AnalysisResult;
+import market.symbol.model.AnalysisTaskResponse;
 import models.CachedSymbol;
 import models.Pattern;
 import models.PatternAlert;
@@ -85,6 +86,11 @@ public interface ApiService {
 
     @POST("analyze/sr")
     Call<AnalysisResult> analyzeMarket(
+            @Body AnalysisRequest request
+    );
+
+    @POST("analyze/trendlines")
+    Call<AnalysisTaskResponse> startTrendlineAnalysis(
             @Body AnalysisRequest request
     );
 

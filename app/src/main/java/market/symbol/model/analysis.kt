@@ -29,6 +29,25 @@ data class AnalysisResult(
 )
 
 /**
+ * Represents the response from POST /analyze/trendlines
+ */
+data class AnalysisTaskResponse(
+    @SerializedName("analysis_id") val analysisId: String,
+    val message: String
+)
+
+/**
+ * Represents a single event message from the SSE stream.
+ */
+data class AnalysisProgressUpdate(
+    @SerializedName("analysis_id") val analysisId: String,
+    val status: String,
+    val progress: String? = null,
+    @SerializedName("chart_url") val chartUrl: String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+/**
  * Represents a single support or resistance level.
  */
 data class Level(
