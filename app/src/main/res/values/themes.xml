@@ -120,4 +120,22 @@
         <item name="cornerSize">50%</item> <!-- For circle, or use dp for rounded corners -->
     </style>
 
+    <style name="DarkDialogTheme" parent="ThemeOverlay.AppCompat.Dialog.Alert">
+        <item name="android:windowBackground">@color/black_shade</item>
+        <item name="android:textColorPrimary">@color/white</item>
+    </style>
+
+
+    <style name="ModernDialogTheme" parent="Theme.MaterialComponents.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="colorPrimary">@color/black_shade</item>
+        <item name="colorPrimaryVariant">@color/gray_inactive</item>
+        <item name="colorOnPrimary">@color/dark_beige</item>
+    </style>
+
+    <style name="DialogAnimation">
+        <item name="android:windowEnterAnimation">@android:anim/fade_in</item>
+        <item name="android:windowExitAnimation">@android:anim/fade_out</item>
+    </style>
+
 </resources>

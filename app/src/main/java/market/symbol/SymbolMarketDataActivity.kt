@@ -2,6 +2,10 @@ package market.symbol
 
 import accounts.SignUpBottomSheet
 import android.animation.ValueAnimator
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -14,8 +18,11 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.fragment.app.FragmentManager
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator
 import androidx.lifecycle.ViewModel
@@ -25,6 +32,7 @@ import androidx.transition.AutoTransition
 import androidx.transition.TransitionManager
 import bottomsheets.PriceAlertsBottomSheetFragment
 import com.bumptech.glide.Glide
+import com.bumptech.glide.manager.TargetTracker
 import com.claw.ai.R
 import com.claw.ai.databinding.ActivitySymbolMarketDataBinding
 import com.claw.ai.databinding.MarketChartBinding
@@ -34,8 +42,10 @@ import com.google.firebase.auth.FirebaseUser
 import com.tradingview.lightweightcharts.api.series.models.Time
 import com.tradingview.lightweightcharts.api.series.models.TimeRange
 import factory.HomeViewModelFactory
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import market.symbol.repo.MarketDataRepository
 import market.symbol.ui.analysis.AnalysisPanelManager
 import market.symbol.ui.market_chart.ChartManager
@@ -44,6 +54,7 @@ import market.symbol.viewmodel.SymbolMarketDataViewModel
 import model_interfaces.OnWatchlistActionListener
 import models.Symbol
 import viewmodels.HomeViewModel
+import java.io.File
 import java.util.Locale
 
 class SymbolMarketDataActivity : AppCompatActivity() {
@@ -59,8 +70,20 @@ class SymbolMarketDataActivity : AppCompatActivity() {
     private var initialChange: Double? = null
     private val LOAD_MORE_COOLDOWN_MS = 3000L
     private var lastLoadMoreTime = 0L
-
     private lateinit var analysisPanelManager: AnalysisPanelManager
+    private var onPermissionGrantedCallback: (() -> Unit)? = null
+
+    // 1. Add the permission launcher as a property of your Activity
+    private val requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
+            if (isGranted) {
+                // Permission was granted, run the action that was waiting for it
+                onPermissionGrantedCallback?.invoke()
+                onPermissionGrantedCallback = null // Clear the callback
+            } else {
+                // Permission was denied. Inform the user.
+                Toast.makeText(this, "Storage permission is required to save the image.", Toast.LENGTH_LONG).show()
+            }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -183,10 +206,10 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                 weight = 1f
             }
 
-            if (isFromTrendline){
+            if (isFromTrendline) {
                 marketChartLayout.trendlineButton.setBackgroundResource(R.drawable.cool_black_circle)
                 marketChartLayout.trendlineImg.setImageResource(R.drawable.close_ic_grey)
-            }else{
+            } else {
                 marketChartLayout.supportResistanceButton.setBackgroundResource(R.drawable.cool_black_circle)
                 marketChartLayout.supportResistanceImg.setImageResource(R.drawable.close_ic_grey)
             }
@@ -387,17 +410,7 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                     if (isInWatchlist) View.GONE else View.VISIBLE
             }
         }
-        lifecycleScope.launch {
-            viewModel.candles.collectLatest { candles ->
-                if (candles.isNotEmpty()) {
-                    chartManager.setCandleData(candles)
-                    chartManager.setVolumeData(candles)
-                } else {
-                    chartManager.setCandleData(emptyList())
-                    chartManager.setVolumeData(emptyList())
-                }
-            }
-        }
+
         lifecycleScope.launch {
             viewModel.hasInitialDataLoaded.collect { hasLoaded ->
                 if (hasLoaded) {
@@ -502,22 +515,199 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             }
         }
 
-        // This observer handles the final result
         lifecycleScope.launch {
-            viewModel.trendlineChartUrl.collect { url ->
-                if (url != null) {
-                    val analysisPage = binding.analysispagelayout
-
-                    // Analysis is complete, hide the loader and show the result
-                    analysisPage.trendlineAnalysisLoadingState.visibility = View.GONE
-                    analysisPage.trendlineAnalysisResults.visibility = View.VISIBLE
-
-                    // Load the image from the URL into the ImageView
-                    Glide.with(this@SymbolMarketDataActivity)
-                        .load(url)
-                        .into(analysisPage.trendlineChart)
+            viewModel.candles.collect { candles ->
+                if (candles.isEmpty()) {
+                    chartManager.clearAnalysis()
                 }
             }
+        }
+
+        lifecycleScope.launch {
+            viewModel.candlestickData.collectLatest { data ->
+                chartManager.setCandleData(data)
+            }
+        }
+
+        lifecycleScope.launch {
+            viewModel.volumeData.collectLatest { data ->
+                chartManager.setVolumeData(data)
+            }
+        }
+
+        lifecycleScope.launch {
+            viewModel.trendlineChartUrl.collect { url ->
+                if (url == null) return@collect
+
+                val analysisPage = binding.analysispagelayout
+
+                // 1. Show a loading state while we generate the composite image.
+                analysisPage.trendlineAnalysisLoadingState.visibility = View.VISIBLE
+                analysisPage.trendlineAnalysisResults.visibility = View.GONE
+                analysisPage.loadingState.text = "Generating your chart..."
+
+                // 2. Launch a background coroutine for image processing.
+                lifecycleScope.launch {
+                    // 2a. Download the raw chart image from the backend.
+                    val chartImageUri = downloadAndCacheImageFromUrl(this@SymbolMarketDataActivity, url)
+
+                    if (chartImageUri != null) {
+                        // 2b. Get data needed for the composite image header.
+                        val symbolText = symbol ?: "N/A"
+                        val intervalText = viewModel.interval.value
+                        // ✅ FIX: Get the actual selected timeframe from the ViewModel
+                        val timeframeText = viewModel.selectedAnalysisTimeframe.value
+
+                        // 2c. Create the final composite image.
+                        val compositeImageUri = createCompositeAnalysisImage(
+                            this@SymbolMarketDataActivity,
+                            chartImageUri,
+                            symbolText,
+                            intervalText,
+                            timeframeText
+                        )
+
+                        // 3. Switch back to the main thread to update the UI.
+                        withContext(Dispatchers.Main) {
+                            if (compositeImageUri != null) {
+                                // 4. Give the final URI to the panel manager for sharing/saving.
+                                analysisPanelManager.setAnalysisImageUris(
+                                    compositeUri = compositeImageUri,
+                                    rawChartUri = chartImageUri
+                                )
+
+                                // 5. Hide the loader and show the final result.
+                                analysisPage.trendlineAnalysisLoadingState.visibility = View.GONE
+                                analysisPage.trendlineAnalysisResults.visibility = View.VISIBLE
+
+                                // 6. Load the final composite image into the ImageView.
+                                Glide.with(this@SymbolMarketDataActivity)
+                                    .load(compositeImageUri)
+                                    .into(analysisPage.trendlineChart)
+
+                                // 7. HIDE the on-screen header and footer to prevent duplication.
+                                analysisPage.analysisHeader.visibility = View.GONE
+                                analysisPage.analysisFooter.visibility = View.GONE
+                            } else {
+                                // Handle failure in creating the composite image.
+                                analysisPage.trendlineAnalysisLoadingState.visibility = View.GONE
+                                Toast.makeText(this@SymbolMarketDataActivity, "Failed to create analysis chart.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    } else {
+                        // Handle failure in downloading the initial chart.
+                        withContext(Dispatchers.Main) {
+                            analysisPage.trendlineAnalysisLoadingState.visibility = View.GONE
+                            Toast.makeText(this@SymbolMarketDataActivity, "Failed to load analysis chart.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Downloads an image from a URL using Glide and saves it to the app's private cache.
+     * @param context The application context.
+     * @param url The URL of the image to download.
+     * @return A content URI for the cached file, or null on failure.
+     */
+    private suspend fun downloadAndCacheImageFromUrl(context: Context, url: String): Uri? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val file = Glide.with(context).asFile().load(url).submit().get()
+                val cachePath = File(context.cacheDir, "raw_charts")
+                cachePath.mkdirs()
+                val destFile = File(cachePath, "raw_chart_${System.currentTimeMillis()}.png")
+                file.copyTo(destFile, overwrite = true)
+                FileProvider.getUriForFile(context, "${context.packageName}.provider", destFile)
+            } catch (e: Exception) {
+                Log.e("ImageCache", "Failed to cache image from URL", e)
+                null
+            }
+        }
+    }
+
+    // --- COMPLETELY REWRITTEN FUNCTION ---
+    private suspend fun createCompositeAnalysisImage(
+        context: Context,
+        chartImageUri: Uri,
+        symbol: String,
+        interval: String,
+        timeframe: String
+    ): Uri? = withContext(Dispatchers.IO) {
+        try {
+            // 1. Inflate the layout that contains the header, image, and footer
+            val viewToCapture = withContext(Dispatchers.Main) {
+                LayoutInflater.from(context).inflate(R.layout.analysispage, null)
+                    .findViewById<LinearLayout>(R.id.trendline_analysis_image_frame)
+            }
+            val header = viewToCapture.findViewById<LinearLayout>(R.id.analysis_header)
+            val footer = viewToCapture.findViewById<LinearLayout>(R.id.analysis_footer)
+            val chartImageView = viewToCapture.findViewById<android.widget.ImageView>(R.id.trendline_chart)
+
+            // 2. Load the downloaded chart and scale it
+            val originalChartBitmap = Glide.with(context).asBitmap().load(chartImageUri).submit().get()
+            val targetWidth = 1080 // Standard width for a high-quality image
+            val scale = targetWidth.toFloat() / originalChartBitmap.width
+            val targetChartHeight = (originalChartBitmap.height * scale).toInt()
+            val scaledChartBitmap = Bitmap.createScaledBitmap(originalChartBitmap, targetWidth, targetChartHeight, true)
+
+            var finalHeight = 0
+
+            // 3. Populate, measure, and layout the views on the Main thread
+            withContext(Dispatchers.Main) {
+                // Populate header text
+                header.findViewById<TextView>(R.id.symbol).text = symbol.uppercase()
+                header.findViewById<TextView>(R.id.interval_analyzed).text = "$interval Chart"
+                header.findViewById<TextView>(R.id.timeframe_of_the_analysis).text = "Last $timeframe Trendline-Analysis"
+
+                // **FIX STARTS HERE**
+
+                // A. Apply the scaled bitmap to the ImageView
+                chartImageView.setImageBitmap(scaledChartBitmap)
+
+                // B. Explicitly set the ImageView's layout params to match the bitmap dimensions
+                val imageLayoutParams = LinearLayout.LayoutParams(targetWidth, targetChartHeight)
+                chartImageView.layoutParams = imageLayoutParams
+
+                // C. Measure the entire container view to ensure all children get their correct size
+                val widthSpec = View.MeasureSpec.makeMeasureSpec(targetWidth, View.MeasureSpec.EXACTLY)
+                val heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                viewToCapture.measure(widthSpec, heightSpec)
+
+                // D. Get the final measured height of the container
+                finalHeight = viewToCapture.measuredHeight
+
+                // E. Layout the view to its final measured size
+                viewToCapture.layout(0, 0, viewToCapture.measuredWidth, finalHeight)
+
+                // **FIX ENDS HERE**
+            }
+
+            // 4. Create the final bitmap and canvas
+            val finalBitmap = Bitmap.createBitmap(targetWidth, finalHeight, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(finalBitmap)
+
+            // Draw a dark background that matches the UI theme
+            canvas.drawColor(ContextCompat.getColor(context, R.color.darkTheme))
+
+            // 5. Draw the now-correctly-laid-out view onto our canvas
+            withContext(Dispatchers.Main) {
+                viewToCapture.draw(canvas)
+            }
+
+            // 6. Save the final bitmap to cache and return its URI
+            val cachePath = File(context.cacheDir, "analysis_exports")
+            cachePath.mkdirs()
+            val destFile = File(cachePath, "Watchers_Analysis_${System.currentTimeMillis()}.png")
+            destFile.outputStream().use {
+                finalBitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+            }
+            FileProvider.getUriForFile(context, "${context.packageName}.provider", destFile)
+        } catch (e: Exception) {
+            Log.e("CompositeImage", "Failed to create composite image", e)
+            null
         }
     }
 
@@ -601,6 +791,12 @@ class SymbolMarketDataActivity : AppCompatActivity() {
     }
 
     private fun scrollChartToTimeframe(timeframe: String) {
+        // FIX: Add a guard clause to prevent scrolling while the chart is loading data.
+        if (viewModel.isLoading.value) {
+            Log.d("ChartDebug", "Skipping scroll: Chart is loading new data.")
+            return
+        }
+
         val timeframeMinutes = parseTimeframeToMinutes(timeframe) ?: return
         val currentTimeMillis = System.currentTimeMillis()
         val targetTimeMillis = currentTimeMillis - (timeframeMinutes * 60 * 1000L)
@@ -627,8 +823,15 @@ class SymbolMarketDataActivity : AppCompatActivity() {
 
         Log.d("ChartDebug", "Setting visible range from $fromTime to $toTime")
 
-        binding.marketChartLayout.candlesStickChart.api.timeScale.setVisibleRange(timeRange)
-
+        // FIX: Wrap the call in a try-catch block to prevent the crash during re-initialization.
+        try {
+            binding.marketChartLayout.candlesStickChart.api.timeScale.setVisibleRange(timeRange)
+        } catch (e: IllegalStateException) {
+            Log.e("ChartDebug", "Failed to set visible range. Chart might be re-initializing.", e)
+            // This error can be ignored. The chart is not ready for a scroll operation,
+            // likely due to an orientation change or rapid tab switching. The app will not crash,
+            // and the chart will render correctly once its data is loaded.
+        }
     }
 
     private fun parseTimeframeToMinutes(timeframe: String): Long? {
@@ -650,14 +853,19 @@ class SymbolMarketDataActivity : AppCompatActivity() {
     }
 
     private fun initializeAnalysisPanelManager() {
-        // Ensure viewModel and chartManager are initialized before this function is called.
         analysisPanelManager = AnalysisPanelManager(
             binding,
             { selectedTimeframe ->
                 scrollChartToTimeframe(selectedTimeframe)
             },
-            viewModel, // Pass the viewModel instance
-            chartManager // Pass the chartManager instance
+            viewModel,
+            chartManager,
+            this.onBackPressedDispatcher, // Pass the activity's dispatcher
+            this, // The activity itself is a LifecycleOwner
+            onPermissionNeeded = { actionToRunAfterPermission ->
+                this.onPermissionGrantedCallback = actionToRunAfterPermission
+                requestPermissionLauncher.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
         )
     }
 

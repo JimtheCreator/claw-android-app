@@ -1,34 +1,58 @@
 package market.symbol.ui.analysis
 
 import android.animation.ObjectAnimator
-import android.graphics.Color
-import android.graphics.Paint
+import android.app.Activity
+import android.content.ContentValues
+import android.content.Context
+import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
+import android.media.MediaScannerConnection
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import android.util.TypedValue
+import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
+import android.widget.Button
 import android.widget.EditText
-import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.NumberPicker
+import android.widget.Spinner
+import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.OnBackPressedDispatcher
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator
+import androidx.lifecycle.LifecycleOwner
 import androidx.transition.AutoTransition
 import androidx.transition.TransitionManager
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.Target
 import com.claw.ai.R
 import com.claw.ai.databinding.ActivitySymbolMarketDataBinding
-import com.facebook.shimmer.ShimmerFrameLayout
 import market.symbol.ui.market_chart.ChartManager
 import market.symbol.viewmodel.AnalysisMode
 import market.symbol.viewmodel.SymbolMarketDataViewModel
+import java.io.File
+import java.io.IOException
+import java.util.Locale
 
 class AnalysisPanelManager(
     private val binding: ActivitySymbolMarketDataBinding,
     private val onTimeframeSelectedForAnalysis: (String) -> Unit,
     private val viewModel: SymbolMarketDataViewModel,
-    private val chartManager: ChartManager
+    private val chartManager: ChartManager,
+    private val onBackPressedDispatcher: OnBackPressedDispatcher,
+    private val lifecycleOwner: LifecycleOwner,
+    private val onPermissionNeeded: (callback: () -> Unit) -> Unit
 ) {
     private val context = binding.root.context
     private val analysisLayout = binding.analysispagelayout
@@ -37,15 +61,15 @@ class AnalysisPanelManager(
     private val chartFrame = binding.marketChartLayout.frame
     private var currentInterval: String = "1m"
 
-    // NumberPicker reference
     private val numberPicker = binding.analysispagelayout.numberPicker
     private var timeframeOptions: Array<String> = emptyArray()
 
-    // References for the iOS-style swipe control
-    private val swipeContainer = binding.analysispagelayout.swipeToAnalyzeActionLayout.swipeToAnalyzeContainer
+    private val swipeContainer =
+        binding.analysispagelayout.swipeToAnalyzeActionLayout.swipeToAnalyzeContainer
     private val swipeThumb = binding.analysispagelayout.swipeToAnalyzeActionLayout.swipeThumb
     private val swipeText = binding.analysispagelayout.swipeToAnalyzeActionLayout.swipeToAnalyzeText
-    private val shimmerContainer = binding.analysispagelayout.swipeToAnalyzeActionLayout.shimmerViewContainer
+    private val shimmerContainer =
+        binding.analysispagelayout.swipeToAnalyzeActionLayout.shimmerViewContainer
 
     private val main = binding.main
     private val dragHandle = binding.dragHandle
@@ -56,12 +80,157 @@ class AnalysisPanelManager(
 
     private var currentMode: AnalysisMode = AnalysisMode.SUPPORT_RESISTANCE
 
-    init {
-        setupNumberPicker()
-        setupSwipeToAnalyzeListener()
+    private var isChartInFullscreen = false
+
+    private var highResImageUri: Uri? = null
+    private var compositeImageUri: Uri? = null
+    private var rawChartUri: Uri? = null
+
+    private val backPressedCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            if (isChartInFullscreen) {
+                exitFullscreen()
+            }
+        }
     }
 
-    // New function to set the panel's mode and update UI accordingly
+    init {
+        setupNumberPicker()
+        styleNumberPicker(numberPicker, ContextCompat.getColor(context, R.color.off_white))
+        setupSwipeToAnalyzeListener()
+        onClickHandler()
+        onBackPressedDispatcher.addCallback(lifecycleOwner, backPressedCallback)
+    }
+
+    fun setAnalysisImageUris(compositeUri: Uri, rawChartUri: Uri) {
+        this.compositeImageUri = compositeUri
+        this.rawChartUri = rawChartUri
+    }
+
+    private fun onClickHandler() {
+        analysisLayout.rotateToLandscape.setOnClickListener {
+            enterFullscreen()
+        }
+
+        analysisLayout.clickToDownload.setOnClickListener {
+            compositeImageUri?.let { uri ->
+                val saveAction = { saveImageUriToGallery(context, uri) }
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && ContextCompat.checkSelfPermission(
+                        context,
+                        android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    ) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    onPermissionNeeded(saveAction)
+                } else {
+                    saveAction()
+                }
+            } ?: Toast.makeText(context, "Image not yet available to save.", Toast.LENGTH_SHORT)
+                .show()
+        }
+
+        analysisLayout.shareToSocials.setOnClickListener {
+            compositeImageUri?.let { uri ->
+                shareImageUri(context, uri)
+            } ?: Toast.makeText(context, "Image not yet available to share.", Toast.LENGTH_SHORT)
+                .show()
+        }
+    }
+
+    private fun enterFullscreen() {
+        rawChartUri?.let { uri ->
+            isChartInFullscreen = true
+            backPressedCallback.isEnabled = true
+            binding.fullscreenContainer.visibility = View.VISIBLE
+            Glide.with(context)
+                .load(uri)
+                .override(Target.SIZE_ORIGINAL)
+                .fitCenter()
+                .into(binding.fullscreenImage)
+            binding.main.visibility = View.GONE
+            (context as? Activity)?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        } ?: Toast.makeText(context, "Chart not available for fullscreen.", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun exitFullscreen() {
+        isChartInFullscreen = false
+        backPressedCallback.isEnabled = false
+        binding.fullscreenContainer.visibility = View.GONE
+        binding.main.visibility = View.VISIBLE
+        (context as? Activity)?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+    }
+
+    private fun saveImageUriToGallery(context: Context, imageUri: Uri) {
+        val resolver = context.contentResolver
+        val displayName = "Watchers_Trendline_Analysis_${System.currentTimeMillis()}.png"
+        val contentValues = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+            put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+            put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis() / 1000)
+            put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Watchers Trendline Analysis")
+                put(MediaStore.Images.Media.IS_PENDING, 1)
+            } else {
+                val picturesDir =
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                val albumDir = File(picturesDir, "Watchers Trendline Analysis")
+                if (!albumDir.exists()) albumDir.mkdirs()
+                val imageFile = File(albumDir, displayName)
+                put(MediaStore.Images.Media.DATA, imageFile.absolutePath)
+            }
+        }
+        val imageCollection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        } else {
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        }
+        var newImageUri: Uri? = null
+        try {
+            newImageUri = resolver.insert(imageCollection, contentValues)
+            newImageUri?.let { destUri ->
+                resolver.openOutputStream(destUri)?.use { outputStream ->
+                    resolver.openInputStream(imageUri)?.use { inputStream ->
+                        inputStream.copyTo(outputStream)
+                    } ?: throw IOException("Failed to open input stream from cached URI.")
+                } ?: throw IOException("Failed to get output stream for gallery.")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    contentValues.clear()
+                    contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+                    resolver.update(destUri, contentValues, null, null)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    MediaScannerConnection.scanFile(context, arrayOf(destUri.toString()), arrayOf("image/png"), null)
+                } else {
+                    val projection = arrayOf(MediaStore.Images.Media.DATA)
+                    resolver.query(destUri, projection, null, null, null)?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val columnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
+                            val filePath = cursor.getString(columnIndex)
+                            MediaScannerConnection.scanFile(context, arrayOf(filePath), arrayOf("image/png")) { path, uri ->
+                                Log.d("GallerySave", "Scan completed for: $path")
+                            }
+                        }
+                    }
+                }
+                Toast.makeText(context, "Saved to Gallery in 'Watchers Trendline Analysis' album.", Toast.LENGTH_LONG).show()
+                Log.d("GallerySave", "Image saved successfully to: $destUri")
+            } ?: throw IOException("Failed to create MediaStore record.")
+        } catch (e: Exception) {
+            newImageUri?.let { resolver.delete(it, null, null) }
+            Toast.makeText(context, "Failed to save image: ${e.message}", Toast.LENGTH_SHORT).show()
+            Log.e("GallerySave", "Error saving image URI", e)
+        }
+    }
+
+    private fun shareImageUri(context: Context, imageUri: Uri) {
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "image/png"
+            putExtra(Intent.EXTRA_STREAM, imageUri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Share Chart"))
+    }
+
     fun setMode(mode: AnalysisMode) {
         this.currentMode = mode
         val title = when (mode) {
@@ -69,37 +238,15 @@ class AnalysisPanelManager(
             AnalysisMode.TRENDLINES -> "Trendline Analysis"
         }
         analysisLayout.analysisType.text = title
-
-        // Reset views: hide results and show the input selectors
         analysisLayout.trendlineAnalysisLayout.visibility = View.GONE
         analysisLayout.numberPicker.visibility = View.VISIBLE
         analysisLayout.swipeToAnalyzeActionLayout.root.visibility = View.VISIBLE
-
         resetSwipeState()
-    }
-
-    private fun setupNumberPicker() {
-        numberPicker.apply {
-            // Disable keyboard input and focus
-            descendantFocusability = NumberPicker.FOCUS_BLOCK_DESCENDANTS
-
-            // Disable infinite scroll (wrapping)
-            wrapSelectorWheel = false
-
-            // Set value change listener
-            setOnValueChangedListener { _, _, newVal ->
-                if (timeframeOptions.isNotEmpty() && newVal < timeframeOptions.size) {
-                    selectedTimeframe = timeframeOptions[newVal]
-                    onTimeframeSelectedForAnalysis(selectedTimeframe!!)
-                }
-            }
-        }
     }
 
     private fun setupSwipeToAnalyzeListener() {
         var initialTouchX = 0f
         var initialThumbX = 0f
-
         swipeThumb.setOnTouchListener { view, event ->
             val maxTranslationX = (swipeContainer.width - swipeThumb.width).toFloat()
             when (event.action) {
@@ -122,20 +269,12 @@ class AnalysisPanelManager(
                     val threshold = maxTranslationX * 0.75
                     if (swipeThumb.translationX >= threshold) {
                         val timeframe = selectedTimeframe ?: getDefaultTimeframeForInterval()
-
-                        // ✅ **THE FIX: Conditionally collapse the panel**
                         if (currentMode == AnalysisMode.TRENDLINES) {
-                            // For Trendlines, just start the analysis. The panel stays open.
-                            // The Activity's observers will replace the swiper with the loader.
                             viewModel.startAnalysis(timeframe)
                         } else {
-                            // For S/R analysis, collapse the panel as before.
-                            collapsePanel {
-                                viewModel.startAnalysis(timeframe)
-                            }
+                            collapsePanel { viewModel.startAnalysis(timeframe) }
                         }
                     } else {
-                        // Swipe was not completed, reset the thumb's position.
                         resetSwipeState(animated = true)
                     }
                     true
@@ -147,9 +286,7 @@ class AnalysisPanelManager(
 
     private fun getDefaultTimeframeForInterval(): String {
         return when (currentInterval) {
-            "1m" -> "1h"
-            "5m" -> "1h"
-            "15m" -> "1h"
+            "1m", "5m", "15m" -> "1h"
             "30m" -> "4h"
             "1h", "2h" -> "1d"
             "1d" -> "1w"
@@ -188,56 +325,251 @@ class AnalysisPanelManager(
         shimmerContainer.startShimmer()
     }
 
+    private fun setupNumberPicker() {
+        numberPicker.apply {
+            descendantFocusability = NumberPicker.FOCUS_BLOCK_DESCENDANTS
+            wrapSelectorWheel = false
+            setOnValueChangedListener { _, _, newVal ->
+                if (timeframeOptions.isNotEmpty() && newVal < timeframeOptions.size) {
+                    val selected = timeframeOptions[newVal]
+                    if (selected == "Create Custom") {
+                        showCustomTimeframeDialog()
+                    } else {
+                        selectedTimeframe = selected
+                        onTimeframeSelectedForAnalysis(selectedTimeframe!!)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showCustomTimeframeDialog() {
+        val dialogView = LayoutInflater.from(context).inflate(R.layout.custom_timeframe_dialog, null)
+        val numberInputLayout = dialogView.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.custom_timeframe_number_layout)
+        val numberEditText = dialogView.findViewById<EditText>(R.id.custom_timeframe_number)
+        val unitSpinner = dialogView.findViewById<Spinner>(R.id.custom_timeframe_unit)
+        val okButton = dialogView.findViewById<Button>(R.id.custom_timeframe_ok)
+        val allowedRangeText = dialogView.findViewById<android.widget.TextView>(R.id.allowed_range_text)
+
+        val units = arrayOf("minutes", "hours", "days", "weeks", "months", "years")
+        val unitAdapter = ArrayAdapter(context, R.layout.spinner_item, units).apply {
+            setDropDownViewResource(R.layout.spinner_item)
+        }
+        unitSpinner.adapter = unitAdapter
+
+        val (minWindow, maxWindow) = intervalLimits[currentInterval] ?: Pair(0, 0)
+        val intervalMinutes = parseTimeframeToMinutes(currentInterval) ?: 1L
+        val minTotalMinutes = minWindow * intervalMinutes
+        val maxTotalMinutes = maxWindow * intervalMinutes
+
+        unitSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selectedUnit = units[position]
+                val conversionFactor = when (selectedUnit) {
+                    "minutes" -> 1.0
+                    "hours" -> 60.0
+                    "days" -> 1440.0
+                    "weeks" -> 10080.0
+                    "months" -> 43800.0
+                    "years" -> 525600.0
+                    else -> 1.0
+                }
+
+                val minValue = minTotalMinutes / conversionFactor
+                val maxValue = maxTotalMinutes / conversionFactor
+
+                val minStr = if (minValue == minValue.toLong().toDouble()) minValue.toLong().toString() else String.format(Locale.US, "%.2f", minValue)
+                val maxStr = if (maxValue == maxValue.toLong().toDouble()) maxValue.toLong().toString() else String.format(Locale.US, "%.2f", maxValue)
+
+                allowedRangeText.text = "Allowed range: $minStr to $maxStr $selectedUnit"
+            }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
+        }
+
+        val dialog = AlertDialog.Builder(context, R.style.ModernDialogTheme)
+            .setView(dialogView)
+            .setTitle("Custom Timeframe")
+            .setNegativeButton("Cancel", null)
+            .create()
+
+        okButton.setOnClickListener {
+            val numberStr = numberEditText.text.toString()
+            val unit = units[unitSpinner.selectedItemPosition]
+
+            if (numberStr.isEmpty()) {
+                numberInputLayout.error = "Please enter a number"
+                return@setOnClickListener
+            }
+
+            val number = numberStr.toLongOrNull()
+            if (number == null || number <= 0) {
+                numberInputLayout.error = "Invalid number"
+                return@setOnClickListener
+            }
+
+            val unitMultiplier = when (unit) {
+                "minutes" -> 1.0
+                "hours" -> 60.0
+                "days" -> 1440.0
+                "weeks" -> 10080.0
+                "months" -> 43800.0
+                "years" -> 525600.0
+                else -> 1.0
+            }
+
+            val customMinutes = number * unitMultiplier
+            if (customMinutes < minTotalMinutes || customMinutes > maxTotalMinutes) {
+                val minValue = minTotalMinutes / unitMultiplier
+                val maxValue = maxTotalMinutes / unitMultiplier
+                val minStr = if (minValue == minValue.toLong().toDouble()) minValue.toLong().toString() else String.format(Locale.US, "%.2f", minValue)
+                val maxStr = if (maxValue == maxValue.toLong().toDouble()) maxValue.toLong().toString() else String.format(Locale.US, "%.2f", maxValue)
+                numberInputLayout.error = "Enter a number between $minStr and $maxStr"
+                return@setOnClickListener
+            }
+
+            numberInputLayout.error = null
+            val unitCode = when (unit) {
+                "minutes" -> "m"
+                "hours" -> "h"
+                "days" -> "d"
+                "weeks" -> "w"
+                "months" -> "M"
+                "years" -> "y"
+                else -> ""
+            }
+
+            val customTimeframe = "$number$unitCode"
+            selectedTimeframe = customTimeframe
+            onTimeframeSelectedForAnalysis(selectedTimeframe!!)
+
+            // --- REVISED LOGIC TO RE-ADD "CREATE CUSTOM" ---
+            val newList = timeframeOptions.toMutableList()
+            newList.remove("Create Custom") // Temporarily remove it
+            if (customTimeframe !in newList) {
+                newList.add(customTimeframe)
+            }
+            // Sort the list logically by duration
+            newList.sortWith(compareBy { parseTimeframeToMinutes(it) ?: Long.MAX_VALUE })
+            newList.add("Create Custom") // Add it back at the end
+
+            timeframeOptions = newList.toTypedArray()
+
+            // Update the NumberPicker without lag
+            numberPicker.displayedValues = null
+            numberPicker.maxValue = timeframeOptions.size - 1
+            numberPicker.displayedValues = timeframeOptions.map { if (it == "Create Custom") it else "Last $it" }.toTypedArray()
+
+            // Set the picker's value to the newly created timeframe
+            val newIndex = timeframeOptions.indexOf(customTimeframe)
+            if (newIndex != -1) {
+                numberPicker.value = newIndex
+            }
+
+            dialog.dismiss()
+        }
+
+        unitSpinner.setSelection(0, false)
+        (unitSpinner.onItemSelectedListener as? android.widget.AdapterView.OnItemSelectedListener)
+            ?.onItemSelected(null, null, 0, 0L)
+
+        dialog.show()
+        dialog.window?.attributes?.windowAnimations = R.style.DialogAnimation
+
+        val layoutParams = dialog.window?.attributes
+        layoutParams?.width = (context.resources.displayMetrics.widthPixels * 0.9).toInt()
+        dialog.window?.attributes = layoutParams
+    }
+
+    private val intervalLimits = mapOf(
+        "1m" to Pair(120, 300),
+        "5m" to Pair(72, 300),
+        "15m" to Pair(96, 400),
+        "30m" to Pair(96, 400),
+        "1h" to Pair(120, 600),
+        "2h" to Pair(180, 800),
+        "4h" to Pair(200, 900),
+        "6h" to Pair(250, 1000),
+        "1d" to Pair(300, 1200),
+        "3d" to Pair(400, 1400),
+        "1w" to Pair(500, 1500),
+        "1M" to Pair(600, 1800)
+    )
+
+    private fun parseTimeframeToMinutes(timeframe: String): Long? {
+        val regex = Regex("^(\\d+)([mhdwMYy])$")
+        val matchResult = regex.find(timeframe.lowercase()) ?: return null
+        val (numberStr, unit) = matchResult.destructured
+        val number = numberStr.toLongOrNull() ?: return null
+        return when (unit) {
+            "m" -> number
+            "h" -> number * 60
+            "d" -> number * 60 * 24
+            "w" -> number * 60 * 24 * 7
+            "M" -> number * 60 * 24 * 30
+            "y" -> number * 60 * 24 * 365
+            else -> null
+        }
+    }
+
+    private fun formatMinutesToTimeframe(minutes: Long): String {
+        return when {
+            minutes >= 525600 -> "${(minutes + 262800) / 525600}y" // Round to nearest year
+            minutes >= 43800 -> "${(minutes + 21900) / 43800}M"   // Round to nearest month
+            minutes >= 10080 -> "${(minutes + 5040) / 10080}w"  // Round to nearest week
+            minutes >= 1440 -> "${(minutes + 720) / 1440}d"   // Round to nearest day
+            minutes >= 60 -> "${(minutes + 30) / 60}h"     // Round to nearest hour
+            else -> "${minutes}m"
+        }
+    }
+
+    private fun generateSensibleTimeframes(interval: String): List<String> {
+        val (minWindow, maxWindow) = intervalLimits[interval] ?: return listOf("1h", "4h", "1d", "1w", "1M")
+        val intervalMinutes = parseTimeframeToMinutes(interval) ?: 1L
+        if (intervalMinutes <= 0) return emptyList()
+
+        val minTotalMinutes = minWindow * intervalMinutes
+        val maxTotalMinutes = maxWindow * intervalMinutes
+        val generatedTimeframes = mutableSetOf<String>()
+
+        // Generate 5 evenly spaced, human-readable timeframes
+        for (i in 0..4) {
+            val ratio = i / 4.0
+            val targetMinutes = minTotalMinutes + (ratio * (maxTotalMinutes - minTotalMinutes)).toLong()
+            generatedTimeframes.add(formatMinutesToTimeframe(targetMinutes))
+        }
+
+        // Sort the timeframes by their duration
+        return generatedTimeframes.toList().sortedWith(compareBy { parseTimeframeToMinutes(it) ?: 0L })
+    }
+
     fun updateTimeframesForInterval(interval: String) {
         this.currentInterval = interval
 
-        val timeframes = when (interval) {
-            "1m" -> listOf("5m", "15m", "30m", "1h", "4h")
-            "5m" -> listOf("15m", "30m", "1h", "4h", "1d")
-            "15m" -> listOf("30m", "1h", "4h", "1d", "3d")
-            "30m" -> listOf("1h", "4h", "1d", "3d", "1w")
-            "1h", "2h" -> listOf("4h", "1d", "3d", "1w", "1M")
-            "1d" -> listOf("3d", "1w", "1M", "3M", "6M")
-            "1w" -> listOf("1M", "3M", "6M", "1Y")
-            "1M" -> listOf("3M", "6M", "1Y", "All Time")
-            else -> listOf("1h")
-        }.let { list ->
-            // Filter out monthly/yearly options for 1m interval
-            if (interval == "1m") {
-                list.filter { !it.contains("M") && !it.contains("Y") }
-            } else {
-                list
-            }
-        }
+        // Use the new dynamic generator
+        val validTimeframes = generateSensibleTimeframes(interval).toMutableList()
 
-        // Update NumberPicker with new options
-        timeframeOptions = timeframes.toTypedArray()
+        // Always add the "Create Custom" option at the end
+        validTimeframes.add("Create Custom")
+        timeframeOptions = validTimeframes.toTypedArray()
 
         numberPicker.apply {
-            // Force the picker to discard its old recycled views
+            // PERFORMANCE FIX: Set displayed values to null before changing the range
+            // This prevents the picker from lagging.
             displayedValues = null
-
-            // Set the new range and values
             minValue = 0
             maxValue = timeframeOptions.size - 1
-            value = 0 // Reset to first option before setting displayed values
-            displayedValues = timeframeOptions.map { "Last $it" }.toTypedArray()
+            value = 0 // Default to the first, shortest timeframe
 
-            // --- The Fix ---
-            // 1. Programmatically apply the style to its children
-            styleNumberPicker(this, ContextCompat.getColor(context, R.color.off_white))
-            // 2. Force the view to redraw itself now
-            invalidate()
+            // Now, apply the new, human-friendly display values
+            displayedValues = timeframeOptions.map { if (it == "Create Custom") it else "Last $it" }.toTypedArray()
+            invalidate() // Force the picker to redraw
         }
 
-
-        // Set default selected timeframe
-        selectedTimeframe = if (timeframeOptions.isNotEmpty()) timeframeOptions[0] else getDefaultTimeframeForInterval()
+        selectedTimeframe = timeframeOptions.firstOrNull() ?: getDefaultTimeframeForInterval()
         onTimeframeSelectedForAnalysis(selectedTimeframe!!)
     }
 
     private fun styleNumberPicker(picker: NumberPicker, color: Int) {
-        // This function correctly finds the EditText child to style it.
         for (i in 0 until picker.childCount) {
             val child = picker.getChildAt(i)
             if (child is EditText) {
@@ -246,11 +578,8 @@ class AnalysisPanelManager(
                     child.setHintTextColor(color)
                     child.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
                     child.isCursorVisible = false
-
                     val typeface = ResourcesCompat.getFont(picker.context, R.font.sf_pro_text_medium)
-                    if (typeface != null) {
-                        child.typeface = typeface
-                    }
+                    if (typeface != null) child.typeface = typeface
                 } catch (e: Exception) {
                     Log.w("AnalysisPanelManager", "Failed to style NumberPicker EditText.", e)
                 }
@@ -260,24 +589,20 @@ class AnalysisPanelManager(
 
     fun collapsePanel(onComplete: (() -> Unit)? = null) {
         val panelAnimationDuration = 300L
-
         val transition = AutoTransition().apply {
             duration = panelAnimationDuration
             interpolator = FastOutSlowInInterpolator()
         }
-
         TransitionManager.beginDelayedTransition(main, transition)
-
         topSection.layoutParams = (topSection.layoutParams as LinearLayout.LayoutParams).apply {
             height = ViewGroup.LayoutParams.WRAP_CONTENT
             weight = 0f
         }
-
-        bottomSection.layoutParams = (bottomSection.layoutParams as LinearLayout.LayoutParams).apply {
-            height = 0
-            weight = 0f
-        }
-
+        bottomSection.layoutParams =
+            (bottomSection.layoutParams as LinearLayout.LayoutParams).apply {
+                height = 0
+                weight = 0f
+            }
         main.postDelayed({
             bottomSection.visibility = View.GONE
             dragHandle.visibility = View.GONE
@@ -288,7 +613,6 @@ class AnalysisPanelManager(
                 marketChartLayout.supportResistanceButton.setBackgroundResource(R.drawable.white_circle)
                 marketChartLayout.supportResistanceImg.setImageResource(R.drawable.sr_ic)
             }
-
             rotate_to_fullscreen.visibility = View.VISIBLE
             onComplete?.invoke()
         }, panelAnimationDuration)

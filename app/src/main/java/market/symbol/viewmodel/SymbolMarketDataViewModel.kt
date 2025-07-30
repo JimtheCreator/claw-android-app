@@ -3,12 +3,14 @@ package market.symbol.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import market.symbol.model.AnalysisResult
 import market.symbol.repo.Candle
 import market.symbol.repo.MarketDataRepository
@@ -16,6 +18,16 @@ import market.symbol.repo.MarketUpdate
 import timber.log.Timber
 import java.util.Calendar
 import java.util.Date
+import com.tradingview.lightweightcharts.api.series.models.CandlestickData as TradingViewCandlestickData
+import com.tradingview.lightweightcharts.api.series.models.HistogramData as TradingViewHistogramData
+
+import android.graphics.Color
+import androidx.lifecycle.viewModelScope
+// Aliases to avoid name conflicts with your own models if they exist
+import com.tradingview.lightweightcharts.api.series.models.Time as TradingViewTime
+import com.tradingview.lightweightcharts.api.chart.models.color.IntColor
+
+// ...
 
 // Add this enum inside or outside the class
 enum class AnalysisMode {
@@ -47,7 +59,11 @@ class SymbolMarketDataViewModel(
     val error: StateFlow<String?> = _error
 
     private var currentSymbol: String? = null
-    private var currentInterval: String = "1m"
+
+    // --- NEW: Exposing interval as a public StateFlow ---
+    private val _interval = MutableStateFlow("1m")
+    val interval: StateFlow<String> = _interval.asStateFlow()
+
     private var marketDataJob: Job? = null
     private var historicalDataJob: Job? = null
 
@@ -93,7 +109,29 @@ class SymbolMarketDataViewModel(
     private val _trendlineChartUrl = MutableStateFlow<String?>(null)
     val trendlineChartUrl: StateFlow<String?> = _trendlineChartUrl.asStateFlow()
 
+    // This will hold the timeframe selected for analysis (e.g., "1h", "4h")
+    val selectedAnalysisTimeframe = MutableStateFlow("1h")
+
     private var sseJob: Job? = null
+
+    // NEW: StateFlows for pre-processed chart data
+    private val _candlestickData = MutableStateFlow<List<TradingViewCandlestickData>>(emptyList())
+    val candlestickData: StateFlow<List<TradingViewCandlestickData>> = _candlestickData
+
+    private val _volumeData = MutableStateFlow<List<TradingViewHistogramData>>(emptyList())
+    val volumeData: StateFlow<List<TradingViewHistogramData>> = _volumeData
+
+    // --- Colors for volume bars ---
+    private val upColor = IntColor(Color.parseColor("#26a69a"))
+    private val downColor = IntColor(Color.parseColor("#ef5350"))
+
+    // --- Helper functions to map raw Candle data to TradingView's models ---
+    // These functions must be inside the ViewModel class to be found.
+    private fun Candle.toCandlestickData(): TradingViewCandlestickData =
+        TradingViewCandlestickData(TradingViewTime.Utc(this.time), this.open.toFloat(), this.high.toFloat(), this.low.toFloat(), this.close.toFloat())
+
+    private fun Candle.toVolumeData(): TradingViewHistogramData =
+        TradingViewHistogramData(TradingViewTime.Utc(this.time), this.volume.toFloat(), if (close >= open) upColor else downColor)
 
     fun setSymbol(symbol: String) {
         if (currentSymbol == symbol) return
@@ -104,9 +142,9 @@ class SymbolMarketDataViewModel(
     }
 
     fun setInterval(interval: String) {
-        if (currentInterval == interval && _candles.value.isNotEmpty()) return
+        if (_interval.value == interval && _candles.value.isNotEmpty()) return
         Timber.d("Setting interval to: $interval")
-        currentInterval = interval
+        _interval.value = interval // Use the new StateFlow
         clearStates()
         loadData()
     }
@@ -121,7 +159,7 @@ class SymbolMarketDataViewModel(
 
     private fun loadData() {
         val symbol = currentSymbol ?: return
-        Timber.d("Loading data for symbol: $symbol, interval: $currentInterval")
+        Timber.d("Loading data for symbol: $symbol, interval: ${_interval.value}") // Use the new StateFlow
         cancelAllJobs() // Cancel previous jobs
         historicalDataJob = viewModelScope.launch {
             loadHistoricalData(symbol)
@@ -136,7 +174,10 @@ class SymbolMarketDataViewModel(
             try {
                 Timber.d("Starting market data stream for $symbol")
                 _isStreamActive.value = true
-                repository.subscribeToMarketUpdates(symbol, currentInterval)
+                repository.subscribeToMarketUpdates(
+                    symbol,
+                    _interval.value
+                ) // Use the new StateFlow
                     .catch { e ->
                         Timber.e(e, "Market data stream error for $symbol")
                         _error.value = "Data stream error: ${e.message}"
@@ -148,18 +189,29 @@ class SymbolMarketDataViewModel(
                                 _price.value = marketUpdate.data.price
                                 _change.value = marketUpdate.data.change
                             }
+
+
                             is MarketUpdate.CandleUpdate -> {
                                 val newCandle = marketUpdate.data
                                 val currentCandles = _candles.value.toMutableList()
 
-                                if (currentCandles.isNotEmpty() && newCandle.time == currentCandles.last().time) {
+                                val updatedList = if (currentCandles.isNotEmpty() && newCandle.time == currentCandles.last().time) {
+                                    // Update the last candle
                                     currentCandles[currentCandles.size - 1] = newCandle
-                                    Timber.d("Updated last candle: ${newCandle.time}")
+                                    currentCandles
                                 } else if (currentCandles.isEmpty() || newCandle.time > currentCandles.last().time) {
-                                    currentCandles.add(newCandle)
-                                    Timber.d("Appended new candle: ${newCandle.time}")
+                                    // Append a new candle
+                                    currentCandles.apply { add(newCandle) }
+                                } else {
+                                    currentCandles // No change
                                 }
-                                _candles.value = currentCandles
+
+                                // **THE FIX:** Now update all three StateFlows
+                                _candles.value = updatedList
+
+                                // Re-map the updated list to the TradingView models
+                                _candlestickData.value = updatedList.map { it.toCandlestickData() }
+                                _volumeData.value = updatedList.map { it.toVolumeData() }
                             }
                         }
                     }
@@ -244,16 +296,23 @@ class SymbolMarketDataViewModel(
 
             try {
                 var currentCandles = _candles.value.toMutableList()
-                var earliestTime = if (currentCandles.isNotEmpty()) currentCandles.first().time else Long.MAX_VALUE
+                var earliestTime =
+                    if (currentCandles.isNotEmpty()) currentCandles.first().time else Long.MAX_VALUE
                 val tenYearsAgo = (System.currentTimeMillis() / 1000) - 10L * 365 * 24 * 60 * 60
 
                 while (earliestTime > targetTimeSeconds && earliestTime > tenYearsAgo) {
                     val endTime = Date(earliestTime * 1000L - 1) // Just before the earliest candle
                     val startTime = Date(maxOf(targetTimeSeconds * 1000L, tenYearsAgo * 1000L))
-                    val newCandles = repository.getHistoricalCandles(symbol, currentInterval, startTime, endTime)
+                    val newCandles = repository.getHistoricalCandles(
+                        symbol,
+                        _interval.value,
+                        startTime,
+                        endTime
+                    ) // Use the new StateFlow
                     if (newCandles.isEmpty()) break // No more data available
 
-                    currentCandles = (newCandles + currentCandles).sortedBy { it.time }.toMutableList()
+                    currentCandles =
+                        (newCandles + currentCandles).sortedBy { it.time }.toMutableList()
                     earliestTime = currentCandles.first().time
                 }
 
@@ -263,7 +322,7 @@ class SymbolMarketDataViewModel(
                 if (latestTime < nowSeconds) {
                     val recentCandles = repository.getHistoricalCandles(
                         symbol,
-                        currentInterval,
+                        _interval.value, // Use the new StateFlow
                         Date(latestTime * 1000L + 1),
                         Date(nowSeconds * 1000L)
                     )
@@ -291,9 +350,10 @@ class SymbolMarketDataViewModel(
             val endTime = Date()
             calendar.time = endTime
 
-            val limit = 999
+            // ✅ FIX: Fetch a smaller, faster initial chunk of data.
+            val limit = 300
             val theoreticalStartCalendar = Calendar.getInstance().apply { time = endTime }
-            when (currentInterval) {
+            when (_interval.value) {
                 "1m" -> theoreticalStartCalendar.add(Calendar.MINUTE, -limit)
                 "5m" -> theoreticalStartCalendar.add(Calendar.MINUTE, -limit * 5)
                 "15m" -> theoreticalStartCalendar.add(Calendar.MINUTE, -limit * 15)
@@ -320,25 +380,34 @@ class SymbolMarketDataViewModel(
                 theoreticalStartCalendar.time
             }
 
-            Timber.d("Fetching historical data from $startTime to $endTime for interval $currentInterval")
+            Timber.d("Fetching historical data from $startTime to $endTime for interval ${_interval.value}")
 
-            val candles = repository.getHistoricalCandles(symbol, currentInterval, startTime, endTime)
-            Timber.d("Received ${candles.size} historical candles")
+            val candles =
+                repository.getHistoricalCandles(symbol, _interval.value, startTime, endTime)
 
             if (candles.isNotEmpty()) {
-                _candles.value = candles.sortedBy { it.time }
+                val sortedCandles = candles.sortedBy { it.time }
+                _candles.value = sortedCandles // Keep raw data for analysis logic
+
+                // Process data into chart models here, in the background
+                _candlestickData.value = sortedCandles.map { it.toCandlestickData() }
+                _volumeData.value = sortedCandles.map { it.toVolumeData() }
+
                 _hasInitialDataLoaded.value = true
-                _isLoading.value = false // Move here to stop progress bar after successful load
             } else {
+                // Clear all data states
+                _candles.value = emptyList()
+                _candlestickData.value = emptyList()
+                _volumeData.value = emptyList()
                 _error.value = "No historical data available for this symbol and interval"
-                _isLoading.value = false // Stop progress bar on empty data
             }
         } catch (e: Exception) {
             _error.value = "Failed to load historical data: ${e.message}"
             Timber.e(e, "Failed to load historical data")
-            _isLoading.value = false // Stop progress bar on error
+        } finally {
+            // Hide the loader only AFTER all processing is done
+            _isLoading.value = false
         }
-        // Remove finally block since we handle all cases explicitly
     }
 
     // Function to load more historical data
@@ -357,18 +426,20 @@ class SymbolMarketDataViewModel(
             isLoadingMore = true
             try {
                 val endTimeMillis = earliestTimestamp * 1000L // Convert to milliseconds
-                val durationMillis = when (currentInterval) {
-                    "1m" -> 1000L * 60 * 1000 // 1000 minutes
-                    "5m" -> 1000L * 5 * 60 * 1000
-                    "15m" -> 1000L * 15 * 60 * 1000
-                    "30m" -> 1000L * 30 * 60 * 1000
-                    "1h" -> 1000L * 60 * 60 * 1000
-                    "2h" -> 1000L * 2 * 60 * 60 * 1000
-                    "4h" -> 1000L * 4 * 60 * 60 * 1000
-                    "1d" -> 1000L * 24 * 60 * 60 * 1000
-                    "1w" -> 1000L * 7 * 24 * 60 * 60 * 1000
-                    "1M" -> 1000L * 30 * 24 * 60 * 60 * 1000 // Approx 1 month
-                    else -> 1000L * 60 * 1000
+
+                // ✅ FIX: Fetch a consistent and manageable number of candles.
+                val candlesToFetch = 300
+                val durationMillis = when (_interval.value) {
+                    "1m" -> candlesToFetch * 60 * 1000L
+                    "5m" -> candlesToFetch * 5 * 60 * 1000L
+                    "15m" -> candlesToFetch * 15 * 60 * 1000L
+                    "30m" -> candlesToFetch * 30 * 60 * 1000L
+                    "1h" -> candlesToFetch * 60 * 60 * 1000L
+                    "2h" -> candlesToFetch * 2 * 60 * 60 * 1000L
+                    "1d" -> candlesToFetch * 24 * 60 * 60 * 1000L
+                    "1w" -> candlesToFetch * 7 * 24 * 60 * 60 * 1000L
+                    "1M" -> candlesToFetch.toLong() * 30 * 24 * 60 * 60 * 1000L // Approx.
+                    else -> candlesToFetch * 60 * 1000L
                 }
                 var startTimeMillis = endTimeMillis - durationMillis
 
@@ -382,7 +453,8 @@ class SymbolMarketDataViewModel(
                 val endTime = Date(endTimeMillis)
 
                 Timber.d("Fetching more historical data from $startTime to $endTime for $symbol")
-                val newCandles = repository.getHistoricalCandles(symbol, currentInterval, startTime, endTime)
+                val newCandles =
+                    repository.getHistoricalCandles(symbol, _interval.value, startTime, endTime)
 
                 if (newCandles.isNotEmpty()) {
                     // Combine new and existing candles, then sort by time
@@ -416,13 +488,29 @@ class SymbolMarketDataViewModel(
     }
 
     fun startAnalysis(timeframe: String) {
+        // Store the original user-selected timeframe for the UI
+        selectedAnalysisTimeframe.value = timeframe
+
+        // Convert years to months for the backend API call
+        val processedTimeframe = if (timeframe.endsWith("y", ignoreCase = true)) {
+            val years = timeframe.dropLast(1).toIntOrNull()
+            if (years != null) {
+                "${years * 12}M"
+            } else {
+                timeframe // Fallback if parsing fails
+            }
+        } else {
+            timeframe
+        }
+        Timber.d("Starting analysis for original timeframe: $timeframe, processed timeframe: $processedTimeframe")
+
         when (_analysisMode.value) {
-            AnalysisMode.SUPPORT_RESISTANCE -> startSRAnalysis(timeframe)
-            AnalysisMode.TRENDLINES -> startTrendlineAnalysis(timeframe)
+            AnalysisMode.SUPPORT_RESISTANCE -> startSRAnalysis(processedTimeframe)
+            AnalysisMode.TRENDLINES -> startTrendlineAnalysis(processedTimeframe)
         }
     }
 
-    fun startSRAnalysis(timeframe: String) {
+    private fun startSRAnalysis(timeframe: String) {
         val symbol = currentSymbol ?: return
         val firebaseUser = FirebaseAuth.getInstance().currentUser
         val userid = firebaseUser?.uid ?: return
@@ -431,7 +519,12 @@ class SymbolMarketDataViewModel(
         viewModelScope.launch {
             try {
                 // This now represents the entire analysis process
-                val result = repository.analyzeMarketData(userid, symbol, currentInterval, timeframe)
+                val result = repository.analyzeMarketData(
+                    userid,
+                    symbol,
+                    _interval.value,
+                    timeframe
+                ) // Use the new StateFlow
 
                 if (result != null) {
                     _analysisStatus.value = "Generating report..."
@@ -450,42 +543,61 @@ class SymbolMarketDataViewModel(
         }
     }
 
+    // In SymbolMarketDataViewModel.kt
+
     private fun startTrendlineAnalysis(timeframe: String) {
         val symbol = currentSymbol ?: return
         val userid = FirebaseAuth.getInstance().currentUser?.uid ?: return
 
         sseJob?.cancel()
-        viewModelScope.launch {
-            _isTrendlineAnalysisInProgress.value = true // <<< This triggers the in-panel loading view
-            _trendlineAnalysisStatus.value = "Initiating..."
-            _trendlineChartUrl.value = null
+        // Launch network operations on a background thread to avoid resource contention.
+        viewModelScope.launch(Dispatchers.IO) {
+            // Switch to the main thread to update the UI before the network call.
+            withContext(Dispatchers.Main) {
+                _isTrendlineAnalysisInProgress.value = true
+                _trendlineAnalysisStatus.value = "Initiating..."
+                _trendlineChartUrl.value = null
+            }
 
-            val taskResponse = repository.startTrendlineAnalysisTask(userid, symbol, currentInterval, timeframe)
+            val taskResponse =
+                repository.startTrendlineAnalysisTask(userid, symbol, _interval.value, timeframe)
 
             if (taskResponse != null) {
-                _trendlineAnalysisStatus.value = "Analysis in progress..."
-                sseJob = launch {
+                // UI updates from the collecting flow must also be on the main thread.
+                withContext(Dispatchers.Main) {
+                    _trendlineAnalysisStatus.value = "Analysis in progress..."
+                }
+
+                sseJob = launch { // This nested launch inherits the IO context.
                     repository.subscribeToAnalysisUpdates(taskResponse.analysisId)
                         .catch { e ->
-                            _trendlineAnalysisStatus.value = "Stream error: ${e.message}"
-                            _isTrendlineAnalysisInProgress.value = false
+                            withContext(Dispatchers.Main) {
+                                _trendlineAnalysisStatus.value = "Stream error: ${e.message}"
+                                _isTrendlineAnalysisInProgress.value = false
+                            }
                         }
                         .collect { update ->
-                            _trendlineAnalysisStatus.value = update.progress ?: update.status
-                            if (update.status == "completed") {
-                                _trendlineChartUrl.value = update.chartUrl // This triggers the result view
-                                _isTrendlineAnalysisInProgress.value = false
-                                sseJob?.cancel()
-                            } else if (update.status == "failed") {
-                                _trendlineAnalysisStatus.value = "Analysis failed: ${update.errorMessage}"
-                                _isTrendlineAnalysisInProgress.value = false
-                                sseJob?.cancel()
+                            // Switch to the main thread for all UI state updates.
+                            withContext(Dispatchers.Main) {
+                                _trendlineAnalysisStatus.value = update.progress ?: update.status
+                                if (update.status == "completed") {
+                                    _trendlineChartUrl.value = update.chartUrl
+                                    _isTrendlineAnalysisInProgress.value = false
+                                    sseJob?.cancel()
+                                } else if (update.status == "failed") {
+                                    _trendlineAnalysisStatus.value =
+                                        "Analysis failed: ${update.errorMessage}"
+                                    _isTrendlineAnalysisInProgress.value = false
+                                    sseJob?.cancel()
+                                }
                             }
                         }
                 }
             } else {
-                _trendlineAnalysisStatus.value = "Failed to start analysis."
-                _isTrendlineAnalysisInProgress.value = false
+                withContext(Dispatchers.Main) {
+                    _trendlineAnalysisStatus.value = "Failed to start analysis."
+                    _isTrendlineAnalysisInProgress.value = false
+                }
             }
         }
     }

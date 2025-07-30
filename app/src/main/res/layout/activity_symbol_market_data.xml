@@ -127,4 +127,20 @@
 
     </FrameLayout>
 
+    <FrameLayout
+        android:id="@+id/fullscreen_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/black"
+        android:visibility="gone"
+        tools:ignore="MissingConstraints">
+
+        <ImageView
+            android:id="@+id/fullscreen_image"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@string/fullscreen_chart"
+            android:scaleType="fitCenter" />
+    </FrameLayout>
+
 </RelativeLayout>

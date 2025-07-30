@@ -116,13 +116,18 @@ class ChartManager(
         }
     }
 
-    fun setCandleData(candles: List<Candle>) {
-        val candlestickData = candles.map { it.toCandlestickData() }
+    /**
+     * UPDATED: This function now accepts a pre-processed list of CandlestickData.
+     */
+    fun setCandleData(candlestickData: List<CandlestickData>) {
         candleSeries?.setData(candlestickData)
     }
 
-    fun setVolumeData(candles: List<Candle>) {
-        volumeSeries?.setData(candles.map { it.toVolumeData() })
+    /**
+     * UPDATED: This function now accepts a pre-processed list of HistogramData.
+     */
+    fun setVolumeData(volumeData: List<HistogramData>) {
+        volumeSeries?.setData(volumeData)
     }
 
     fun scrollToRealTime() {
@@ -141,13 +146,6 @@ class ChartManager(
         }
     }
 
-    /**
-     * Renders the entire analysis result from the new API response.
-     */
-    /**
-     * Renders only support and resistance levels from the analysis result.
-     * Excludes demand/supply zones as requested.
-     */
     fun renderAnalysisData(analysis: AnalysisResult, candles: List<Candle>) {
         clearAnalysis()
 
@@ -169,21 +167,10 @@ class ChartManager(
             )
         }
 
-        // 3. Optional: Render Psychological Levels (uncomment if needed)
-        // analysis.psychologicalLevels.forEach { level ->
-        //     renderPriceLine(level.price, isSupport = true, level.type, LineStyle.DOTTED)
-        // }
-
-        // Fallback to real-time view
         scrollToRealTime()
-
-        // Lock the chart after drawing is complete
         disableInteraction()
     }
 
-    /**
-     * Clears all existing analysis drawings from the chart.
-     */
     fun clearAnalysis() {
         enableInteraction()
         analysisPriceLines.forEach { candleSeries?.removePriceLine(it) }
@@ -194,9 +181,6 @@ class ChartManager(
         candleSeries?.setMarkers(emptyList())
     }
 
-    /**
-     * Renders a horizontal line for support, resistance, or psychological levels.
-     */
     private fun renderPriceLine(
         price: Double,
         isSupport: Boolean,
@@ -214,9 +198,6 @@ class ChartManager(
         candleSeries?.createPriceLine(options)?.let { analysisPriceLines.add(it) }
     }
 
-    /**
-     * Renders a demand or supply zone using two horizontal lines.
-     */
     private fun renderZone(zone: market.symbol.model.Zone, isDemand: Boolean) {
         val zoneColor = if (isDemand) demandZoneColor else supplyZoneColor
         val zoneType = if (isDemand) "Demand" else "Supply"
@@ -238,7 +219,6 @@ class ChartManager(
         candleSeries?.createPriceLine(bottomOptions)?.let { analysisPriceLines.add(it) }
     }
 
-    // --- Utility and Legacy Functions ---
     fun updateSparkline(sparklineArray: DoubleArray?) {
         if (sparklineArray == null || sparklineArray.isEmpty()) return
         val chart = chartBinding.sparklineChart
@@ -273,16 +253,4 @@ class ChartManager(
         chart.setTouchEnabled(false)
         chart.invalidate()
     }
-
-    private fun Candle.toCandlestickData(): CandlestickData = CandlestickData(
-        Time.Utc(this.time),
-        this.open.toFloat(),
-        this.high.toFloat(),
-        this.low.toFloat(),
-        this.close.toFloat()
-    )
-
-    private fun Candle.toVolumeData(): HistogramData = HistogramData(
-        Time.Utc(this.time), this.volume.toFloat(), if (close >= open) upColor else downColor
-    )
 }
