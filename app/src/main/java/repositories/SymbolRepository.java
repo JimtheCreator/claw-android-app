@@ -9,10 +9,13 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import backend.ApiService;
 import backend.SymbolDao;
@@ -32,8 +35,8 @@ public class SymbolRepository {
     private final Map<String, List<Symbol>> searchCache = new ConcurrentHashMap<>();
     private Call<List<Symbol>> currentSearchCall;
     private final SymbolDao symbolDao;
+    private final ExecutorService databaseExecutor = Executors.newSingleThreadExecutor();
 
-    // LiveData to hold the loading state for symbol search
     private final MutableLiveData<Boolean> isSymbolSearchLoading = new MutableLiveData<>(false);
 
     public SymbolRepository(Application application) {
@@ -42,29 +45,39 @@ public class SymbolRepository {
         this.symbolDao = database.symbolDao();
     }
 
-    // Fixed searchCrypto implementation
+    // A helper method to cache symbols in the background
+    public void cacheSymbols(List<Symbol> symbols) {
+        if (symbols == null || symbols.isEmpty()) return;
+        databaseExecutor.execute(() -> {
+            List<CachedSymbol> cachedSymbols = new ArrayList<>();
+            for (Symbol symbol : symbols) {
+                cachedSymbols.add(new CachedSymbol(symbol));
+            }
+            symbolDao.insertAll(cachedSymbols); // Assuming insertAll is an upsert
+        });
+    }
+
     public LiveData<List<Symbol>> searchCrypto(String query, int limit) {
         MutableLiveData<List<Symbol>> liveData = new MutableLiveData<>();
 
-        // 1. Cancel previous request
         if (currentSearchCall != null) {
             currentSearchCall.cancel();
         }
 
-        // 2. Check cache first
         if (searchCache.containsKey(query)) {
             liveData.postValue(searchCache.get(query));
             return liveData;
         }
 
-        // 3. Make new network request
         currentSearchCall = api.searchCrypto(query, limit);
         currentSearchCall.enqueue(new Callback<>() {
             @Override
             public void onResponse(@NonNull Call<List<Symbol>> call, @NonNull Response<List<Symbol>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    searchCache.put(query, response.body());
-                    liveData.postValue(response.body());
+                    List<Symbol> symbols = response.body();
+                    searchCache.put(query, symbols);
+                    liveData.postValue(symbols);
+                    cacheSymbols(symbols); // <-- CACHE THE RESULTS
                 }
             }
 
@@ -91,21 +104,10 @@ public class SymbolRepository {
         MutableLiveData<List<Symbol>> watchlistData = new MutableLiveData<>();
         Call<List<Symbol>> call = api.getWatchlist(userId);
         call.enqueue(new Callback<>() {
-            // In SymbolRepository.java
             @Override
             public void onResponse(Call<List<Symbol>> call, Response<List<Symbol>> response) {
                 if (response.isSuccessful()) {
                     List<Symbol> symbols = response.body();
-                    if (symbols != null) {
-                        Log.d("SymbolRepository", "Response successful. Body is NOT null. Size: " + symbols.size());
-
-                        // Optionally, log the first item to see if fields were deserialized:
-                        // if (!symbols.isEmpty()) {
-                        //     Timber.d("SymbolRepository: First symbol: %s", symbols.get(0).getSymbol()); // Assuming getSymbol() exists
-                        // }
-                    } else {
-                        Log.w("SymbolRepository", "Response successful BUT response.body() IS NULL after deserialization!");
-                    }
                     watchlistData.setValue(symbols);
                 } else {
                     Log.e("SymbolRepository", "Response not successful. Code: " + response.code());
@@ -115,7 +117,7 @@ public class SymbolRepository {
 
             @Override
             public void onFailure(@NonNull Call<List<Symbol>> call, @NonNull Throwable t) {
-                watchlistData.setValue(null); // Network error
+                watchlistData.setValue(null);
             }
         });
 
@@ -130,6 +132,38 @@ public class SymbolRepository {
         checkLocalResultsAndFetch(query, localResults);
 
         return localResults;
+    }
+
+    public LiveData<Symbol> fetchSymbolDetails(String symbolTicker) {
+        MutableLiveData<Symbol> symbolData = new MutableLiveData<>();
+        Call<List<Symbol>> call = api.searchCrypto(symbolTicker, 1); // Assuming this returns detailed data
+        call.enqueue(new Callback<>() {
+            @Override
+            public void onResponse(Call<List<Symbol>> call, Response<List<Symbol>> response) {
+                if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
+                    Symbol symbol = response.body().get(0);
+                    symbolData.setValue(symbol);
+                    cacheSymbols(Collections.singletonList(symbol)); // Cache the detailed symbol
+                } else {
+                    symbolData.setValue(null);
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<List<Symbol>> call, @NonNull Throwable t) {
+                symbolData.setValue(null);
+            }
+        });
+        return symbolData;
+    }
+
+    public List<Symbol> getCachedSymbolsByTickers(List<String> tickers) {
+        List<CachedSymbol> cachedSymbols = symbolDao.getSymbolsByTickersSync(tickers);
+        List<Symbol> symbols = new ArrayList<>();
+        for (CachedSymbol cached : cachedSymbols) {
+            symbols.add(cached.toSymbol());
+        }
+        return symbols;
     }
 
     private void checkLocalResultsAndFetch(String query, LiveData<List<CachedSymbol>> localResults) {
@@ -172,4 +206,3 @@ public class SymbolRepository {
         return isSymbolSearchLoading;
     }
 }
-

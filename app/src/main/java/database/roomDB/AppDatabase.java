@@ -1,3 +1,5 @@
+// database/roomDB/AppDatabase.java
+// database/roomDB/AppDatabase.java
 package database.roomDB;
 
 import android.content.Context;
@@ -11,7 +13,7 @@ import backend.SymbolDao;
 import models.CachedSymbol;
 import models.Pattern;
 
-@Database(entities = {Pattern.class, CachedSymbol.class}, version = 1, exportSchema = false)
+@Database(entities = {Pattern.class, CachedSymbol.class}, version = 3, exportSchema = false) // MIGRATION: Bump version
 public abstract class AppDatabase extends RoomDatabase {
 
     public abstract PatternDao patternDao();
@@ -26,6 +28,8 @@ public abstract class AppDatabase extends RoomDatabase {
                 if (INSTANCE == null) {
                     INSTANCE = Room.databaseBuilder(context.getApplicationContext(),
                                     AppDatabase.class, "pattern_alert_database")
+                            // MODIFIED: Use the recommended approach for destructive migration
+                            .fallbackToDestructiveMigration(true)
                             .build();
                 }
             }

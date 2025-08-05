@@ -1,5 +1,6 @@
 package market.symbol.viewmodel
 
+import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
@@ -21,13 +22,15 @@ import java.util.Date
 import com.tradingview.lightweightcharts.api.series.models.CandlestickData as TradingViewCandlestickData
 import com.tradingview.lightweightcharts.api.series.models.HistogramData as TradingViewHistogramData
 
+import kotlinx.coroutines.delay
 import android.graphics.Color
 import androidx.lifecycle.viewModelScope
 // Aliases to avoid name conflicts with your own models if they exist
 import com.tradingview.lightweightcharts.api.series.models.Time as TradingViewTime
 import com.tradingview.lightweightcharts.api.chart.models.color.IntColor
-
-// ...
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import models.Symbol
 
 // Add this enum inside or outside the class
 enum class AnalysisMode {
@@ -36,10 +39,15 @@ enum class AnalysisMode {
 }
 
 class SymbolMarketDataViewModel(
+    private val application: Application,
     private val repository: MarketDataRepository
 ) : ViewModel() {
 
     // --- StateFlows to expose UI state to the Activity ---
+
+    // NEW: StateFlow to hold the initially loaded symbol data from cache
+    private val _cachedSymbol = MutableStateFlow<Symbol?>(null)
+    val cachedSymbol: StateFlow<Symbol?> = _cachedSymbol.asStateFlow()
 
     // Price and Change remain the same
     private val _price = MutableStateFlow<Double?>(null)
@@ -118,9 +126,6 @@ class SymbolMarketDataViewModel(
     private val _candlestickData = MutableStateFlow<List<TradingViewCandlestickData>>(emptyList())
     val candlestickData: StateFlow<List<TradingViewCandlestickData>> = _candlestickData
 
-    private val _volumeData = MutableStateFlow<List<TradingViewHistogramData>>(emptyList())
-    val volumeData: StateFlow<List<TradingViewHistogramData>> = _volumeData
-
     // --- Colors for volume bars ---
     private val upColor = IntColor(Color.parseColor("#26a69a"))
     private val downColor = IntColor(Color.parseColor("#ef5350"))
@@ -132,6 +137,14 @@ class SymbolMarketDataViewModel(
 
     private fun Candle.toVolumeData(): TradingViewHistogramData =
         TradingViewHistogramData(TradingViewTime.Utc(this.time), this.volume.toFloat(), if (close >= open) upColor else downColor)
+
+    // --- REVISED: Use a SharedFlow for emitting data chunks ---
+    // A SharedFlow is better for events, ensuring each chunk is delivered once.
+    private val _chunkedCandlestickData = MutableSharedFlow<List<TradingViewCandlestickData>>()
+    val chunkedCandlestickData: SharedFlow<List<TradingViewCandlestickData>> = _chunkedCandlestickData
+
+    private val _volumeData = MutableStateFlow<List<TradingViewHistogramData>>(emptyList())
+    val volumeData: StateFlow<List<TradingViewHistogramData>> = _volumeData
 
     fun setSymbol(symbol: String) {
         if (currentSymbol == symbol) return
@@ -155,6 +168,13 @@ class SymbolMarketDataViewModel(
         // Reset the initial data loaded flag
         _hasInitialDataLoaded.value = false
         _isStreamActive.value = false
+    }
+
+    // NEW: Function to load the initial data from the cache
+    fun loadInitialSymbolData(symbol: String) {
+        viewModelScope.launch {
+            _cachedSymbol.value = repository.getCachedSymbol(symbol)
+        }
     }
 
     private fun loadData() {
@@ -376,108 +396,151 @@ class SymbolMarketDataViewModel(
 
             val startTime = if (theoreticalStartCalendar.time.before(maxLookbackCalendar.time)) {
                 maxLookbackCalendar.time
-            } else {
+            }
+            else {
                 theoreticalStartCalendar.time
             }
 
             Timber.d("Fetching historical data from $startTime to $endTime for interval ${_interval.value}")
 
-            val candles =
-                repository.getHistoricalCandles(symbol, _interval.value, startTime, endTime)
+            val candles = repository.getHistoricalCandles(symbol, _interval.value, startTime, endTime)
 
             if (candles.isNotEmpty()) {
-                val sortedCandles = candles.sortedBy { it.time }
-                _candles.value = sortedCandles // Keep raw data for analysis logic
-
-                // Process data into chart models here, in the background
-                _candlestickData.value = sortedCandles.map { it.toCandlestickData() }
-                _volumeData.value = sortedCandles.map { it.toVolumeData() }
-
+                // Process the data in the background and then emit it in chunks
+                processAndEmitInChunks(candles)
                 _hasInitialDataLoaded.value = true
             } else {
-                // Clear all data states
                 _candles.value = emptyList()
-                _candlestickData.value = emptyList()
                 _volumeData.value = emptyList()
-                _error.value = "No historical data available for this symbol and interval"
+                // If there's no data, emit an empty list to clear the chart
+                _chunkedCandlestickData.emit(emptyList())
+                _error.value = "No historical data available for this symbol and interval."
+                // Make sure to turn off the loader if there's no data
+                _isLoading.value = false
             }
+
+            // In SymbolMarketDataViewModel.kt -> loadHistoricalData
         } catch (e: Exception) {
             _error.value = "Failed to load historical data: ${e.message}"
             Timber.e(e, "Failed to load historical data")
-        } finally {
-            // Hide the loader only AFTER all processing is done
+            // Also turn off the loader if an exception occurs
             _isLoading.value = false
         }
     }
 
-    // Function to load more historical data
-    fun loadMoreHistoricalData() {
-        if (!_hasInitialDataLoaded.value || isLoadingMore || _candles.value.isEmpty()) {
-            Timber.d("Skipping loadMoreHistoricalData: hasInitialDataLoaded=${_hasInitialDataLoaded.value}, isLoadingMore=$isLoadingMore, candles.size=${_candles.value.size}")
-            return
-        }
+    private suspend fun processAndEmitInChunks(candles: List<Candle>) {
+        try {
+            withContext(Dispatchers.Default) {
+                val sortedCandles = candles.sortedBy { it.time }
+                val fullCandlestickData = sortedCandles.map { it.toCandlestickData() }
+                val fullVolumeData = sortedCandles.map { it.toVolumeData() }
 
+                // Update the raw candles and volume data at once
+                withContext(Dispatchers.Main) {
+                    _candles.value = sortedCandles
+                    _volumeData.value = fullVolumeData
+                }
+
+                // Emit the candlestick data in chunks to the UI
+                if (fullCandlestickData.isNotEmpty()) {
+                    val chunkSize = 60 // Render 60 candles at a time
+                    fullCandlestickData.chunked(chunkSize).forEach { chunk ->
+                        _chunkedCandlestickData.emit(chunk)
+                        delay(50)
+                    }
+                }
+
+            }
+        } finally {
+            // --- THE FIX ---
+            // This will now execute only after the entire withContext block
+            // (including all chunk emissions) is complete.
+            // We run it on the Main dispatcher to ensure safe UI state updates.
+            withContext(Dispatchers.Main) {
+                _isLoading.value = false
+                Timber.d("processAndEmitInChunks finished. Loader is now OFF.")
+            }
+        }
+    }
+
+    /**
+     * Loads more historical data in small chunks as the user scrolls to the left.
+     * This function is designed to run silently in the background without showing
+     * the main progress bar.
+     */
+    fun loadMoreHistoricalData() {
+        if (isLoadingMore || _candles.value.isEmpty()) return
         val symbol = currentSymbol ?: return
-        val earliestCandle = _candles.value.firstOrNull() ?: return
-        val earliestTimestamp = earliestCandle.time // in seconds
 
         historicalDataJob = viewModelScope.launch {
-            _isLoading.value = true
             isLoadingMore = true
             try {
-                val endTimeMillis = earliestTimestamp * 1000L // Convert to milliseconds
+                // Determine how many candles to fetch
+                val candlesPerRequest = 500
+                val earliestCandle = _candles.value.first()
+                val intervalMillis = getIntervalMillis(_interval.value)
 
-                // ✅ FIX: Fetch a consistent and manageable number of candles.
-                val candlesToFetch = 300
-                val durationMillis = when (_interval.value) {
-                    "1m" -> candlesToFetch * 60 * 1000L
-                    "5m" -> candlesToFetch * 5 * 60 * 1000L
-                    "15m" -> candlesToFetch * 15 * 60 * 1000L
-                    "30m" -> candlesToFetch * 30 * 60 * 1000L
-                    "1h" -> candlesToFetch * 60 * 60 * 1000L
-                    "2h" -> candlesToFetch * 2 * 60 * 60 * 1000L
-                    "1d" -> candlesToFetch * 24 * 60 * 60 * 1000L
-                    "1w" -> candlesToFetch * 7 * 24 * 60 * 60 * 1000L
-                    "1M" -> candlesToFetch.toLong() * 30 * 24 * 60 * 60 * 1000L // Approx.
-                    else -> candlesToFetch * 60 * 1000L
-                }
-                var startTimeMillis = endTimeMillis - durationMillis
+                // Calculate start time for the new data
+                val startTimeMillis = (earliestCandle.time * 1000L) - (candlesPerRequest * intervalMillis)
+                val startTime = Date(maxOf(startTimeMillis, 0L))
+                val endTime = Date(earliestCandle.time * 1000L - 1)
 
-                // Cap start time to 10 years ago
-                val tenYearsAgoMillis = System.currentTimeMillis() - 10L * 365 * 24 * 60 * 60 * 1000
-                if (startTimeMillis < tenYearsAgoMillis) {
-                    startTimeMillis = tenYearsAgoMillis
-                }
+                // Fetch data in single request
+                val newCandles = repository.getHistoricalCandles(
+                    symbol,
+                    _interval.value,
+                    startTime,
+                    endTime
+                ).sortedBy { it.time }
 
-                val startTime = Date(startTimeMillis)
-                val endTime = Date(endTimeMillis)
+                if (newCandles.isEmpty()) return@launch
 
-                Timber.d("Fetching more historical data from $startTime to $endTime for $symbol")
-                val newCandles =
-                    repository.getHistoricalCandles(symbol, _interval.value, startTime, endTime)
+                // Process in chunks for smooth rendering
+                val chunkSize = 50
+                val totalChunks = (newCandles.size + chunkSize - 1) / chunkSize
+                var combinedCandles = _candles.value
 
-                if (newCandles.isNotEmpty()) {
-                    // Combine new and existing candles, then sort by time
-                    val allCandles = (newCandles + _candles.value).sortedBy { it.time }
+                for (i in 0 until totalChunks) {
+                    val startIdx = i * chunkSize
+                    val endIdx = minOf(startIdx + chunkSize, newCandles.size)
+                    val chunk = newCandles.subList(startIdx, endIdx)
 
-                    // Remove duplicates by keeping only candles with unique timestamps
-                    val uniqueCandles = allCandles.fold(mutableListOf<Candle>()) { acc, candle ->
-                        if (acc.isEmpty() || candle.time > acc.last().time) {
-                            acc.add(candle)
-                        }
-                        acc
-                    }
+                    // Prepend new chunk
+                    combinedCandles = (chunk + combinedCandles).distinctBy { it.time }
+                        .sortedBy { it.time }
 
-                    _candles.value = uniqueCandles
-                    Timber.d("Prepended ${newCandles.size} candles, total now ${_candles.value.size}")
+                    // Update state
+                    _candles.value = combinedCandles
+                    _candlestickData.value = combinedCandles.map { it.toCandlestickData() }
+                    _volumeData.value = combinedCandles.map { it.toVolumeData() }
+
+                    // Add slight delay between chunks
+                    delay(20)
                 }
             } catch (e: Exception) {
-                _error.value = "Failed to load more historical data: ${e.message}"
-                Timber.e(e, "Error loading more historical data")
+                _error.value = "Failed to load more data: ${e.message}"
             } finally {
-                _isLoading.value = false
                 isLoadingMore = false
             }
+        }
+    }
+
+    // Helper function to calculate interval duration in milliseconds
+    private fun getIntervalMillis(interval: String): Long {
+        return when (interval) {
+            "1m" -> 60 * 1000L
+            "5m" -> 5 * 60 * 1000L
+            "15m" -> 15 * 60 * 1000L
+            "30m" -> 30 * 60 * 1000L
+            "1h" -> 60 * 60 * 1000L
+            "2h" -> 2 * 60 * 60 * 1000L
+            "4h" -> 4 * 60 * 60 * 1000L
+            "6h" -> 6 * 60 * 60 * 1000L
+            "1d" -> 24 * 60 * 60 * 1000L
+            "3d" -> 3 * 24 * 60 * 60 * 1000L
+            "1w" -> 7 * 24 * 60 * 60 * 1000L
+            "1M" -> 30 * 24 * 60 * 60 * 1000L  // Approximate
+            else -> 60 * 1000L
         }
     }
 
@@ -542,8 +605,6 @@ class SymbolMarketDataViewModel(
             }
         }
     }
-
-    // In SymbolMarketDataViewModel.kt
 
     private fun startTrendlineAnalysis(timeframe: String) {
         val symbol = currentSymbol ?: return

@@ -1,5 +1,6 @@
 package market.symbol.repo
 
+import android.content.Context
 import backend.ApiService // Make sure ApiService is imported
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
@@ -15,13 +16,16 @@ import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
 import android.util.Log
 import backend.MainClient
+import backend.SymbolDao
 import backend.WebSocketService
 import com.google.gson.JsonObject
 import data.remote.WebSocketServiceImpl
+import database.roomDB.AppDatabase
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import market.symbol.model.AnalysisResult
+import models.Symbol
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import java.text.SimpleDateFormat
@@ -49,6 +53,7 @@ sealed class MarketUpdate {
 }
 
 class MarketDataRepository(
+    private val context: Context,
     private val TAG: String = "MarketDataRepository",
     private val apiService: ApiService = MainClient.getInstance().create(ApiService::class.java),
     private val webSocketService: WebSocketService = WebSocketServiceImpl(OkHttpClient(), OkHttpClient())
@@ -66,6 +71,13 @@ class MarketDataRepository(
     private var activeStreamSymbol: String? = null
     private var activeStreamInterval: String? = null
     private var isStreamActive: Boolean = false
+
+    private val symbolDao: SymbolDao = AppDatabase.getInstance(context).symbolDao() // <-- INITIALIZE DAO
+
+    // NEW: Function to get a single symbol from the local cache
+    suspend fun getCachedSymbol(symbol: String): Symbol? = withContext(Dispatchers.IO) {
+        symbolDao.getSymbolByTicker(symbol)?.toSymbol()
+    }
 
     fun subscribeToMarketUpdates(symbol: String, interval: String): Flow<MarketUpdate> {
         return callbackFlow {

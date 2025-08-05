@@ -44,6 +44,7 @@ import market.symbol.viewmodel.SymbolMarketDataViewModel
 import java.io.File
 import java.io.IOException
 import java.util.Locale
+import kotlin.math.ceil
 
 class AnalysisPanelManager(
     private val binding: ActivitySymbolMarketDataBinding,
@@ -442,24 +443,20 @@ class AnalysisPanelManager(
             selectedTimeframe = customTimeframe
             onTimeframeSelectedForAnalysis(selectedTimeframe!!)
 
-            // --- REVISED LOGIC TO RE-ADD "CREATE CUSTOM" ---
             val newList = timeframeOptions.toMutableList()
-            newList.remove("Create Custom") // Temporarily remove it
+            newList.remove("Create Custom")
             if (customTimeframe !in newList) {
                 newList.add(customTimeframe)
             }
-            // Sort the list logically by duration
             newList.sortWith(compareBy { parseTimeframeToMinutes(it) ?: Long.MAX_VALUE })
-            newList.add("Create Custom") // Add it back at the end
+            newList.add("Create Custom")
 
             timeframeOptions = newList.toTypedArray()
 
-            // Update the NumberPicker without lag
             numberPicker.displayedValues = null
             numberPicker.maxValue = timeframeOptions.size - 1
             numberPicker.displayedValues = timeframeOptions.map { if (it == "Create Custom") it else "Last $it" }.toTypedArray()
 
-            // Set the picker's value to the newly created timeframe
             val newIndex = timeframeOptions.indexOf(customTimeframe)
             if (newIndex != -1) {
                 numberPicker.value = newIndex
@@ -469,7 +466,7 @@ class AnalysisPanelManager(
         }
 
         unitSpinner.setSelection(0, false)
-        (unitSpinner.onItemSelectedListener as? android.widget.AdapterView.OnItemSelectedListener)
+        unitSpinner.onItemSelectedListener
             ?.onItemSelected(null, null, 0, 0L)
 
         dialog.show()
@@ -481,18 +478,18 @@ class AnalysisPanelManager(
     }
 
     private val intervalLimits = mapOf(
-        "1m" to Pair(120, 300),
-        "5m" to Pair(72, 300),
-        "15m" to Pair(96, 400),
-        "30m" to Pair(96, 400),
-        "1h" to Pair(120, 600),
-        "2h" to Pair(180, 800),
-        "4h" to Pair(200, 900),
-        "6h" to Pair(250, 1000),
-        "1d" to Pair(300, 1200),
-        "3d" to Pair(400, 1400),
-        "1w" to Pair(500, 1500),
-        "1M" to Pair(600, 1800)
+        "1m" to Pair(120, 300),   // 2 to 5 hours
+        "5m" to Pair(72, 300),    // 6 to 25 hours
+        "15m" to Pair(96, 400),   // 24 to 100 hours ≈ 1 to 4 days
+        "30m" to Pair(96, 400),   // 48 to 200 hours ≈ 2 to 8 days
+        "1h" to Pair(120, 600),   // 5 to 25 days
+        "2h" to Pair(180, 800),   // 15 to 66 days ≈ 2 weeks to 2 months
+        "4h" to Pair(200, 900),   // 33 to 150 days ≈ 1 to 5 months
+        "6h" to Pair(250, 1000),  // 62 to 250 days ≈ 2 to 8 months
+        "1d" to Pair(180, 720),   // 6 months to 2 years
+        "3d" to Pair(120, 480),   // 1 to 4 years
+        "1w" to Pair(52, 260),    // 1 to 5 years
+        "1M" to Pair(12, 60)      // 1 to 5 years
     )
 
     private fun parseTimeframeToMinutes(timeframe: String): Long? {
@@ -503,10 +500,10 @@ class AnalysisPanelManager(
         return when (unit) {
             "m" -> number
             "h" -> number * 60
-            "d" -> number * 60 * 24
-            "w" -> number * 60 * 24 * 7
-            "M" -> number * 60 * 24 * 30
-            "y" -> number * 60 * 24 * 365
+            "d" -> number * 1440 // 60 * 24
+            "w" -> number * 10080 // 60 * 24 * 7
+            "M" -> number * 43800 // Approx. 60 * 24 * 365 / 12
+            "y" -> number * 525600 // 60 * 24 * 365
             else -> null
         }
     }
@@ -522,6 +519,25 @@ class AnalysisPanelManager(
         }
     }
 
+    /**
+     * FIX: New helper function to format minutes by rounding UP to the nearest unit.
+     * This ensures the generated timeframe is always greater than or equal to the minimum required minutes.
+     */
+    private fun formatMinutesToTimeframeCeil(minutes: Long): String {
+        val minutesAsDouble = minutes.toDouble()
+        return when {
+            minutes >= 525600 -> "${ceil(minutesAsDouble / 525600.0).toLong()}y"
+            minutes >= 43800 -> "${ceil(minutesAsDouble / 43800.0).toLong()}M"
+            minutes >= 10080 -> "${ceil(minutesAsDouble / 10080.0).toLong()}w"
+            minutes >= 1440 -> "${ceil(minutesAsDouble / 1440.0).toLong()}d"
+            minutes >= 60 -> "${ceil(minutesAsDouble / 60.0).toLong()}h"
+            else -> "${minutes}m"
+        }
+    }
+
+    /**
+     * FIX: This function has been updated to prevent generating timeframes below the minimum requirement.
+     */
     private fun generateSensibleTimeframes(interval: String): List<String> {
         val (minWindow, maxWindow) = intervalLimits[interval] ?: return listOf("1h", "4h", "1d", "1w", "1M")
         val intervalMinutes = parseTimeframeToMinutes(interval) ?: 1L
@@ -538,31 +554,43 @@ class AnalysisPanelManager(
             generatedTimeframes.add(formatMinutesToTimeframe(targetMinutes))
         }
 
-        // Sort the timeframes by their duration
-        return generatedTimeframes.toList().sortedWith(compareBy { parseTimeframeToMinutes(it) ?: 0L })
+        val sortedTimeframes = generatedTimeframes.toMutableList()
+            .sortedWith(compareBy { parseTimeframeToMinutes(it) ?: 0L })
+            .toMutableList()
+
+        // --- FIX STARTS HERE ---
+        // Verify that the first, shortest timeframe is not below the minimum required minutes.
+        // This can happen due to the rounding logic in `formatMinutesToTimeframe`.
+        if (sortedTimeframes.isNotEmpty()) {
+            val firstOption = sortedTimeframes.first()
+            val firstOptionMinutes = parseTimeframeToMinutes(firstOption) ?: 0L
+
+            if (firstOptionMinutes < minTotalMinutes) {
+                // If the first option is invalid, replace it with a valid one by rounding up.
+                sortedTimeframes[0] = formatMinutesToTimeframeCeil(minTotalMinutes)
+            }
+        }
+        // --- FIX ENDS HERE ---
+
+        return sortedTimeframes.distinct() // Use distinct to remove duplicates that might arise from the fix
     }
 
     fun updateTimeframesForInterval(interval: String) {
         this.currentInterval = interval
 
-        // Use the new dynamic generator
         val validTimeframes = generateSensibleTimeframes(interval).toMutableList()
 
-        // Always add the "Create Custom" option at the end
         validTimeframes.add("Create Custom")
         timeframeOptions = validTimeframes.toTypedArray()
 
         numberPicker.apply {
-            // PERFORMANCE FIX: Set displayed values to null before changing the range
-            // This prevents the picker from lagging.
             displayedValues = null
             minValue = 0
             maxValue = timeframeOptions.size - 1
-            value = 0 // Default to the first, shortest timeframe
+            value = 0
 
-            // Now, apply the new, human-friendly display values
             displayedValues = timeframeOptions.map { if (it == "Create Custom") it else "Last $it" }.toTypedArray()
-            invalidate() // Force the picker to redraw
+            invalidate()
         }
 
         selectedTimeframe = timeframeOptions.firstOrNull() ?: getDefaultTimeframeForInterval()

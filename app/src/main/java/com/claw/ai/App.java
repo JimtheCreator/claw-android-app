@@ -73,7 +73,7 @@ public class App extends Application {
         channel.setDescription(description);
 
         // Set the custom sound for the channel
-        Uri soundUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.price_alert_sample_one);
+        Uri soundUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.default_notification);
         AudioAttributes audioAttributes = new AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_NOTIFICATION)
                 .build();

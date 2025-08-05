@@ -236,7 +236,6 @@ public class HomeTabFragment extends Fragment {
 
     }
 
-
     private void imeKeyboardSearch(View bottomSheet) {
         binding.frameSearchBox.setVisibility(View.VISIBLE);
         binding.dummySearchbox.setVisibility(View.GONE);
@@ -600,8 +599,24 @@ public class HomeTabFragment extends Fragment {
             }
         };
 
-        searchedSymbolAdapter = new SymbolAdapter(getContext(), searchedSymbolList, true, getCurrentUserId(), commonWatchlistListener);
-        watchlistAdapter = new SymbolAdapter(getContext(), new ArrayList<>(), false, getCurrentUserId(), commonWatchlistListener);
+        // Assuming homeViewModel is an instance of HomeViewModel
+        searchedSymbolAdapter = new SymbolAdapter(
+                getContext(),
+                searchedSymbolList,
+                true,
+                getCurrentUserId(),
+                commonWatchlistListener,
+                homeViewModel::onSymbolClicked  // Adding the OnSymbolClickListener
+        );
+
+        watchlistAdapter = new SymbolAdapter(
+                getContext(),
+                new ArrayList<>(),
+                false,
+                getCurrentUserId(),
+                commonWatchlistListener,
+                homeViewModel::onSymbolClicked  // Adding the OnSymbolClickListener
+        );
     }
 
     private String getCurrentUserId() {
@@ -636,15 +651,6 @@ public class HomeTabFragment extends Fragment {
         }
     }
 
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-        // The ViewModel's onCleared will handle WebSocket disconnect if Fragment is destroyed.
-        // If only view is destroyed (e.g. backstack), WebSocket might persist if ViewModel is activity-scoped.
-        // If ViewModel is fragment-scoped (ViewModelProvider(this)), then it's fine.
-        binding = null;
-    }
-
     private void showErrorToast(String message) {
         if (getContext() != null && message != null && !message.isEmpty()) {
             Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
@@ -657,7 +663,8 @@ public class HomeTabFragment extends Fragment {
         if (authViewModel.getAuthState().getValue() == AuthViewModel.AuthState.AUTHENTICATED) {
             String currentUid = getCurrentUserId();
             if (currentUid != null) {
-                homeViewModel.connectToWatchlistWebSocket(currentUid);
+                // FIXED: Only connect if not already connected
+                homeViewModel.connectToWatchlistWebSocketIfNeeded(currentUid);
             }
         }
     }
@@ -665,17 +672,21 @@ public class HomeTabFragment extends Fragment {
     @Override
     public void onStop() {
         super.onStop();
-        homeViewModel.disconnectWebSocket();
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        if (authViewModel.getAuthState().getValue() == AuthViewModel.AuthState.AUTHENTICATED) {
-            String currentUid = getCurrentUserId();
-            if (currentUid != null) {
-                homeViewModel.disconnectWebSocket();
-            }
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        // FIXED: Only disconnect if the fragment is being permanently destroyed
+        // Not just when the view is being recreated
+        if (getActivity() != null && getActivity().isFinishing()) {
+            homeViewModel.disconnectWebSocket();
         }
+        binding = null;
     }
 }

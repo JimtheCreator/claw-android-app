@@ -70,6 +70,7 @@
                 android:layout_gravity="center_horizontal"
                 android:layout_marginTop="10dp"
                 android:fontFamily="@font/sf_pro_text_medium"
+                android:gravity="center_horizontal"
                 android:text="Analyzing..."
                 android:textColor="@color/off_white"
                 android:textSize="16sp" />
@@ -80,7 +81,7 @@
             android:id="@+id/trendline_analysis_results"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="50dp"
+            android:layout_marginTop="40dp"
             android:orientation="vertical"
             android:visibility="gone">
 
@@ -93,121 +94,198 @@
                 android:orientation="vertical">
 
                 <LinearLayout
-                    android:id="@+id/analysis_header"
+                    android:id="@+id/upper_section"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/upper_rounded"
-                    android:orientation="vertical"
-                    android:padding="2dp">
+                    android:background="@drawable/transparent_upper_rounded"
+                    android:orientation="vertical">
 
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center_vertical"
-                        android:layout_marginStart="10dp"
-                        android:layout_marginTop="5dp"
-                        android:layout_marginBottom="10dp"
-                        android:orientation="vertical">
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:id="@+id/clipping_container"
+                        android:background="@color/invincibleColor"
+                        android:fitsSystemWindows="true"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
 
-                        <TextView
-                            android:id="@+id/interval_analyzed"
+                        <androidx.cardview.widget.CardView
+                            android:id="@+id/cardview"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:fitsSystemWindows="true"
+                            app:cardBackgroundColor="@color/invincibleColor"
+                            app:cardCornerRadius="20dp"
+                            app:cardElevation="0dp"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            android:layout_marginBottom="2.5dp"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent">
+
+                            <!-- Add a clipping FrameLayout with rounded corners -->
+                            <com.google.android.material.imageview.ShapeableImageView
+                                app:layout_constraintBottom_toBottomOf="parent"
+                                app:layout_constraintEnd_toEndOf="parent"
+                                app:layout_constraintStart_toStartOf="parent"
+                                app:layout_constraintTop_toTopOf="parent"
+                                android:id="@+id/trendline_chart"
+                                android:contentDescription="@string/trendline_chart_analysis_image"
+                                android:src="@drawable/trendlines_chart_sample_zero"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:adjustViewBounds="true"
+                                android:scaleType="fitCenter"
+                                app:shapeAppearanceOverlay="@style/RoundedCornerImage"
+                                />
+
+                        </androidx.cardview.widget.CardView>
+
+                        <LinearLayout
+                            android:id="@+id/watermark"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_gravity="start|center_vertical"
-                            android:fontFamily="@font/sf_pro_text_medium"
-                            android:text="15m Chart"
-                            android:textColor="@color/green_chart_color"
-                            android:textSize="13sp" />
+                            android:layout_marginEnd="12.5dp"
+                            android:layout_marginBottom="12.5dp"
+                            android:background="@drawable/beige_overly_rounded_shape"
+                            android:orientation="horizontal"
+                            android:padding="2dp"
+                            app:layout_constraintBottom_toBottomOf="@id/cardview"
+                            app:layout_constraintEnd_toEndOf="@id/cardview">
 
-                        <TextView
-                            android:id="@+id/symbol"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="start|center_vertical"
-                            android:fontFamily="@font/sf_pro_text_bold"
-                            android:text="BTCUSDT"
-                            android:textColor="@color/white"
-                            android:textSize="16sp" />
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center_vertical"
+                                android:layout_marginStart="7dp"
+                                android:layout_marginEnd="7dp"
+                                android:gravity="start"
+                                android:orientation="horizontal">
 
-                        <TextView
-                            android:id="@+id/timeframe_of_the_analysis"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="start|center_vertical"
-                            android:fontFamily="@font/sf_pro_text_medium"
-                            android:text="Last 1h Trendline-Analysis"
-                            android:textColor="@color/inactive"
-                            android:textSize="12sp" />
+                                <TextView
+                                    android:id="@+id/tm_action"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="start|center_vertical"
+                                    android:fontFamily="@font/sf_pro_text_medium"
+                                    android:text="Analyzed by:"
+                                    android:textColor="@color/black_shade"
+                                    android:textSize="13sp" />
 
-                    </LinearLayout>
+                                <LinearLayout
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal">
+
+                                    <ImageView
+                                        android:id="@+id/app_logo"
+                                        android:layout_width="22.5dp"
+                                        android:layout_height="22.5dp"
+                                        android:layout_gravity="center_vertical"
+                                        android:layout_marginStart="5dp"
+                                        android:src="@drawable/black_app_icon" />
+
+                                    <TextView
+                                        android:id="@+id/app_name"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_gravity="center_vertical"
+                                        android:fontFamily="@font/sf_pro_text_bold"
+                                        android:text="watchers"
+                                        android:textColor="@color/black_shade"
+                                        android:textSize="17sp" />
+
+                                </LinearLayout>
+
+                            </LinearLayout>
+
+                        </LinearLayout>
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
 
                 </LinearLayout>
 
-                <ImageView
-                    android:id="@+id/trendline_chart"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:adjustViewBounds="true"
-                    android:contentDescription="@string/trendline_chart_analysis_image"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/trendlines_chart_sample_zero" />
-
                 <LinearLayout
-                    android:id="@+id/analysis_footer"
+                    android:id="@+id/footer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:background="@drawable/bottom_rounded"
-                    android:orientation="vertical"
                     android:padding="2dp">
 
                     <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center_vertical"
-                        android:layout_marginStart="10dp"
-                        android:layout_marginTop="10dp"
-                        android:layout_marginBottom="5dp"
-                        android:gravity="start"
+                        android:layout_margin="2.5dp"
                         android:orientation="vertical">
-
-                        <TextView
-                            android:id="@+id/tm_action"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="start|center_vertical"
-                            android:fontFamily="@font/sf_pro_text_medium"
-                            android:text="Analyzed by:"
-                            android:textColor="@color/dark_beige"
-                            android:textSize="13sp" />
 
                         <LinearLayout
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:orientation="horizontal">
+                            android:layout_marginStart="5dp"
+                            android:layout_marginTop="5dp"
+                            android:layout_marginBottom="10dp"
+                            android:orientation="vertical">
 
-                            <ImageView
-                                android:id="@+id/app_logo"
-                                android:layout_width="22.5dp"
-                                android:layout_height="22.5dp"
-                                android:layout_gravity="center_vertical"
-                                android:src="@drawable/gold_app_logo" />
-
-                            <TextView
-                                android:id="@+id/app_name"
+                            <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_gravity="center_vertical"
-                                android:layout_marginStart="5dp"
+                                android:background="@drawable/green_box"
+                                android:padding="2dp">
+
+                                <TextView
+                                    android:id="@+id/interval_analyzed"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="start|center_vertical"
+                                    android:layout_marginStart="2dp"
+                                    android:layout_marginEnd="2dp"
+                                    android:fontFamily="@font/sf_pro_text_medium"
+                                    android:text="15m Chart"
+                                    android:textColor="@color/black_shade"
+                                    android:textSize="13sp" />
+
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/symbol"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="start|center_vertical"
                                 android:fontFamily="@font/sf_pro_text_bold"
-                                android:text="watchers"
-                                android:textColor="@color/white"
-                                android:textSize="17sp" />
+                                android:text="BTCUSDT"
+                                android:textColor="@color/black"
+                                android:textSize="16sp" />
+
+                            <LinearLayout
+                                android:orientation="horizontal"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content">
+
+                                <ImageView
+                                    android:src="@drawable/time_ic"
+                                    android:layout_gravity="start|center_vertical"
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"/>
+
+
+                                <TextView
+                                    android:id="@+id/timeframe_of_the_analysis"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="5dp"
+                                    android:layout_gravity="center_vertical"
+                                    android:fontFamily="@font/sf_pro_text_medium"
+                                    android:text="Trendline-Analysis: Generated: Aug 2, 2025 @ 11:00AM"
+                                    android:textColor="@color/darkTheme"
+                                    android:textSize="13sp" />
+
+                            </LinearLayout>
 
                         </LinearLayout>
 
                     </LinearLayout>
 
                 </LinearLayout>
+
             </LinearLayout>
 
             <LinearLayout
@@ -251,6 +329,7 @@
 
                 <LinearLayout
                     android:id="@+id/click_to_download"
+                    android:visibility="gone"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="15dp"

@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import interfaces.OnSymbolClickListener;
 import market.symbol.SymbolMarketDataActivity;
 import model_interfaces.OnWatchlistActionListener;
 import models.Symbol;
@@ -37,23 +38,24 @@ import utils.SymbolDiffCallback;
  * and sparkline charts. Updates list items efficiently using DiffUtil.
  */
 public class SymbolAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-
     private static final int SEARCH_VIEW_TYPE = 0;
     private static final int WATCHLIST_VIEW_TYPE = 1;
-
     Context context;
     private List<Symbol> symbolList;
     boolean isSearchAdapter;
     private final String userId;
     private final OnWatchlistActionListener listener;
+    private final OnSymbolClickListener symbolClickListener;
 
-
-    public SymbolAdapter(Context context, List<Symbol> symbolList, boolean isSearchAdapter, String userId, OnWatchlistActionListener listener) {
+    public SymbolAdapter(Context context, List<Symbol> symbolList, boolean isSearchAdapter,
+                         String userId, OnWatchlistActionListener listener,
+                         OnSymbolClickListener symbolClickListener) {
         this.context = context;
         this.symbolList = symbolList;
         this.isSearchAdapter = isSearchAdapter;
         this.userId = userId;
         this.listener = listener;
+        this.symbolClickListener = symbolClickListener;
     }
 
     public void setData(List<Symbol> newList) {
@@ -103,12 +105,15 @@ public class SymbolAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
                 vh.binding.percentagePriceChange.setTextColor(textColor);
                 vh.binding.percentagePriceChange.setText(String.format(Locale.US, "%.2f%%", symbol.get_24hChange()));
 
-                // Conditional visibility of add/remove buttons
-                //Timber.d("Binding SearchVH for %s, isInWatchlist: %s", symbol.getSymbol(), symbol.isInWatchlist());
                 vh.binding.addToWatchlist.setVisibility(symbol.isInWatchlist() ? View.GONE : View.VISIBLE);
                 vh.binding.removeFromWatchlist.setVisibility(symbol.isInWatchlist() ? View.VISIBLE : View.GONE);
 
-                vh.binding.getRoot().setOnClickListener(v -> startSymbolDetail(true, symbol));
+                vh.binding.getRoot().setOnClickListener(v -> {
+                    if (symbolClickListener != null) {
+                        symbolClickListener.onSymbolClicked(symbol);
+                    }
+                    startSymbolDetail(symbol);
+                });
 
                 vh.binding.addToWatchlist.setOnClickListener(v -> {
                     if (listener != null) {
@@ -156,7 +161,14 @@ public class SymbolAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
 //                    vh.binding.lineChart.setVisibility(View.GONE);
 //                }
 
-                vh.binding.getRoot().setOnClickListener(v -> startSymbolDetail(false, symbol));
+                // MODIFIED: Simplified click listener
+                vh.binding.getRoot().setOnClickListener(v -> {
+                    if (symbolClickListener != null) {
+                        symbolClickListener.onSymbolClicked(symbol);
+                    }
+                    startSymbolDetail(symbol);
+                });
+
                 // If watchlist items need a remove button, add it to XML and handle here:
                 // vh.binding.idOfRemoveButtonInWatchlistItem.setOnClickListener(v -> listener.onRemoveFromWatchlist(null, symbol.getSymbol()));
             }
@@ -170,41 +182,13 @@ public class SymbolAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         return symbolList != null ? symbolList.size() : 0;
     }
 
-    private void startSymbolDetail(boolean isFromSearch, Symbol symbol) {
-        if (isFromSearch) {
-            Intent intent = new Intent(context, SymbolMarketDataActivity.class);
-            intent.putExtra("SYMBOL", symbol.getSymbol());
-            intent.putExtra("BASE_CURRENCY", symbol.getBaseCurrency());
-            intent.putExtra("ASSET", symbol.getAsset());
-            intent.putExtra("CURRENT_PRICE", symbol.getCurrentPrice());
-            intent.putExtra("CHANGE_24H", symbol.get_24hChange());
+    // MODIFIED: Simplified this method to only pass the symbol's ticker.
+    private void startSymbolDetail(Symbol symbol) {
+        if (context == null || symbol == null || symbol.getSymbol() == null) return;
 
-            List<Double> sparkline = symbol.getSparkline();
-            if (sparkline != null) {
-                double[] sparklineArray = new double[sparkline.size()];
-                for (int i = 0; i < sparkline.size(); i++) {
-                    sparklineArray[i] = (sparkline.get(i) != null ? sparkline.get(i) : 0.0); // Handle nulls in sparkline
-                }
-                intent.putExtra("SPARKLINE", sparklineArray);
-            }
-            context.startActivity(intent);
-        } else {
-            Intent intent = new Intent(context, SymbolMarketDataActivity.class);
-            intent.putExtra("SYMBOL", symbol.getSymbol());
-            intent.putExtra("ASSET", symbol.getAsset());
-            intent.putExtra("CURRENT_PRICE", symbol.getPrice());
-            intent.putExtra("CHANGE_24H", symbol.getChange());
-
-            List<Double> sparkline = symbol.getSparkline();
-            if (sparkline != null) {
-                double[] sparklineArray = new double[sparkline.size()];
-                for (int i = 0; i < sparkline.size(); i++) {
-                    sparklineArray[i] = (sparkline.get(i) != null ? sparkline.get(i) : 0.0); // Handle nulls in sparkline
-                }
-                intent.putExtra("SPARKLINE", sparklineArray);
-            }
-            context.startActivity(intent);
-        }
+        Intent intent = new Intent(context, SymbolMarketDataActivity.class);
+        intent.putExtra("SYMBOL", symbol.getSymbol());
+        context.startActivity(intent);
     }
 
     public static class SearchViewHolder extends RecyclerView.ViewHolder {
