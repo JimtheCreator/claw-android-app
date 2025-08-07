@@ -641,7 +641,7 @@ class AnalysisPanelManager(
                 marketChartLayout.supportResistanceButton.setBackgroundResource(R.drawable.white_circle)
                 marketChartLayout.supportResistanceImg.setImageResource(R.drawable.sr_ic)
             }
-            rotate_to_fullscreen.visibility = View.VISIBLE
+//            rotate_to_fullscreen.visibility = View.VISIBLE
             onComplete?.invoke()
         }, panelAnimationDuration)
     }

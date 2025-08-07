@@ -8,9 +8,6 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Transformations;
 
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -41,17 +38,9 @@ public class PatternAlertViewModel extends AndroidViewModel {
     private final PatternAlertRepository patternAlertRepository;
     public final LiveData<Boolean> isLoading;
     public final LiveData<String> error;
-    // --- ⬇️ START OF CHANGES ⬇️ ---
 
-    // 1. REMOVE the old LiveData instance for alerts.
-    // private LiveData<List<PatternAlert>> patternAlerts;
-
-    // 2. ADD a trigger to request a refresh of the alerts list.
     private final MutableLiveData<String> alertRequestTrigger = new MutableLiveData<>();
-
-    // 3. ADD the final, observable LiveData that the UI will listen to.
     private final LiveData<List<PatternAlert>> patternAlerts;
-
 
     public PatternAlertViewModel(@NonNull Application application) {
         super(application);
@@ -59,24 +48,18 @@ public class PatternAlertViewModel extends AndroidViewModel {
         allPatterns = database.patternDao().getAllPatterns();
         this.symbolRepository = new SymbolRepository(application);
         isSymbolSearchLoading = symbolRepository.isSymbolSearchLoading();
-        // New
         this.patternAlertRepository = new PatternAlertRepository(application);
         this.isLoading = patternAlertRepository.isLoading;
         this.error = patternAlertRepository.error;
 
-        // 4. ADD the switchMap transformation.
-        // This links the trigger to the repository data source. When alertRequestTrigger changes,
-        // it switches to a new LiveData from getPatternAlerts and pushes its value.
         patternAlerts = Transformations.switchMap(alertRequestTrigger, patternAlertRepository::getPatternAlerts);
 
-        // Observe all patterns and handle filtering
         allPatterns.observeForever(patterns -> {
             if (patterns != null) {
                 applyFilterAndPagination();
             }
         });
 
-        // Observe search query changes
         patternSearchQuery.observeForever(query -> {
             resetPagination();
             applyFilterAndPagination();
@@ -91,7 +74,6 @@ public class PatternAlertViewModel extends AndroidViewModel {
 
         String query = patternSearchQuery.getValue();
 
-        // Apply filtering
         if (query == null || query.isEmpty()) {
             currentFilteredPatterns = new ArrayList<>(allPatternsList);
         } else {
@@ -100,7 +82,6 @@ public class PatternAlertViewModel extends AndroidViewModel {
                     .collect(Collectors.toList());
         }
 
-        // Load first page
         loadPage(0);
     }
 
@@ -119,10 +100,8 @@ public class PatternAlertViewModel extends AndroidViewModel {
         List<Pattern> pageData = currentFilteredPatterns.subList(startIndex, endIndex);
 
         if (page == 0) {
-            // First page - replace all data
             paginatedPatterns.setValue(new ArrayList<>(pageData));
         } else {
-            // Subsequent pages - append data
             List<Pattern> currentData = paginatedPatterns.getValue();
             if (currentData != null) {
                 List<Pattern> updatedData = new ArrayList<>(currentData);
@@ -155,7 +134,6 @@ public class PatternAlertViewModel extends AndroidViewModel {
         return allPatterns;
     }
 
-
     public LiveData<List<Pattern>> getPaginatedPatterns() {
         return paginatedPatterns;
     }
@@ -176,7 +154,6 @@ public class PatternAlertViewModel extends AndroidViewModel {
         return symbolRepository.searchCachedSymbols(query);
     }
 
-    // 5. CHANGE the getter to return the stable, transformed LiveData. No parameter is needed.
     public LiveData<List<PatternAlert>> getPatternAlerts() {
         return patternAlerts;
     }
@@ -190,10 +167,14 @@ public class PatternAlertViewModel extends AndroidViewModel {
         return patternAlertRepository.deletePatternAlert(alertId, userID);
     }
 
-    // 6. CHANGE refreshAlerts to simply update the trigger's value.
     public void refreshAlerts(String userID) {
         if (userID != null) {
             alertRequestTrigger.setValue(userID);
         }
+    }
+
+    // Added clearAlerts method
+    public void clearAlerts() {
+        alertRequestTrigger.setValue(null);
     }
 }

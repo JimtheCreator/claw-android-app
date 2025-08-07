@@ -70,8 +70,8 @@ public class PatternAlertsAdapter extends RecyclerView.Adapter<PatternAlertsAdap
         private final TextView symbolTextView;
         private final TextView patternNameTextView;
         private final TextView timeIntervalTextView;
-        private final TextView patternStateTextView;
-        private final ImageView symbolImageView;
+//        private final TextView patternStateTextView;
+//        private final ImageView symbolImageView;
         private final ImageButton deleteButton;
 
         public PatternAlertViewHolder(@NonNull View itemView) {
@@ -79,19 +79,16 @@ public class PatternAlertsAdapter extends RecyclerView.Adapter<PatternAlertsAdap
             symbolTextView = itemView.findViewById(R.id.text_view_symbol);
             patternNameTextView = itemView.findViewById(R.id.text_view_pattern_name);
             timeIntervalTextView = itemView.findViewById(R.id.text_view_time_interval);
-            patternStateTextView = itemView.findViewById(R.id.text_view_pattern_state);
-            symbolImageView = itemView.findViewById(R.id.icon_symbol);
+//            patternStateTextView = itemView.findViewById(R.id.text_view_pattern_state);
+//            symbolImageView = itemView.findViewById(R.id.icon_symbol);
             deleteButton = itemView.findViewById(R.id.button_delete);
         }
 
         public void bind(final PatternAlert alert, final OnDeleteClickListener listener) {
             symbolTextView.setText(alert.getSymbol());
             patternNameTextView.setText(alert.getPatternName());
-            timeIntervalTextView.setText("Interval: " + alert.getTimeInterval());
-            patternStateTextView.setText("State: " + alert.getPatternState());
-
-            // Example of setting image - replace with your logic
-            // Glide.with(itemView.getContext()).load(getSymbolIconUrl(alert.getSymbol())).into(symbolImageView);
+            timeIntervalTextView.setText(alert.getTimeInterval());
+//            patternStateTextView.setText("State: " + alert.getPatternState());
 
             deleteButton.setOnClickListener(v -> listener.onDeleteClick(alert));
         }

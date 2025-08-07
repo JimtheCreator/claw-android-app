@@ -10,6 +10,8 @@ import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -86,9 +88,9 @@ public class PatternAlertsBottomSheetFragment extends BottomSheetDialogFragment 
             binding.createAlertProgressBar.setVisibility(isLoading ? View.VISIBLE : View.GONE);
             binding.createAlertText.setVisibility(isLoading ? View.INVISIBLE : View.VISIBLE);
 
-            if (isLoading){
+            if (isLoading) {
                 binding.createPatternAlert.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.button_disabled_background));
-            }else {
+            } else {
                 binding.createPatternAlert.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.alert_button_shape));
             }
 
@@ -111,8 +113,8 @@ public class PatternAlertsBottomSheetFragment extends BottomSheetDialogFragment 
                     .show(getParentFragmentManager(), "PatternSelection");
         });
         binding.timeframe.setOnClickListener(v -> toggleTabLayoutVisibility());
-        binding.patternStateHolder.setOnClickListener(v -> togglePatternStateDrawerVisibility());
-        binding.pressedPatternState.setOnClickListener(v -> changePatternStateDrawer());
+//        binding.patternStateHolder.setOnClickListener(v -> togglePatternStateDrawerVisibility());
+//        binding.pressedPatternState.setOnClickListener(v -> changePatternStateDrawer());
 
         // Add the create alert button click listener
         binding.createPatternAlert.setOnClickListener(v -> createAlert());
@@ -160,16 +162,14 @@ public class PatternAlertsBottomSheetFragment extends BottomSheetDialogFragment 
         return (user != null) ? user.getUid() : null;
     }
 
-    private void initiatePatternState(){
-        if (binding.selectedPatternState.getText().equals("Fully Formed")){
+    private void initiatePatternState() {
+        if (binding.selectedPatternState.getText().equals("Fully Formed")) {
             binding.unselectedPatternStateStatus.setImageDrawable(
                     ContextCompat.getDrawable(requireContext(), R.drawable.pattern_half_formed)
             );
 
             binding.unselectedPatternState.setText("Half-Way Formed");
-        }
-
-        else if (binding.selectedPatternState.getText().equals("Half-Way Formed")){
+        } else if (binding.selectedPatternState.getText().equals("Half-Way Formed")) {
             binding.unselectedPatternStateStatus.setImageDrawable(
                     ContextCompat.getDrawable(requireContext(), R.drawable.pattern_fully_formed)
             );
@@ -199,7 +199,7 @@ public class PatternAlertsBottomSheetFragment extends BottomSheetDialogFragment 
     }
 
     private void changePatternStateDrawer() {
-        if (binding.selectedPatternState.getText().equals("Fully Formed")){
+        if (binding.selectedPatternState.getText().equals("Fully Formed")) {
             binding.selectedPatternStateStatus.setImageDrawable(
                     ContextCompat.getDrawable(requireContext(), R.drawable.pattern_half_formed)
             );
@@ -215,9 +215,7 @@ public class PatternAlertsBottomSheetFragment extends BottomSheetDialogFragment 
             );
 
             binding.unselectedPatternState.setText("Fully Formed");
-        }
-
-        else if (binding.selectedPatternState.getText().equals("Half-Way Formed")){
+        } else if (binding.selectedPatternState.getText().equals("Half-Way Formed")) {
             binding.selectedPatternStateStatus.setImageDrawable(
                     ContextCompat.getDrawable(requireContext(), R.drawable.pattern_fully_formed)
             );
@@ -308,7 +306,8 @@ public class PatternAlertsBottomSheetFragment extends BottomSheetDialogFragment 
     private void setupSymbolSearch() {
         binding.symbolSearchEditText.addTextChangedListener(new TextWatcher() {
             @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
@@ -324,13 +323,55 @@ public class PatternAlertsBottomSheetFragment extends BottomSheetDialogFragment 
                         symbolAdapter.updateSymbols(new ArrayList<>());
                     }
                 };
-                handler.postDelayed(searchRunnable, 300);  // Wait 300ms
+                handler.postDelayed(searchRunnable, 300);
             }
 
             @Override
-            public void afterTextChanged(Editable s) {}
+            public void afterTextChanged(Editable s) {
+            }
+        });
+
+        // UPDATED: Handles the 'Done' button click on the keyboard
+        binding.symbolSearchEditText.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                // First, clear focus from the EditText
+                binding.symbolSearchEditText.clearFocus();
+                // Then, hide the keyboard
+                hideKeyboard();
+                return true;
+            }
+            return false;
         });
     }
+
+    private void onSymbolSelected(CachedSymbol symbol) {
+        // UPDATED: Clear focus and then hide the keyboard
+        binding.symbolSearchEditText.clearFocus();
+        hideKeyboard();
+
+        binding.selectedSymbol.setText(symbol.symbol);
+        binding.symbolSearchEditText.setText("");
+        symbolAdapter.updateSymbols(new ArrayList<>());
+
+        TransitionManager.beginDelayedTransition(binding.getRoot());
+        binding.symbolSearchLayout.setVisibility(View.GONE);
+        binding.symbolArrowState.setImageDrawable(
+                ContextCompat.getDrawable(requireContext(), R.drawable.drop_down_icon)
+        );
+        isSymbolSearchVisible = false;
+    }
+
+    // UPDATED: More robust helper method to hide the soft keyboard
+    private void hideKeyboard() {
+        View view = this.getView();
+        if (view != null) {
+            InputMethodManager imm = (InputMethodManager) requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+            }
+        }
+    }
+
 
     /**
      * Observes the symbol search loading state from the ViewModel
@@ -347,17 +388,6 @@ public class PatternAlertsBottomSheetFragment extends BottomSheetDialogFragment 
                 binding.symbolRecyclerView.setVisibility(View.VISIBLE);
             }
         });
-    }
-
-    private void onSymbolSelected(CachedSymbol symbol) {
-        binding.selectedSymbol.setText(symbol.symbol); // Adjust based on your CachedSymbol model
-        binding.symbolSearchEditText.setText("");
-        symbolAdapter.updateSymbols(new ArrayList<>());
-
-        // Hide the search layout
-        TransitionManager.beginDelayedTransition(binding.getRoot());
-        binding.symbolSearchLayout.setVisibility(View.GONE);
-        isSymbolSearchVisible = false;
     }
 
     /**

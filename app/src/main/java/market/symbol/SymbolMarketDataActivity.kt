@@ -247,7 +247,7 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                 marketChartLayout.supportResistanceButton.setBackgroundResource(R.drawable.cool_black_circle)
                 marketChartLayout.supportResistanceImg.setImageResource(R.drawable.close_ic_grey)
             }
-            marketChartLayout.rotateToFullscreen.visibility = View.GONE
+//            marketChartLayout.rotateToFullscreen.visibility = View.GONE
             isExpanded = true
         }
     }

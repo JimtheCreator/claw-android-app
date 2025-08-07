@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -88,6 +87,88 @@
 
     </LinearLayout>
 
+    <!-- Login State Layout -->
+    <LinearLayout
+        android:id="@+id/login_state_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:visibility="visible">
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="210dp"
+            android:contentDescription="A lock icon indicating authentication is required"
+            android:src="@drawable/pattern_alert_login_ic" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="25dp"
+            android:fontFamily="@font/sf_pro_text_bold"
+            android:text="Hold up!"
+            android:textColor="@color/white"
+            android:textSize="19sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginStart="40dp"
+            android:layout_marginEnd="40dp"
+            android:fontFamily="@font/sf_pro_text_regular"
+            android:gravity="center"
+            android:text="Looks like our unicorn can’t find your alerts. Log in to track your patterns and catch the next big move."
+            android:textColor="@color/grey"
+            android:textSize="15sp" />
+
+<!--        <RelativeLayout-->
+<!--            android:id="@+id/login_button"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="50dp"-->
+<!--            android:layout_marginStart="40dp"-->
+<!--            android:layout_marginTop="30dp"-->
+<!--            android:layout_marginEnd="40dp"-->
+<!--            android:layout_marginBottom="20dp"-->
+<!--            android:background="@drawable/alert_button_shape">-->
+
+<!--            <LinearLayout-->
+<!--                android:layout_width="wrap_content"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:layout_centerInParent="true"-->
+<!--                android:orientation="horizontal">-->
+
+<!--                <ImageView-->
+<!--                    android:layout_width="25dp"-->
+<!--                    android:layout_height="25dp"-->
+<!--                    android:layout_gravity="center_vertical"-->
+<!--                    android:layout_marginEnd="5dp"-->
+<!--                    android:src="@drawable/ic_google" />-->
+
+<!--                <TextView-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:layout_gravity="center_vertical"-->
+<!--                    android:layout_marginStart="5dp"-->
+<!--                    android:fontFamily="@font/sf_pro_text_bold"-->
+<!--                    android:text="Sign in with Google"-->
+<!--                    android:textColor="@color/graphite_black"-->
+<!--                    android:textSize="17sp" />-->
+
+<!--            </LinearLayout>-->
+
+<!--        </RelativeLayout>-->
+
+    </LinearLayout>
+
+
     <!-- Main Content Layout -->
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipe_refresh_layout"
@@ -98,32 +179,12 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recycler_view_pattern_alerts"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:paddingTop="8dp"
-            android:paddingBottom="80dp"
-            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-            tools:listitem="@layout/item_pattern_alert" />
+        <include
+            android:id="@+id/available_pattern_alerts_layout"
+            layout="@layout/available_pattern_alerts_layout" />
 
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
-    <!-- Floating Action Button -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_create_alert"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        android:src="@drawable/black_add"
-        app:backgroundTint="@color/dark_beige"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:tint="@color/graphite_black"
-        android:visibility="gone"
-        tools:visibility="visible"
-        android:contentDescription="Create new pattern alert" />
 
     <!-- Progress Bar for loading state -->
     <ProgressBar
