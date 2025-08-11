@@ -116,19 +116,24 @@ public class SymbolAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
                 });
 
                 vh.binding.addToWatchlist.setOnClickListener(v -> {
+                    // --- Optimistic UI Update ---
+                    symbol.setInWatchlist(true);
+                    // Use the non-deprecated method
+                    notifyItemChanged(holder.getBindingAdapterPosition());
+
                     if (listener != null) {
-                        Log.d("CLICKED", "Add to Watchlist initiated for " + symbol.getSymbol());
                         listener.onAddToWatchlist(userId, symbol, "Binance");
                     }
-                    // Re-enable button when operation completes (via LiveData observation)
                 });
 
-                // vh.removeButton is from SearchViewHolder, maps to binding.removeFromWatchlist
                 vh.removeButton.setOnClickListener(v -> {
-                    vh.binding.removeFromWatchlist.setVisibility(View.GONE);
+                    // --- Optimistic UI Update ---
+                    symbol.setInWatchlist(false);
+                    // Use the non-deprecated method
+                    notifyItemChanged(holder.getBindingAdapterPosition());
+
                     if (listener != null) {
-                        Log.d("CLICKED", "Remove from Watchlist initiated for " + symbol.getSymbol());
-                        listener.onRemoveFromWatchlist(userId, symbol.getSymbol()); // Pass null for userId
+                        listener.onRemoveFromWatchlist(userId, symbol.getSymbol());
                     }
                 });
 

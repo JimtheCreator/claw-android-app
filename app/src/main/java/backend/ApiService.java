@@ -13,6 +13,7 @@ import backend.requests.SubscribeRequest;
 import backend.results.CancellationResponseSchema;
 import backend.results.MarketDataResponse;
 import backend.results.NativeCheckoutResponse;
+import backend.results.UsageResponse;
 import io.reactivex.Completable;
 import market.symbol.model.AnalysisRequest;
 import market.symbol.model.AnalysisResult;
@@ -46,7 +47,7 @@ public interface ApiService {
     Call<CancellationResponseSchema> cancelSubscription(@Body CancelSubscriptionRequest request);
 
     @GET("subscriptions/{user_id}/limits")
-    Call<UsageData> getSubscriptionLimits(@Path("user_id") String userId);
+    Call<UsageResponse> getSubscriptionLimits(@Path("user_id") String userId);
 
     @POST("alerts")
     Call<CreateAlertRequest> createAlert(@Body CreateAlertRequest request);

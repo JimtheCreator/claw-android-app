@@ -272,6 +272,7 @@ public class OnboardingPricingPageSheetFragment extends BottomSheetDialogFragmen
         }
     }
 
+    // Modified bindPlanToUi method for OnboardingPricingPageSheetFragment
     private void bindPlanToUi(Plan plan, TextView nameView, TextView descriptionView,
                               TextView priceView, TextView billingView, CardView planCard,
                               RadioButton radioButton, RelativeLayout radioHolder, TextView savePercentageView) {
@@ -288,7 +289,26 @@ public class OnboardingPricingPageSheetFragment extends BottomSheetDialogFragmen
         planCard.setOnClickListener(v -> {
             viewModel.selectPlan(plan.getId());
             selectPlanCard(planCard);
+
+            // Update text based on plan type - ADD THIS LINE
+            updatePlanLimitsText(plan.getType());
         });
+    }
+
+    private void updatePlanLimitsText(String planType) {
+        if ("starter_monthly".equals(planType)) {
+            // Change to monthly limits
+            binding.srLimit.setText("305 monthly S&R Analysis");
+            binding.trendlineLimit.setText("300 monthly Trendline Analysis");
+            binding.starterWatchlistLimit.setText("6 Symbol Watchlist");
+            binding.starterPatternAlertsLimit.setText("7 monthly Pattern Alerts");
+        } else if ("starter_weekly".equals(planType)) {
+            // Reset to default weekly limits
+            binding.srLimit.setText("54 weekly S&R Analysis");
+            binding.trendlineLimit.setText("49 weekly Trendline Analysis");
+            binding.starterWatchlistLimit.setText("3 Symbol Watchlist");
+            binding.starterPatternAlertsLimit.setText("7 weekly Pattern Alerts");
+        }
     }
 
     private void selectPlanCard(CardView selectedCard) {
@@ -343,6 +363,12 @@ public class OnboardingPricingPageSheetFragment extends BottomSheetDialogFragmen
             List<Plan> starterPlans = viewModel.starterPlansLiveData.getValue();
             if (selectedPlanId != null && starterPlans != null && starterPlans.stream()
                     .anyMatch(p -> p.getId().equals(selectedPlanId))) {
+
+                // Find the selected plan and update text - ADD THESE LINES
+                starterPlans.stream()
+                        .filter(p -> p.getId().equals(selectedPlanId))
+                        .findFirst().ifPresent(selectedPlan -> updatePlanLimitsText(selectedPlan.getType()));
+
                 disableAllInteractiveElements();
                 viewModel.initiatePaymentSheetFlow();
             } else {

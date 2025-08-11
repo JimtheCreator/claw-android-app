@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <!-- Labels for feature name and usage count -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/feature_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:fontFamily="@font/sf_pro_text_medium"
+            android:text="Feature Name"
+            android:textColor="@color/off_white"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/usage_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:fontFamily="@font/sf_pro_text_regular"
+            android:text="0/0 Used"
+            android:textColor="@color/inactive"
+            android:textSize="14sp" />
+    </RelativeLayout>
+
+    <!-- Custom progress bar container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/usage_bar_background"
+        android:orientation="horizontal"
+        android:weightSum="100">
+
+        <!-- The 'used' part of the bar -->
+        <View
+            android:id="@+id/used_bar"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="0"
+            android:background="@drawable/usage_bar_used_foreground" />
+
+        <!-- The 'left' part of the bar (transparent) -->
+        <View
+            android:id="@+id/left_bar"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="100"
+            android:background="@android:color/transparent" />
+    </LinearLayout>
+
+</LinearLayout>

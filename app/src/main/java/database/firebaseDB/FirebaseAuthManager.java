@@ -372,6 +372,112 @@ public class FirebaseAuthManager {
                 });
     }
 
+    // Add these methods to your FirebaseAuthManager class
+
+    /**
+     * Callback interface for user data retrieval
+     */
+    public interface UserDataCallback {
+        void onUserDataRetrieved(User user);
+        void onUserDataFailed(String error);
+    }
+
+    /**
+     * Refreshes user data from Firebase
+     */
+    public void refreshUserData(UserDataCallback callback) {
+        FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+
+        if (firebaseUser == null) {
+            callback.onUserDataFailed("No authenticated user");
+            return;
+        }
+
+        // Force token refresh to ensure we have the latest user data
+        firebaseUser.getIdToken(true)
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        // Token refreshed, now get user data
+                        User userData = getUserData();
+                        if (userData != null) {
+                            callback.onUserDataRetrieved(userData);
+                        } else {
+                            // If getUserData() still returns null, try to construct user from FirebaseUser
+                            User constructedUser = constructUserFromFirebaseUser(firebaseUser);
+                            if (constructedUser != null) {
+                                callback.onUserDataRetrieved(constructedUser);
+                            } else {
+                                callback.onUserDataFailed("Failed to construct user data");
+                            }
+                        }
+                    } else {
+                        callback.onUserDataFailed("Failed to refresh token: " +
+                                (task.getException() != null ? task.getException().getMessage() : "Unknown error"));
+                    }
+                });
+    }
+
+    /**
+     * Constructs a User object from FirebaseUser when getUserData() returns null
+     */
+    private User constructUserFromFirebaseUser(FirebaseUser firebaseUser) {
+        if (firebaseUser == null) return null;
+
+        try {
+            User user = new User();
+            user.setUuid(firebaseUser.getUid());
+            user.setEmail(firebaseUser.getEmail());
+            user.setDisplayName(firebaseUser.getDisplayName());
+
+            // Set default values for missing data
+            user.setSubscriptionType("free"); // Default to free plan
+
+            // If you have a profile picture URL
+            if (firebaseUser.getPhotoUrl() != null) {
+                user.setAvatarUrl(firebaseUser.getPhotoUrl().toString());
+            }
+
+            Log.d("FirebaseAuthManager", "Constructed user from FirebaseUser: " + user.getUuid());
+            return user;
+
+        } catch (Exception e) {
+            Log.e("FirebaseAuthManager", "Error constructing user from FirebaseUser: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Check if user data is available and complete
+     */
+    public boolean isUserDataComplete() {
+        User userData = getUserData();
+        return userData != null &&
+                userData.getUuid() != null &&
+                !userData.getUuid().isEmpty();
+    }
+
+    /**
+     * Force reload user data from server
+     */
+    public void reloadUserData(UserDataCallback callback) {
+        FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+
+        if (firebaseUser == null) {
+            callback.onUserDataFailed("No authenticated user");
+            return;
+        }
+
+        firebaseUser.reload()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        refreshUserData(callback);
+                    } else {
+                        callback.onUserDataFailed("Failed to reload user: " +
+                                (task.getException() != null ? task.getException().getMessage() : "Unknown error"));
+                    }
+                });
+    }
+
 
     // Add a public method to check if this was a newly created user
     public static boolean wasUserNewlyCreated() {

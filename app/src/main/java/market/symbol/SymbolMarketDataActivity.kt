@@ -80,6 +80,7 @@ class SymbolMarketDataActivity : AppCompatActivity() {
     private var onPermissionGrantedCallback: (() -> Unit)? = null
     private var currentlyDisplayedCandles = mutableListOf<CandlestickData>()
 
+    private var isAddingToWatchlist = false
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
             if (isGranted) {
@@ -274,6 +275,7 @@ class SymbolMarketDataActivity : AppCompatActivity() {
         finishActivity: () -> Unit
     ) {
         closePage.setOnClickListener { finishActivity() }
+
         marketChartLayout.addToWatchlist.setOnClickListener {
             val userId = firebaseUser?.uid
             if (userId == null) {
@@ -303,6 +305,7 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             )
             watchListListener.onAddToWatchlist(userId, symbolObj, "Binance")
         }
+
         marketChartLayout.createPriceAlert.setOnClickListener {
             val symbol =
                 (root.context as? ComponentActivity)?.intent?.getStringExtra("SYMBOL") ?: ""
@@ -414,7 +417,6 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                 }
             }
         }
-
         lifecycleScope.launch {
             viewModel.isLoading.collect { isLoading ->
                 binding.marketChartLayout.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
@@ -443,6 +445,7 @@ class SymbolMarketDataActivity : AppCompatActivity() {
                     if (isInWatchlist) View.GONE else View.VISIBLE
             }
         }
+
         lifecycleScope.launch {
             viewModel.hasInitialDataLoaded.collect { hasLoaded ->
                 if (hasLoaded) {

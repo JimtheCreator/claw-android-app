@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-
     <!-- Background work permissions -->
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- For Android 12+ (API 31+) - Background work restrictions -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" /> <!-- For Android 12+ (API 31+) - Background work restrictions -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
@@ -29,6 +27,21 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Claw"
         tools:targetApi="31">
+        <activity
+            android:name="settings.contacts.ContactsTileActivity"
+            android:exported="false" />
+        <activity
+            android:name="settings.charts.ChartsTileActivity"
+            android:exported="false" />
+        <activity
+            android:name="settings.notifications.NotificationSettings"
+            android:exported="false" />
+        <activity
+            android:name="settings.subscriptios.BillingPlanSettings"
+            android:exported="false" />
+        <activity
+            android:name="settings.SettingsActivity"
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -85,7 +98,6 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
-
     </application>
 
 </manifest>

@@ -660,12 +660,17 @@ public class HomeTabFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        if (authViewModel.getAuthState().getValue() == AuthViewModel.AuthState.AUTHENTICATED) {
-            String currentUid = getCurrentUserId();
-            if (currentUid != null) {
-                // FIXED: Only connect if not already connected
-                homeViewModel.connectToWatchlistWebSocketIfNeeded(currentUid);
-            }
+        String currentUid = getCurrentUserId();
+        // Check if the user is signed in.
+        if (authViewModel.getAuthState().getValue() == AuthViewModel.AuthState.AUTHENTICATED && currentUid != null) {
+            // Always refresh the watchlist when the fragment becomes active.
+            // This ensures data is fresh after returning from the symbol detail activity or elsewhere.
+            Timber.d("HomeTabFragment resumed, reloading watchlist for user %s", currentUid);
+            homeViewModel.loadWatchlist(currentUid);
+
+            // The call below is also inside loadWatchlist, but calling it here ensures the
+            // websocket connects even if loadWatchlist is busy. It's a safe redundancy.
+            homeViewModel.connectToWatchlistWebSocketIfNeeded(currentUid);
         }
     }
 

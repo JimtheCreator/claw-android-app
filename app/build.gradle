@@ -112,4 +112,10 @@ dependencies {
     //Facebook Shimmer Effect
     implementation libs.shimmer
 
+    // Circular ImageView
+    implementation libs.circularimageview
+
+    // Circular Ring
+    implementation libs.circleprogress
+
 }

@@ -5,6 +5,8 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.RelativeLayout;
@@ -15,6 +17,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.cardview.widget.CardView;
 import androidx.core.content.ContextCompat;
+import androidx.core.widget.NestedScrollView;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.claw.ai.R;
@@ -29,8 +32,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import bottomsheets.PlanChangeWarningBottomSheetFragment;
 import backend.results.NativeCheckoutResponse;
+import bottomsheets.PlanChangeWarningBottomSheetFragment;
 import models.Plan;
 import models.User;
 import viewmodels.stripe_payments.SubscriptionViewModel;
@@ -50,6 +53,14 @@ public class SubscriptionPlanSheetFragment extends BottomSheetDialogFragment {
     private CardView currentlySelectedCard = null;
     private User currentUser; // Store the user data here
 
+    // UI elements for loading/error state
+    private RelativeLayout progressBarStateLayout;
+    private ProgressBar loadingProgressBar;
+    private LinearLayout errorStateLayout;
+    private TextView errorMessageText;
+    private Button retryButton;
+    private NestedScrollView mainContentScrollView;
+
     public static SubscriptionPlanSheetFragment newInstance() {
         Bundle args = new Bundle();
         SubscriptionPlanSheetFragment fragment = new SubscriptionPlanSheetFragment();
@@ -68,6 +79,14 @@ public class SubscriptionPlanSheetFragment extends BottomSheetDialogFragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         viewModel = new ViewModelProvider(this).get(SubscriptionViewModel.class);
+
+        // Initialize UI elements for loading/error states
+        progressBarStateLayout = binding.progressBarState;
+        loadingProgressBar = binding.loadingProgressBar;
+        errorStateLayout = binding.errorStateLayout;
+        errorMessageText = binding.errorMessageText;
+        retryButton = binding.retryButton;
+        mainContentScrollView = binding.mainContentScrollview;
 
         // Observe the LiveData
         viewModel.getCurrentUser().observe(getViewLifecycleOwner(), user -> {
@@ -89,12 +108,82 @@ public class SubscriptionPlanSheetFragment extends BottomSheetDialogFragment {
 
         setupClickListeners();
         observeViewModel();
+
+        retryButton.setOnClickListener(v -> viewModel.fetchPricesFromRepository());
     }
 
-    // In SubscriptionPlanSheetFragment.java, update setupClickListeners()
+    private void updateUiState() {
+        Boolean isLoading = viewModel.isLoading.getValue();
+        String error = viewModel.error.getValue();
+
+        if (isLoading != null && isLoading) {
+            // State: Loading - This remains the same.
+            progressBarStateLayout.setVisibility(View.VISIBLE);
+            loadingProgressBar.setVisibility(View.VISIBLE);
+            errorStateLayout.setVisibility(View.GONE);
+            mainContentScrollView.setVisibility(View.GONE);
+            binding.closebutton.setVisibility(View.GONE);
+
+        } else if (error != null) {
+            // State: Error - This remains the same.
+            if (error.equals("Payment failed: Payment canceled.")){
+                Toast.makeText(getContext(), "Payment cancelled.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            Log.e(TAG, "Displaying error state: " + error);
+            progressBarStateLayout.setVisibility(View.VISIBLE);
+            loadingProgressBar.setVisibility(View.GONE);
+            errorStateLayout.setVisibility(View.VISIBLE);
+            errorMessageText.setText(error);
+            retryButton.setVisibility(View.VISIBLE);
+            mainContentScrollView.setVisibility(View.GONE);
+            binding.closebutton.setVisibility(View.VISIBLE);
+
+        } else {
+            // This is the "not loading and no error" case.
+            // We must add a final check to ensure the plan data has actually been processed.
+            if (viewModel.testDrivePlanLiveData.getValue() == null &&
+                    viewModel.starterPlansLiveData.getValue() == null &&
+                    viewModel.proPlansLiveData.getValue() == null) {
+
+                // Data is not ready yet. Do nothing and wait for the next update.
+                // The UI will correctly remain in the loading state.
+                return;
+            }
+
+            // If we reach here, it means loading is finished, there's no error,
+            // and the plan data has been processed. THIS is the true success state.
+            progressBarStateLayout.setVisibility(View.GONE);
+            mainContentScrollView.setVisibility(View.VISIBLE);
+            binding.closebutton.setVisibility(View.VISIBLE);
+
+            // Now, we can safely expand the sheet.
+            expandBottomSheet();
+        }
+    }
+
+    private void expandBottomSheet() {
+        View view = getView();
+        if (view != null) {
+            // We use post to ensure the view is laid out before we ask it to expand.
+            view.post(() -> {
+                View parent = (View) view.getParent();
+                if (parent != null) {
+                    BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(parent);
+                    ViewGroup.LayoutParams layoutParams = parent.getLayoutParams();
+                    layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
+                    parent.setLayoutParams(layoutParams);
+                    behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                }
+            });
+        }
+    }
+
+
     private void setupClickListeners() {
         binding.initiateTestDrivePay.setOnClickListener(v -> {
-            if (currentUser != null){
+            if (currentUser != null) {
                 User user = currentUser;
                 boolean shouldShowWarning = (user.isUserPaid() || !"free".equals(user.getSubscriptionType()));
                 resetState();
@@ -230,8 +319,44 @@ public class SubscriptionPlanSheetFragment extends BottomSheetDialogFragment {
         });
     }
 
-
     private void observeViewModel() {
+        // Centralized UI state observation
+        viewModel.isLoading.observe(getViewLifecycleOwner(), isLoading -> updateUiState());
+        viewModel.error.observe(getViewLifecycleOwner(), error -> updateUiState());
+
+        viewModel.isPaymentLoading.observe(getViewLifecycleOwner(), isPaymentLoading -> {
+            // Handle payment-specific loading state without affecting main UI visibility
+            if (isPaymentLoading != null && isPaymentLoading) {
+                // Keep payment button in loading state but don't hide main content
+                if (activeProgressBar != null) activeProgressBar.setVisibility(View.VISIBLE);
+                if (buttonText != null) buttonText.setVisibility(View.GONE);
+                if (initiatedPayButton != null) {
+                    initiatedPayButton.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.grey_rounded_view));
+                }
+                disableAllInteractiveElements();
+            } else {
+                // Reset payment button state if payment loading is false
+                // Note: This will be overridden by other success/failure handlers when needed
+            }
+        });
+
+        viewModel.getCurrentUser().observe(getViewLifecycleOwner(), user -> {
+            if (user != null) {
+                currentUser = user;
+                updateUiState(); // Re-evaluate UI when user data arrives
+            }
+        });
+
+        // The rest of the observers now just handle data binding, not overall UI visibility
+        viewModel.testDrivePlanLiveData.observe(getViewLifecycleOwner(), plan -> {
+            if (plan != null) {
+                bindPlanToUi(plan, binding.testDrivePlanName, binding.testDrivePrice, binding.testDriveBilling, binding.testDrivePlan);
+                binding.testDrivePlanCardview.setVisibility(View.VISIBLE);
+            } else {
+                binding.testDrivePlanCardview.setVisibility(View.GONE);
+            }
+        });
+
         viewModel.testDrivePlanLiveData.observe(getViewLifecycleOwner(), plan -> {
             if (plan != null) {
                 bindPlanToUi(plan, binding.testDrivePlanName, binding.testDrivePrice, binding.testDriveBilling, binding.testDrivePlan);
@@ -302,7 +427,7 @@ public class SubscriptionPlanSheetFragment extends BottomSheetDialogFragment {
                             new PaymentSheet.Configuration(getString(R.string.app_name),
                                     new PaymentSheet.CustomerConfiguration(response.getCustomerId(), response.getEphemeralKeySecret()))
                     );
-                } else if (!response.isPaymentRequired()){
+                } else if (!response.isPaymentRequired()) {
                     // No payment required, handle success directly
                     Toast.makeText(getContext(), response.getMessage(), Toast.LENGTH_SHORT).show();
                     enableAllInteractiveElements();
@@ -356,11 +481,23 @@ public class SubscriptionPlanSheetFragment extends BottomSheetDialogFragment {
             }
         });
 
-        viewModel.error.observe(getViewLifecycleOwner(), error -> {
-            if (error != null) {
-                Toast.makeText(getContext(), error, Toast.LENGTH_SHORT).show();
-            }
-        });
+
+    }
+
+    private void updatePlanLimitsText(String planType) {
+        if ("starter_monthly".equals(planType)) {
+            // Change to monthly limits
+            binding.srLimit.setText("305 monthly S&R Analysis");
+            binding.trendlineLimit.setText("300 monthly Trendline Analysis");
+            binding.starterWatchlistLimit.setText("6 Symbol Watchlist");
+            binding.starterPatternAlertsLimit.setText("7 monthly Pattern Alerts");
+        } else if ("starter_weekly".equals(planType)) {
+            // Reset to default weekly limits
+            binding.srLimit.setText("54 weekly S&R Analysis");
+            binding.trendlineLimit.setText("49 weekly Trendline Analysis");
+            binding.starterWatchlistLimit.setText("3 Symbol Watchlist");
+            binding.starterPatternAlertsLimit.setText("7 weekly Pattern Alerts");
+        }
     }
 
     private void bindPlanToUi(Plan plan, TextView nameView, TextView priceView, TextView billingView, CardView cardView) {
@@ -370,6 +507,9 @@ public class SubscriptionPlanSheetFragment extends BottomSheetDialogFragment {
         cardView.setOnClickListener(v -> {
             viewModel.selectPlan(plan.getId());
             selectPlanCard(cardView);
+
+            // Update text based on plan type - ADD THIS LINE
+            updatePlanLimitsText(plan.getType());
         });
     }
 
@@ -486,20 +626,5 @@ public class SubscriptionPlanSheetFragment extends BottomSheetDialogFragment {
     public void onDestroyView() {
         super.onDestroyView();
         binding = null;
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-        View view = getView();
-        if (view != null) {
-            View parent = (View) view.getParent();
-            BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(parent);
-            behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
-            behavior.setSkipCollapsed(true);
-            ViewGroup.LayoutParams layoutParams = parent.getLayoutParams();
-            layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
-            parent.setLayoutParams(layoutParams);
-        }
     }
 }

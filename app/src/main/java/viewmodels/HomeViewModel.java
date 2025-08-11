@@ -27,6 +27,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -141,51 +142,6 @@ public class HomeViewModel extends ViewModel implements LifecycleEventObserver {
         liveData.observeForever(observer);
     }
 
-//    public void loadWatchlist(String userId) {
-//        isWatchlistLoading.postValue(true);
-//        LiveData<List<Symbol>> apiLiveData = repository.getWatchlist(userId);
-//        apiLiveData.observeForever(new Observer<>() {
-//            @Override
-//            public void onChanged(List<Symbol> symbolsFromApi) {
-//                apiLiveData.removeObserver(this);
-//                if (symbolsFromApi != null) {
-//                    List<String> tickers = new ArrayList<>();
-//                    for (Symbol s : symbolsFromApi) {
-//                        tickers.add(s.getSymbol());
-//                    }
-//                    // Load cached symbols in the background
-//                    executor.execute(() -> {
-//                        List<Symbol> cachedSymbols = repository.getCachedSymbolsByTickers(tickers);
-//                        // Switch back to the main thread to update LiveData
-//                        handler.post(() -> {
-//                            Map<String, Symbol> cachedMap = new HashMap<>();
-//                            for (Symbol cached : cachedSymbols) {
-//                                cachedMap.put(cached.getSymbol(), cached);
-//                            }
-//                            List<Symbol> initialWatchlist = new ArrayList<>();
-//                            for (Symbol apiSymbol : symbolsFromApi) {
-//                                Symbol symbolToAdd = cachedMap.getOrDefault(apiSymbol.getSymbol(), apiSymbol);
-//                                if (symbolToAdd == null) return;
-//                                symbolToAdd.setInWatchlist(true);
-//                                initialWatchlist.add(symbolToAdd);
-//                            }
-//                            watchlist.postValue(initialWatchlist);
-//                            watchlistSymbolTickers.clear();
-//                            for (Symbol s : initialWatchlist) {
-//                                watchlistSymbolTickers.add(s.getSymbol());
-//                            }
-//                            isWatchlistLoading.postValue(false);
-//                            connectToWatchlistWebSocket(userId);
-//                        });
-//                    });
-//                } else {
-//                    watchlist.postValue(new ArrayList<>());
-//                    isWatchlistLoading.postValue(false);
-//                }
-//            }
-//        });
-//    }
-
     public void onSymbolClicked(Symbol symbol) {
         LiveData<Symbol> liveData = repository.fetchSymbolDetails(symbol.getSymbol());
         liveData.observeForever(new Observer<Symbol>() {
@@ -258,8 +214,6 @@ public class HomeViewModel extends ViewModel implements LifecycleEventObserver {
         }
     }
 
-    // In HomeViewModel.java - Updated methods
-
     public void addToWatchlist(String userID, Symbol symbolToAdd, String source) {
         // Check subscription type and watchlist limit first
         if (subscriptionType == null) {
@@ -293,21 +247,14 @@ public class HomeViewModel extends ViewModel implements LifecycleEventObserver {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(() -> {
                     Timber.d("API: Added %s to watchlist", symbolToAdd.getSymbol());
-                    symbolToAdd.setInWatchlist(true);
-                    watchlistSymbolTickers.add(symbolToAdd.getSymbol());
+                    // SUCCESS: Now, reload the watchlist from the source of truth.
+                    // This ensures data consistency and re-initializes the WebSocket correctly.
+                    loadWatchlist(userID);
 
-                    ArrayList<Symbol> updatedWatchlist = new ArrayList<>(currentWatchlist != null ? currentWatchlist : Collections.emptyList());
+                    // Also, update the flag in the currently displayed search results for instant UI feedback there.
+                    updateIsInWatchlistInList(searchResults, symbolToAdd.getSymbol(), true);
 
-                    if (updatedWatchlist.stream().noneMatch(s -> s.getSymbol().equals(symbolToAdd.getSymbol()))) {
-                        updatedWatchlist.add(0, symbolToAdd);
-                        watchlist.postValue(updatedWatchlist);
-                    }
-
-                    updateIsInWatchlistFlagForList(searchResults.getValue(), searchResults);
                     watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolToAdd, true, true, null));
-
-                    // FIXED: Don't disconnect/reconnect WebSocket - just let it continue running
-                    // The WebSocket will automatically include the new symbol in future updates
                 }, throwable -> {
                     Timber.e(throwable, "API: Failed to add %s to watchlist", symbolToAdd.getSymbol());
                     watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolToAdd, false, true, throwable));
@@ -322,24 +269,42 @@ public class HomeViewModel extends ViewModel implements LifecycleEventObserver {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(() -> {
                     Timber.d("API: Removed %s from watchlist", symbolTickerToRemove);
-                    watchlistSymbolTickers.remove(symbolTickerToRemove);
+                    // SUCCESS: Reload the watchlist to ensure consistency.
+                    loadWatchlist(userID);
 
-                    List<Symbol> currentWatchlist = watchlist.getValue();
-                    if (currentWatchlist != null) {
-                        List<Symbol> updatedList = currentWatchlist.stream()
-                                .filter(s -> !s.getSymbol().equals(symbolTickerToRemove))
-                                .collect(Collectors.toList());
-                        watchlist.postValue(updatedList);
-                    }
-                    updateIsInWatchlistFlagForList(searchResults.getValue(), searchResults);
+                    // Update the flag in the search results list.
+                    updateIsInWatchlistInList(searchResults, symbolTickerToRemove, false);
+
                     watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolTickerToRemove, true, false, null));
-
-                    // FIXED: Don't disconnect/reconnect WebSocket - just let it continue running
-                    // The WebSocket will automatically exclude the removed symbol from future updates
                 }, throwable -> {
                     Timber.e(throwable, "API: Failed to remove %s from watchlist", symbolTickerToRemove);
                     watchlistUpdateResult.postValue(new WatchlistUpdateResult(symbolTickerToRemove, false, false, throwable));
                 }));
+    }
+
+    /**
+     * Updates the 'isInWatchlist' flag for a specific symbol within a given LiveData list.
+     * This is used to provide immediate feedback on the search results list without re-fetching it.
+     */
+    private void updateIsInWatchlistInList(MutableLiveData<List<Symbol>> listLiveData, String symbolTicker, boolean newStatus) {
+        List<Symbol> currentList = listLiveData.getValue();
+        if (currentList == null || currentList.isEmpty()) return;
+
+        boolean changed = false;
+        for (Symbol symbol : currentList) {
+            if (symbol.getSymbol().equals(symbolTicker)) {
+                if (symbol.isInWatchlist() != newStatus) {
+                    symbol.setInWatchlist(newStatus);
+                    changed = true;
+                }
+                break; // Symbol found, exit loop
+            }
+        }
+
+        if (changed) {
+            // Post the modified list to trigger UI update.
+            listLiveData.postValue(new ArrayList<>(currentList));
+        }
     }
 
     private void preserveCurrentPrices() {
@@ -478,9 +443,17 @@ public class HomeViewModel extends ViewModel implements LifecycleEventObserver {
         }
     }
 
-    // Enhanced method to handle cached data better
+    // File: viewmodels/HomeViewModel.java
+
     public void loadWatchlist(String userId) {
-        isWatchlistLoading.postValue(true);
+        fetchSubscriptionType(userId); // This can stay
+
+        // REFINED: Only show the main progress bar if the watchlist is currently empty.
+        // This makes subsequent refreshes (on resume, after an add/remove) silent.
+        final boolean isInitialLoad = watchlist.getValue() == null || watchlist.getValue().isEmpty();
+        if (isInitialLoad) {
+            isWatchlistLoading.postValue(true);
+        }
 
         // FIXED: First check if we have current watchlist data to preserve prices
         List<Symbol> currentWatchlist = watchlist.getValue();
@@ -521,21 +494,23 @@ public class HomeViewModel extends ViewModel implements LifecycleEventObserver {
                                 symbolToAdd.setInWatchlist(true);
                                 initialWatchlist.add(symbolToAdd);
                             }
+                            Collections.reverse(initialWatchlist);
                             watchlist.postValue(initialWatchlist);
                             watchlistSymbolTickers.clear();
                             for (Symbol s : initialWatchlist) {
                                 watchlistSymbolTickers.add(s.getSymbol());
                             }
+
+                            // Always turn off the loading state, even if it was never turned on.
                             isWatchlistLoading.postValue(false);
 
-                            // FIXED: Only connect to WebSocket if not already connected
-                            if (!isWebSocketConnected) {
-                                connectToWatchlistWebSocket(userId);
-                            }
+                            disconnectWebSocket();
+                            connectToWatchlistWebSocket(userId);
                         });
                     });
                 } else {
                     watchlist.postValue(new ArrayList<>());
+                    // Always turn off loading state on failure.
                     isWatchlistLoading.postValue(false);
                 }
             }
@@ -553,30 +528,6 @@ public class HomeViewModel extends ViewModel implements LifecycleEventObserver {
             Log.e("WebSocketDebug", "Error parsing sparkline from stock object", e);
         }
         return sparklineData;
-    }
-
-    // --- Helper Methods ---
-    private void updateIsInWatchlistFlagForList(List<Symbol> listToUpdate, MutableLiveData<List<Symbol>> liveDataToPostTo) {
-        if (listToUpdate == null || listToUpdate.isEmpty()) {
-            if (listToUpdate != null && liveDataToPostTo.getValue() != listToUpdate) {
-                liveDataToPostTo.postValue(listToUpdate);
-            }
-            return;
-        }
-        boolean changed = false;
-        for (Symbol symbol : listToUpdate) {
-            boolean oldStatus = symbol.isInWatchlist();
-            boolean newStatus = watchlistSymbolTickers.contains(symbol.getSymbol());
-            if (oldStatus != newStatus) {
-                symbol.setInWatchlist(newStatus);
-                changed = true;
-            }
-        }
-        if (changed) {
-            liveDataToPostTo.postValue(new ArrayList<>(listToUpdate));
-        } else if (liveDataToPostTo.getValue() != listToUpdate) {
-            liveDataToPostTo.postValue(listToUpdate);
-        }
     }
 
     private void updateSymbolDataInLists(String symbolTicker, double newPrice, double newChange, @Nullable List<Double> newSparkline) {

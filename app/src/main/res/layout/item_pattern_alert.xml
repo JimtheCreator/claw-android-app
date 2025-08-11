@@ -3,71 +3,78 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/green_flavoured_gradient">
+    android:background="@drawable/second_beige_stroke">
 
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="12dp">
+        android:background="@drawable/green_flavoured_gradient">
 
-        <ImageButton
-            android:id="@+id/button_delete"
-            android:layout_width="wrap_content"
+
+        <RelativeLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_alignParentTop="true"
-            android:layout_alignParentEnd="true"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_delete"
-            tools:ignore="ContentDescription" />
+            android:layout_margin="12dp">
 
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/button_delete"
-            android:layout_marginTop="30dp"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/text_view_symbol"
+            <ImageButton
+                android:id="@+id/button_delete"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/sf_pro_text_bold"
-                android:textColor="@color/white"
-                android:textSize="16sp"
-                tools:text="BTCUSDT" />
-
-            <TextView
-                android:id="@+id/text_view_pattern_name"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/sf_pro_text_regular"
-                android:textColor="@color/grey"
-                android:textSize="13sp"
-                tools:text="Head and Shoulders" />
+                android:layout_alignParentTop="true"
+                android:layout_alignParentEnd="true"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_delete"
+                tools:ignore="ContentDescription" />
 
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:background="@drawable/green_box"
-                android:padding="2dp">
+                android:layout_below="@+id/button_delete"
+                android:layout_marginTop="30dp"
+                android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/text_view_time_interval"
+                    android:id="@+id/text_view_symbol"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="start|center_vertical"
-                    android:layout_marginStart="2dp"
-                    android:layout_marginEnd="2dp"
-                    android:fontFamily="@font/sf_pro_text_medium"
-                    android:text="15m"
-                    android:textColor="@color/black_shade"
-                    android:textSize="12sp" />
+                    android:fontFamily="@font/sf_pro_text_bold"
+                    android:textColor="@color/white"
+                    android:textSize="16sp"
+                    tools:text="BTCUSDT" />
+
+                <TextView
+                    android:id="@+id/text_view_pattern_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/sf_pro_text_regular"
+                    android:textColor="@color/grey"
+                    android:textSize="13sp"
+                    tools:text="Head and Shoulders" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/green_box"
+                    android:padding="2dp">
+
+                    <TextView
+                        android:id="@+id/text_view_time_interval"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="start|center_vertical"
+                        android:layout_marginStart="2dp"
+                        android:layout_marginEnd="2dp"
+                        android:fontFamily="@font/sf_pro_text_medium"
+                        android:text="15m"
+                        android:textColor="@color/black_shade"
+                        android:textSize="12sp" />
+
+                </LinearLayout>
 
             </LinearLayout>
 
-        </LinearLayout>
-
+        </RelativeLayout>
     </RelativeLayout>
 
 </LinearLayout>

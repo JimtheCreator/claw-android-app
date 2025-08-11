@@ -64,6 +64,9 @@ public class SubscriptionViewModel extends AndroidViewModel {
     private final MutableLiveData<Event<CancellationResponseSchema>> _cancellationResultEvent = new MutableLiveData<>();
     public final LiveData<Event<CancellationResponseSchema>> cancellationResultEvent = _cancellationResultEvent;
 
+    private final MutableLiveData<Boolean> _isPaymentLoading = new MutableLiveData<>(false);
+    public LiveData<Boolean> isPaymentLoading = _isPaymentLoading;
+
     public LiveData<User> getCurrentUser() {
         return currentUser;
     }
@@ -136,11 +139,16 @@ public class SubscriptionViewModel extends AndroidViewModel {
                     _error.setValue("Failed to fetch user data.");
                 }
             });
+        } else {
+            _error.setValue("User is not signed in.");
+            Log.e(TAG, "Cannot fetch user data, user is not signed in.");
         }
     }
 
-    private void fetchPricesFromRepository() {
+    // Make public to allow retry, and clear previous error
+    public void fetchPricesFromRepository() {
         _isLoading.setValue(true);
+        _error.setValue(null); // Clear previous errors on retry
         stripeRepository.fetchPrices().observeForever(prices -> {
             _isLoading.setValue(false);
             if (prices != null) {
@@ -148,7 +156,9 @@ public class SubscriptionViewModel extends AndroidViewModel {
                 _error.setValue(null);
             } else {
                 rawPricesLiveData.setValue(new ArrayList<>());
-                _error.setValue("Failed to load plans. Please check your connection.");
+                String errorMessage = "Failed to load plans. Please check your connection.";
+                Log.e(TAG, "Error fetching prices from repository. The prices list was null.");
+                _error.setValue(errorMessage);
             }
         });
     }
@@ -256,20 +266,19 @@ public class SubscriptionViewModel extends AndroidViewModel {
             _error.setValue("No plan selected.");
             return;
         }
-        _isLoading.setValue(true);
+        _isPaymentLoading.setValue(true); // Use payment-specific loading instead
         stripeRepository.getPaymentSheetParameters(userId, planId).observeForever(response -> {
-            _isLoading.setValue(false);
+            _isPaymentLoading.setValue(false); // Reset payment loading
             if (response != null) {
                 _paymentSheetParametersEvent.setValue(new Event<>(response));
             } else {
-                _isLoading.setValue(false);
                 _error.setValue("Failed to initiate payment.");
             }
         });
     }
 
     public void handlePaymentResult(String statusMessage, boolean success) {
-        _isLoading.setValue(false);
+        _isPaymentLoading.setValue(false); // Ensure payment loading is reset
         if (success) {
             _paymentResultEvent.setValue(new Event<>("success: " + statusMessage));
         } else {

@@ -2,15 +2,17 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="wrap_content"
     android:background="@drawable/upper_rounded"
     android:orientation="vertical">
 
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/main_content_scrollview"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_marginTop="10dp"
-        android:overScrollMode="ifContentScrolls">
+        android:overScrollMode="ifContentScrolls"
+        android:visibility="gone">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -248,34 +250,12 @@
                                     android:layout_gravity="center_vertical"
                                     android:layout_marginStart="8dp"
                                     android:fontFamily="@font/sf_pro_text_regular"
-                                    android:text="Pattern &amp; Trendline Analysis"
+                                    android:text="Trendline Analysis"
                                     android:textColor="@color/grey"
                                     android:textSize="14sp" />
 
                             </LinearLayout>
 
-                            <LinearLayout
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:orientation="horizontal">
-
-                                <ImageView
-                                    android:layout_width="15dp"
-                                    android:layout_height="15dp"
-                                    android:layout_gravity="center_vertical"
-                                    android:src="@drawable/grey_check" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_gravity="center_vertical"
-                                    android:layout_marginStart="8dp"
-                                    android:fontFamily="@font/sf_pro_text_regular"
-                                    android:text="Download your Analysis in High res Photo"
-                                    android:textColor="@color/grey"
-                                    android:textSize="14sp" />
-
-                            </LinearLayout>
 
                             <LinearLayout
                                 android:layout_width="wrap_content"
@@ -333,8 +313,7 @@
                                 android:layout_marginTop="20dp"
                                 android:fontFamily="@font/sf_pro_text_bold"
                                 android:text="@string/usage_limits"
-                                android:textColor="@color/thickGrey"
-                                />
+                                android:textColor="@color/thickGrey" />
 
                         </LinearLayout>
 
@@ -365,6 +344,7 @@
                             android:orientation="vertical">
 
                             <TextView
+                                android:id="@+id/starter_plan_name"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/sf_pro_text_medium"
@@ -373,6 +353,7 @@
                                 android:textSize="19sp" />
 
                             <TextView
+                                android:id="@+id/starter_plan_description"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/sf_pro_text_regular"
@@ -433,7 +414,7 @@
                                             android:orientation="vertical">
 
                                             <TextView
-                                                android:id="@+id/starterWeeklyPrice"
+                                                android:id="@+id/starter_weekly_price"
                                                 android:layout_width="wrap_content"
                                                 android:layout_height="wrap_content"
                                                 android:fontFamily="@font/sf_pro_text_medium"
@@ -442,7 +423,7 @@
                                                 android:textSize="18sp" />
 
                                             <TextView
-                                                android:id="@+id/starterWeeklyBilling"
+                                                android:id="@+id/starter_weekly_billing"
                                                 android:layout_width="wrap_content"
                                                 android:layout_height="wrap_content"
                                                 android:fontFamily="@font/sf_pro_text_regular"
@@ -492,6 +473,7 @@
 
 
                                             <TextView
+                                                android:id="@+id/starter_monthly_save_percentage"
                                                 android:layout_width="wrap_content"
                                                 android:layout_height="wrap_content"
                                                 android:layout_alignParentEnd="true"
@@ -513,7 +495,7 @@
                                             android:orientation="vertical">
 
                                             <TextView
-                                                android:id="@+id/starterMonthlyPrice"
+                                                android:id="@+id/starter_monthly_price"
                                                 android:layout_width="wrap_content"
                                                 android:layout_height="wrap_content"
                                                 android:fontFamily="@font/sf_pro_text_medium"
@@ -522,7 +504,7 @@
                                                 android:textSize="18sp" />
 
                                             <TextView
-                                                android:id="@+id/starterMonthlyBilling"
+                                                android:id="@+id/starter_monthly_billing"
                                                 android:layout_width="wrap_content"
                                                 android:layout_height="wrap_content"
                                                 android:fontFamily="@font/sf_pro_text_regular"
@@ -609,7 +591,7 @@
 
 
                                 <TextView
-                                    android:id="@+id/starter_pattern_alerts"
+                                    android:id="@+id/starter_pattern_alerts_limit"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_gravity="center_vertical"
@@ -634,26 +616,40 @@
 
 
                                 <TextView
-                                    android:id="@+id/starter_market_analysis"
+                                    android:id="@+id/trendline_limit"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_gravity="center_vertical"
                                     android:layout_marginStart="8dp"
                                     android:fontFamily="@font/sf_pro_text_regular"
-                                    android:text="49 weekly Market Analysis"
+                                    android:text="49 weekly Trendline Analysis"
                                     android:textColor="@color/grey"
                                     android:textSize="14sp" />
 
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:layout_width="15dp"
+                                    android:layout_height="15dp"
+                                    android:layout_gravity="center_vertical"
+                                    android:src="@drawable/grey_check" />
+
+
                                 <TextView
-                                    android:id="@+id/starter_market_analysis_days"
+                                    android:id="@+id/sr_limit"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_gravity="center_vertical"
-                                    android:layout_marginStart="5dp"
+                                    android:layout_marginStart="8dp"
                                     android:fontFamily="@font/sf_pro_text_regular"
-                                    android:text="@string/_7_each_day"
-                                    android:textColor="@color/thickGrey"
-                                    android:textSize="12sp" />
+                                    android:text="54 weekly S&amp;R Analysis"
+                                    android:textColor="@color/grey"
+                                    android:textSize="14sp" />
 
                             </LinearLayout>
 
@@ -694,7 +690,7 @@
 
 
                                 <TextView
-                                    android:id="@+id/starter_watchlist"
+                                    android:id="@+id/starter_watchlist_limit"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_gravity="center_vertical"
@@ -736,6 +732,7 @@
                             android:orientation="vertical">
 
                             <TextView
+                                android:id="@+id/pro_plan_name"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/sf_pro_text_medium"
@@ -744,6 +741,7 @@
                                 android:textSize="19sp" />
 
                             <TextView
+                                android:id="@+id/pro_plan_description"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/sf_pro_text_regular"
@@ -803,7 +801,7 @@
                                             android:orientation="vertical">
 
                                             <TextView
-                                                android:id="@+id/proWeeklyPrice"
+                                                android:id="@+id/pro_weekly_price"
                                                 android:layout_width="wrap_content"
                                                 android:layout_height="wrap_content"
                                                 android:fontFamily="@font/sf_pro_text_medium"
@@ -812,7 +810,7 @@
                                                 android:textSize="18sp" />
 
                                             <TextView
-                                                android:id="@+id/proWeeklyBilling"
+                                                android:id="@+id/pro_weekly_billing"
                                                 android:layout_width="wrap_content"
                                                 android:layout_height="wrap_content"
                                                 android:fontFamily="@font/sf_pro_text_regular"
@@ -862,6 +860,7 @@
 
 
                                             <TextView
+                                                android:id="@+id/pro_monthly_save_percentage"
                                                 android:layout_width="wrap_content"
                                                 android:layout_height="wrap_content"
                                                 android:layout_alignParentEnd="true"
@@ -882,7 +881,7 @@
                                             android:orientation="vertical">
 
                                             <TextView
-                                                android:id="@+id/proMonthlyPrice"
+                                                android:id="@+id/pro_monthly_price"
                                                 android:layout_width="wrap_content"
                                                 android:layout_height="wrap_content"
                                                 android:fontFamily="@font/sf_pro_text_medium"
@@ -891,7 +890,7 @@
                                                 android:textSize="18sp" />
 
                                             <TextView
-                                                android:id="@+id/proMonthlyBilling"
+                                                android:id="@+id/pro_monthly_billing"
                                                 android:layout_width="wrap_content"
                                                 android:layout_height="wrap_content"
                                                 android:fontFamily="@font/sf_pro_text_regular"
@@ -942,7 +941,6 @@
                                 android:textColor="@color/grey"
                                 android:textSize="14sp" />
 
-
                             <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
@@ -961,30 +959,7 @@
                                     android:layout_gravity="center_vertical"
                                     android:layout_marginStart="8dp"
                                     android:fontFamily="@font/sf_pro_text_regular"
-                                    android:text="Unlimited Pattern &amp; Trendline Analysis"
-                                    android:textColor="@color/grey"
-                                    android:textSize="14sp" />
-
-                            </LinearLayout>
-
-                            <LinearLayout
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:orientation="horizontal">
-
-                                <ImageView
-                                    android:layout_width="15dp"
-                                    android:layout_height="15dp"
-                                    android:layout_gravity="center_vertical"
-                                    android:src="@drawable/grey_check" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_gravity="center_vertical"
-                                    android:layout_marginStart="8dp"
-                                    android:fontFamily="@font/sf_pro_text_regular"
-                                    android:text="Download your Analysis in High res Photo"
+                                    android:text="Unlimited Trendline Analysis"
                                     android:textColor="@color/grey"
                                     android:textSize="14sp" />
 
@@ -1098,7 +1073,6 @@
 
                         </LinearLayout>
 
-
                     </LinearLayout>
 
                 </androidx.cardview.widget.CardView>
@@ -1126,7 +1100,8 @@
         android:layout_gravity="end"
         android:layout_marginTop="15dp"
         android:layout_marginEnd="20dp"
-        android:background="@drawable/light_black_circle">
+        android:background="@drawable/light_black_circle"
+        android:visibility="gone">
 
         <ImageView
             android:layout_width="20dp"
@@ -1135,6 +1110,48 @@
             android:src="@drawable/baseline_close_24" />
 
 
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:id="@+id/progress_bar_state"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:visibility="visible">
+
+        <ProgressBar
+            android:id="@+id/loading_progress_bar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_centerInParent="true"
+            />
+
+        <LinearLayout
+            android:id="@+id/error_state_layout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/error_message_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/regular"
+                android:gravity="center"
+                android:textColor="@color/grey"
+                android:textSize="16sp" />
+
+            <Button
+                android:id="@+id/retry_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Retry" />
+
+        </LinearLayout>
     </RelativeLayout>
 
 </RelativeLayout>

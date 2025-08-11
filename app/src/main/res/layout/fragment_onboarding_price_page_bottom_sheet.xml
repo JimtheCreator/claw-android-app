@@ -249,34 +249,12 @@
                                     android:layout_gravity="center_vertical"
                                     android:layout_marginStart="8dp"
                                     android:fontFamily="@font/sf_pro_text_regular"
-                                    android:text="Pattern &amp; Trendline Analysis"
+                                    android:text="Trendline Analysis"
                                     android:textColor="@color/grey"
                                     android:textSize="14sp" />
 
                             </LinearLayout>
 
-                            <LinearLayout
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:orientation="horizontal">
-
-                                <ImageView
-                                    android:layout_width="15dp"
-                                    android:layout_height="15dp"
-                                    android:layout_gravity="center_vertical"
-                                    android:src="@drawable/grey_check" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_gravity="center_vertical"
-                                    android:layout_marginStart="8dp"
-                                    android:fontFamily="@font/sf_pro_text_regular"
-                                    android:text="Download your Analysis in High res Photo"
-                                    android:textColor="@color/grey"
-                                    android:textSize="14sp" />
-
-                            </LinearLayout>
 
                             <LinearLayout
                                 android:layout_width="wrap_content"
@@ -611,7 +589,7 @@
 
 
                                 <TextView
-                                    android:id="@+id/starter_pattern_alerts"
+                                    android:id="@+id/starter_pattern_alerts_limit"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_gravity="center_vertical"
@@ -636,26 +614,41 @@
 
 
                                 <TextView
-                                    android:id="@+id/starter_market_analysis"
+                                    android:id="@+id/trendline_limit"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_gravity="center_vertical"
                                     android:layout_marginStart="8dp"
                                     android:fontFamily="@font/sf_pro_text_regular"
-                                    android:text="49 weekly Market Analysis"
+                                    android:text="49 weekly Trendline Analysis"
                                     android:textColor="@color/grey"
                                     android:textSize="14sp" />
 
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:layout_width="15dp"
+                                    android:layout_height="15dp"
+                                    android:layout_gravity="center_vertical"
+                                    android:src="@drawable/grey_check" />
+
+
                                 <TextView
-                                    android:id="@+id/starter_market_analysis_days"
+                                    android:id="@+id/sr_limit"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_gravity="center_vertical"
-                                    android:layout_marginStart="5dp"
+                                    android:layout_marginStart="8dp"
                                     android:fontFamily="@font/sf_pro_text_regular"
-                                    android:text="@string/_7_each_day"
-                                    android:textColor="@color/thickGrey"
-                                    android:textSize="12sp" />
+                                    android:text="54 weekly S&amp;R Analysis"
+                                    android:textColor="@color/grey"
+                                    android:textSize="14sp" />
+
 
                             </LinearLayout>
 
@@ -696,7 +689,7 @@
 
 
                                 <TextView
-                                    android:id="@+id/starter_watchlist"
+                                    android:id="@+id/starter_watchlist_limit"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_gravity="center_vertical"
@@ -964,30 +957,7 @@
                                     android:layout_gravity="center_vertical"
                                     android:layout_marginStart="8dp"
                                     android:fontFamily="@font/sf_pro_text_regular"
-                                    android:text="Unlimited Pattern &amp; Trendline Analysis"
-                                    android:textColor="@color/grey"
-                                    android:textSize="14sp" />
-
-                            </LinearLayout>
-
-                            <LinearLayout
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:orientation="horizontal">
-
-                                <ImageView
-                                    android:layout_width="15dp"
-                                    android:layout_height="15dp"
-                                    android:layout_gravity="center_vertical"
-                                    android:src="@drawable/grey_check" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_gravity="center_vertical"
-                                    android:layout_marginStart="8dp"
-                                    android:fontFamily="@font/sf_pro_text_regular"
-                                    android:text="Download your Analysis in High res Photo"
+                                    android:text="Unlimited Trendline Analysis"
                                     android:textColor="@color/grey"
                                     android:textSize="14sp" />
 

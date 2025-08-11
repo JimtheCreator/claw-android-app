@@ -3,15 +3,23 @@ package viewmodels.google_login;
 import android.app.Activity;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModel;
 
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
 import java.util.HashMap;
 import java.util.Map;
 
+import backend.results.UsageResponse;
 import database.firebaseDB.FirebaseAuthManager;
 import models.UsageData;
 import models.User;
@@ -22,13 +30,18 @@ public class AuthViewModel extends ViewModel {
     private final MutableLiveData<AuthState> authState = new MutableLiveData<>(AuthState.UNAUTHENTICATED);
     private final MutableLiveData<User> currentUser = new MutableLiveData<>();
     private static final String TAG = "AuthViewModel";
-    LiveData<UsageData> repoResponseLiveData;
+    LiveData<UsageResponse> repoResponseLiveData;
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
     private final MutableLiveData<UsageData> usageData = new MutableLiveData<>();
     private String googleWebClientIdCache;
     private SupabaseRepository supabaseRepository;
 
     private final MutableLiveData<Boolean> isNewUser = new MutableLiveData<>(false);
+
+    // Fields for the real-time listener
+    private DatabaseReference userRef;
+    private ValueEventListener userValueEventListener;
+
 
     public LiveData<Boolean> getIsNewUser() {
         return isNewUser;
@@ -57,13 +70,104 @@ public class AuthViewModel extends ViewModel {
     public void initialize(Activity activity, String googleWebClientId) {
         this.googleWebClientIdCache = googleWebClientId;
         firebaseAuthManager.initialize(activity, googleWebClientId);
+
         if (firebaseAuthManager.isUserSignedIn()) {
-            authState.setValue(AuthState.AUTHENTICATED);
-            // Ensure repository exists even if user was already signed in
-            if (supabaseRepository == null) {
-                supabaseRepository = new SupabaseRepository();
+            Log.d(TAG, "User is signed in, attempting to get user data");
+
+            // Try to get user data
+            User userData = firebaseAuthManager.getUserData();
+            if (userData != null) {
+                Log.d(TAG, "User data retrieved successfully: " + userData.getUuid());
+                authState.setValue(AuthState.AUTHENTICATED);
+                currentUser.setValue(userData);
+                if (supabaseRepository == null) {
+                    supabaseRepository = new SupabaseRepository();
+                }
+                // Start listening for real-time updates
+                startListeningForUserUpdates(userData.getUuid());
+            } else {
+                Log.w(TAG, "User is signed in but getUserData() returned null, attempting to refresh user data");
+                authState.setValue(AuthState.LOADING);
+                // Try to refresh user data
+                refreshCurrentUser();
             }
-            currentUser.setValue(firebaseAuthManager.getUserData());
+        } else {
+            Log.d(TAG, "No signed-in user detected");
+            authState.setValue(AuthState.UNAUTHENTICATED);
+            currentUser.setValue(null);
+        }
+    }
+
+    /**
+     * Attempts to refresh the current user data from Firebase
+     */
+    public void refreshCurrentUser() {
+        Log.d(TAG, "Attempting to refresh current user data");
+
+        if (!firebaseAuthManager.isUserSignedIn()) {
+            Log.w(TAG, "Cannot refresh user data - user is not signed in");
+            authState.setValue(AuthState.UNAUTHENTICATED);
+            currentUser.setValue(null);
+            return;
+        }
+
+        authState.setValue(AuthState.LOADING);
+
+        // Try different approaches to get user data
+        firebaseAuthManager.refreshUserData(new FirebaseAuthManager.UserDataCallback() {
+            @Override
+            public void onUserDataRetrieved(User user) {
+                if (user != null) {
+                    Log.d(TAG, "User data refreshed successfully: " + user.getUuid());
+                    currentUser.postValue(user);
+                    authState.postValue(AuthState.AUTHENTICATED);
+                    if (supabaseRepository == null) {
+                        supabaseRepository = new SupabaseRepository();
+                    }
+                    // Ensure listener is running after refresh
+                    startListeningForUserUpdates(user.getUuid());
+                } else {
+                    Log.e(TAG, "Failed to refresh user data - received null user");
+                    // Try one more time with a direct fetch
+                    attemptDirectUserFetch();
+                }
+            }
+
+            @Override
+            public void onUserDataFailed(String error) {
+                Log.e(TAG, "Failed to refresh user data: " + error);
+                attemptDirectUserFetch();
+            }
+        });
+    }
+
+    /**
+     * Direct attempt to fetch user data - fallback method
+     */
+    private void attemptDirectUserFetch() {
+        Log.d(TAG, "Attempting direct user data fetch");
+
+        try {
+            // This might be a synchronous call or you might need to implement it differently
+            // based on your FirebaseAuthManager implementation
+            User userData = firebaseAuthManager.getUserData();
+
+            if (userData != null) {
+                Log.d(TAG, "Direct fetch successful: " + userData.getUuid());
+                currentUser.postValue(userData);
+                authState.postValue(AuthState.AUTHENTICATED);
+                if (supabaseRepository == null) {
+                    supabaseRepository = new SupabaseRepository();
+                }
+            } else {
+                Log.e(TAG, "Direct fetch also returned null - there may be an issue with Firebase Auth");
+                errorMessage.postValue("Unable to load user data. Please sign in again.");
+                authState.postValue(AuthState.ERROR);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Exception during direct user fetch: " + e.getMessage());
+            errorMessage.postValue("Error loading user data: " + e.getMessage());
+            authState.postValue(AuthState.ERROR);
         }
     }
 
@@ -76,15 +180,27 @@ public class AuthViewModel extends ViewModel {
 
             @Override
             public void onAuthSuccess(User user, boolean newUser) {
-                currentUser.postValue(user);
-                isNewUser.postValue(FirebaseAuthManager.wasUserNewlyCreated());
-                authState.postValue(AuthState.AUTHENTICATED);
-                loadingContext.postValue(LoadingContext.NONE); // Reset context
-                supabaseRepository = new SupabaseRepository(); // Already in your code
+                Log.d(TAG, "Auth success callback - User: " + (user != null ? user.getUuid() : "null"));
+
+                if (user != null) {
+                    currentUser.postValue(user);
+                    isNewUser.postValue(FirebaseAuthManager.wasUserNewlyCreated());
+                    authState.postValue(AuthState.AUTHENTICATED);
+                    loadingContext.postValue(LoadingContext.NONE); // Reset context
+                    supabaseRepository = new SupabaseRepository();
+                    // Start listening for real-time updates to the user object
+                    startListeningForUserUpdates(user.getUuid());
+                } else {
+                    Log.e(TAG, "Auth success but user is null - this is unexpected");
+                    errorMessage.postValue("Authentication successful but unable to retrieve user data");
+                    authState.postValue(AuthState.ERROR);
+                    loadingContext.postValue(LoadingContext.NONE);
+                }
             }
 
             @Override
             public void onAuthFailed(String errorMsg) {
+                Log.e(TAG, "Auth failed: " + errorMsg);
                 errorMessage.postValue(errorMsg);
                 authState.postValue(AuthState.ERROR);
                 loadingContext.postValue(LoadingContext.NONE); // Reset context
@@ -116,6 +232,13 @@ public class AuthViewModel extends ViewModel {
         return firebaseAuthManager.isUserSignedIn();
     }
 
+    /**
+     * Get current user value synchronously (can return null)
+     */
+    public User getCurrentUserValue() {
+        return currentUser.getValue();
+    }
+
     public void signInWithGoogleFromBottomSheet(Fragment fragment) {
         if (fragment.isAdded() && fragment.getActivity() != null) {
             loadingContext.setValue(LoadingContext.BOTTOM_SHEET_SIGN_UP);
@@ -143,6 +266,8 @@ public class AuthViewModel extends ViewModel {
     public void signOut(Activity activity) {
         loadingContext.setValue(LoadingContext.GENERAL_SIGN_IN);
         authState.setValue(AuthState.LOADING);
+        // Stop listening before signing out
+        stopListeningForUserUpdates();
         firebaseAuthManager.signOut(activity, task -> {
             authState.postValue(AuthState.UNAUTHENTICATED);
             currentUser.postValue(null);
@@ -162,107 +287,79 @@ public class AuthViewModel extends ViewModel {
     }
 
     public void fetchUsageCounts(String userId, String subscriptionType) {
-        Log.d(TAG, "Method called");
-        if ("free".equals(subscriptionType)) {
-            Log.d(TAG, "Fetching free tier usage counts");
-            // Handle free tier locally
-            UsageData data = new UsageData();
-            data.setPriceAlertsUsed(0);
-            data.setPatternDetectionUsed(0);
-            data.setWatchlistUsed(0);
-            data.setMarketAnalysisUsed(0);
-            data.setVideoDownloadsUsed(0);
-            usageData.setValue(data);
-        } else {
-            Log.d(TAG, "Fetching paid tier usage counts");
-            // Observe the LiveData returned by the repository.
-            // Since the LiveData from getSubscriptionLimits is new for each call and emits once,
-            // this observer will update usageData and then remove itself.
-            if (supabaseRepository == null) {
-                supabaseRepository = new SupabaseRepository();
-                Log.d(TAG, "SupabaseRepository initialized in fetchUsageCounts");
-                // Fetch from Supabase via API
-                repoResponseLiveData = supabaseRepository.getSubscriptionLimits(userId); //
-                repoResponseLiveData.observeForever(new Observer<>() {
-                    @Override
-                    public void onChanged(UsageData dataFromRepo) {
-                        Log.d(TAG, "Fetching...");
-                        usageData.setValue(dataFromRepo);
-                        // Clean up the observer from this specific LiveData instance
-                        // to prevent potential leaks or multiple observations on the same temporary LiveData.
-                        Log.d(TAG, "Fetched...");
-                        repoResponseLiveData.removeObserver(this);
-                    }
-                });
-            }else {
-                Log.d(TAG, "SupabaseRepository initialized in fetchUsageCounts");
-                // Fetch from Supabase via API
-                repoResponseLiveData = supabaseRepository.getSubscriptionLimits(userId); //
-                repoResponseLiveData.observeForever(new Observer<>() {
-                    @Override
-                    public void onChanged(UsageData dataFromRepo) {
-                        Log.d(TAG, "Fetching...");
-                        usageData.setValue(dataFromRepo);
-                        // Clean up the observer from this specific LiveData instance
-                        // to prevent potential leaks or multiple observations on the same temporary LiveData.
-                        Log.d(TAG, "Fetched...");
-                        repoResponseLiveData.removeObserver(this);
-                    }
-                });
+        Log.d(TAG, "Method called for subscription type: " + subscriptionType);
+        Log.d(TAG, "Fetching paid tier usage counts for userId: " + userId);
+
+        // Ensure repository is initialized. This is a safety check.
+        if (supabaseRepository == null) {
+            Log.w(TAG, "SupabaseRepository was null. Initializing now.");
+            supabaseRepository = new SupabaseRepository();
+        }
+
+        // Fetch from Supabase via API. The returned LiveData is for UsageResponse.
+        repoResponseLiveData = supabaseRepository.getSubscriptionLimits(userId);
+
+        // Observe the LiveData from the repository.
+        repoResponseLiveData.observeForever(new Observer<>() {
+            @Override
+            public void onChanged(UsageResponse responseFromRepo) {
+                // Check if the response and the nested usage data are valid
+                if (responseFromRepo != null && responseFromRepo.getUsage() != null) {
+                    Log.d(TAG, "Fetched data. Extracting usage object.");
+                    // Extract the UsageData object and post it to the UI-facing LiveData
+                    usageData.postValue(responseFromRepo.getUsage());
+                } else {
+                    Log.e(TAG, "Received null or invalid response from repository.");
+                    usageData.postValue(null); // Signal an error or no data
+                }
+
+                // IMPORTANT: Clean up the observer to prevent memory leaks,
+                // as this LiveData from the repository is single-use.
+                if (repoResponseLiveData != null) {
+                    repoResponseLiveData.removeObserver(this);
+                }
             }
+        });
+    }
+
+    // *** NEW METHOD to set up the real-time listener ***
+    private void startListeningForUserUpdates(String userId) {
+        stopListeningForUserUpdates(); // Ensure no duplicate listeners
+
+        if (userId == null || userId.isEmpty()) return;
+
+        userRef = FirebaseDatabase.getInstance().getReference("users").child(userId);
+        userValueEventListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                User updatedUser = snapshot.getValue(User.class);
+                if (updatedUser != null) {
+                    Log.d(TAG, "Real-time user data update received. New plan: " + updatedUser.getSubscriptionType());
+                    currentUser.postValue(updatedUser);
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e(TAG, "User data listener was cancelled.", error.toException());
+            }
+        };
+        userRef.addValueEventListener(userValueEventListener);
+    }
+
+    // *** NEW METHOD to clean up the listener ***
+    private void stopListeningForUserUpdates() {
+        if (userRef != null && userValueEventListener != null) {
+            userRef.removeEventListener(userValueEventListener);
+            userRef = null;
+            userValueEventListener = null;
         }
     }
 
-    // PLAN_LIMITS as a static map (simplified; in practice, sync with backend)
-    private static final Map<String, Map<String, Object>> PLAN_LIMITS = new HashMap<>() {{
-        put("free", new HashMap<>() {{
-            put("price_alerts_limit", 1);
-            put("pattern_detection_limit", 1);
-            put("watchlist_limit", 1);
-            put("market_analysis_limit", 3);
-            put("journaling_enabled", false);
-            put("video_download_limit", 0);
-        }});
-        // Add other plans similarly...
-        put("test_drive", new HashMap<>() {{
-            put("price_alerts_limit", 5);
-            put("pattern_detection_limit", 2);
-            put("watchlist_limit", 1);
-            put("market_analysis_limit", 7);
-            put("journaling_enabled", false);
-            put("video_download_limit", 1);
-        }});
-        put("starter_weekly", new HashMap<>() {{
-            put("price_alerts_limit", -1);
-            put("pattern_detection_limit", 7);
-            put("watchlist_limit", 3);
-            put("market_analysis_limit", 49);
-            put("journaling_enabled", false);
-            put("video_download_limit", 0);
-        }});
-        put("starter_monthly", new HashMap<>() {{
-            put("price_alerts_limit", -1);
-            put("pattern_detection_limit", 60);
-            put("watchlist_limit", 6);
-            put("market_analysis_limit", 300);
-            put("journaling_enabled", false);
-            put("video_download_limit", 0);
-        }});
-        put("pro_weekly", new HashMap<>() {{
-            put("price_alerts_limit", -1);
-            put("pattern_detection_limit", -1);
-            put("watchlist_limit", -1);
-            put("market_analysis_limit", -1);
-            put("journaling_enabled", true);
-            put("video_download_limit", -1);
-        }});
-        put("pro_monthly", new HashMap<>() {{
-            put("price_alerts_limit", -1);
-            put("pattern_detection_limit", -1);
-            put("watchlist_limit", -1);
-            put("market_analysis_limit", -1);
-            put("journaling_enabled", true);
-            put("video_download_limit", -1);
-        }});
-    }};
+    // *** NEW METHOD to ensure no memory leaks ***
+    @Override
+    protected void onCleared() {
+        super.onCleared();
+        stopListeningForUserUpdates();
+    }
 }

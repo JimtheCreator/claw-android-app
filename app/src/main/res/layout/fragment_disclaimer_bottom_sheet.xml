@@ -2,6 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:background="@drawable/upper_rounded"
     android:orientation="vertical"
     android:padding="16dp">
@@ -9,6 +10,8 @@
     <TextView
         android:id="@+id/disclaimer_text"
         android:layout_width="match_parent"
+        android:fontFamily="@font/sf_pro_text_regular"
+        android:textColor="@color/off_white"
         android:layout_height="wrap_content"
         android:text="Disclaimer text here"
         android:textSize="16sp"/>
@@ -21,17 +24,32 @@
         android:layout_marginTop="16dp">
 
         <Button
+            app:backgroundTint="@color/invincibleColor"
             android:id="@+id/cancel_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:fontFamily="@font/sf_pro_text_medium"
+            android:textColor="@color/off_white"
             android:text="Cancel"/>
 
         <Button
+            android:backgroundTint="@color/dark_beige"
             android:id="@+id/confirm_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Confirm"
+            android:fontFamily="@font/sf_pro_text_medium"
+            android:textColor="@color/black_shade"
             android:layout_marginStart="8dp"/>
+
+        <ProgressBar
+            android:id="@+id/progress_bar"
+            android:layout_marginStart="8dp"
+            android:visibility="gone"
+            android:layout_gravity="center_vertical"
+            android:layout_width="40dp"
+            android:layout_height="40dp"/>
+
 
     </LinearLayout>
 </LinearLayout>
