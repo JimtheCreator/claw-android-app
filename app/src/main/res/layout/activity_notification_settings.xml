@@ -20,7 +20,6 @@
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@+id/close_button"
         android:layout_marginStart="20dp"
         android:layout_marginTop="5dp"
         android:layout_marginEnd="20dp"
@@ -40,45 +39,10 @@
                 android:textColor="@color/off_white"
                 android:textSize="27sp" />
 
-
-
             <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/sf_pro_text_medium"
-                android:gravity="start"
-                android:text="UPDATES"
-                android:textColor="@color/gray_inactive"
-                android:textSize="15sp" />
-
-            <RelativeLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/sf_pro_text_medium"
-                    android:gravity="start"
-                    android:text="When there'\s an app update"
-                    android:textColor="@color/off_white"
-                    android:textSize="18sp" />
-
-
-            </RelativeLayout>
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginTop="15dp"
-                android:layout_marginBottom="15dp"
-                android:background="@color/lightBlack" />
-
-            <TextView
-                android:layout_marginTop="25dp"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
                 android:fontFamily="@font/sf_pro_text_medium"
                 android:gravity="start"
                 android:text="ALERTS"
@@ -86,18 +50,50 @@
                 android:textSize="15sp" />
 
             <RelativeLayout
+                android:id="@+id/price_alerts_button"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp">
 
-                <TextView
+                <LinearLayout
+                    android:layout_toStartOf="@+id/price_alerts_switch"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:fontFamily="@font/sf_pro_text_medium"
-                    android:gravity="start"
-                    android:text="Price Alerts"
-                    android:textColor="@color/off_white"
-                    android:textSize="18sp" />
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:orientation="vertical">
 
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/sf_pro_text_medium"
+                        android:gravity="start"
+                        android:text="Price Alerts"
+                        android:textColor="@color/off_white"
+                        android:textSize="18sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="@font/sf_pro_text_regular"
+                        android:gravity="start"
+                        android:text="Get notified when price targets are hit"
+                        android:textColor="@color/gray_inactive"
+                        android:textSize="14sp" />
+
+                </LinearLayout>
+
+                <Switch
+                    style="@style/DarkBeigeSwitch"
+                    android:id="@+id/price_alerts_switch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:checked="true" />
 
             </RelativeLayout>
 
@@ -109,18 +105,49 @@
                 android:background="@color/lightBlack" />
 
             <RelativeLayout
+                android:id="@+id/pattern_alerts_button"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp">
 
-                <TextView
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:fontFamily="@font/sf_pro_text_medium"
-                    android:gravity="start"
-                    android:text="Pattern Alerts"
-                    android:textColor="@color/off_white"
-                    android:textSize="18sp" />
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:layout_toStartOf="@+id/pattern_alerts_switch"
+                    android:orientation="vertical">
 
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/sf_pro_text_medium"
+                        android:gravity="start"
+                        android:text="Pattern Alerts"
+                        android:textColor="@color/off_white"
+                        android:textSize="18sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="@font/sf_pro_text_regular"
+                        android:gravity="start"
+                        android:text="Get notified on technical pattern formations"
+                        android:textColor="@color/gray_inactive"
+                        android:textSize="14sp" />
+
+                </LinearLayout>
+
+                <Switch
+                    android:id="@+id/pattern_alerts_switch"
+                    style="@style/DarkBeigeSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:checked="true" />
 
             </RelativeLayout>
 
@@ -129,6 +156,72 @@
                 android:layout_height="1dp"
                 android:layout_marginTop="15dp"
                 android:layout_marginBottom="15dp"
+                android:background="@color/lightBlack" />
+
+            <!-- Sound Settings Section -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:fontFamily="@font/sf_pro_text_medium"
+                android:gravity="start"
+                android:text="SOUND SETTINGS"
+                android:textColor="@color/gray_inactive"
+                android:textSize="15sp" />
+
+
+            <RelativeLayout
+                android:id="@+id/vibration_button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp">
+
+                <LinearLayout
+                    android:layout_toStartOf="@+id/vibration_switch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/sf_pro_text_medium"
+                        android:gravity="start"
+                        android:text="Vibration"
+                        android:textColor="@color/off_white"
+                        android:textSize="18sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="@font/sf_pro_text_regular"
+                        android:gravity="start"
+                        android:text="Vibrate when receiving notifications"
+                        android:textColor="@color/gray_inactive"
+                        android:textSize="14sp" />
+
+                </LinearLayout>
+
+                <Switch
+                    android:id="@+id/vibration_switch"
+                    android:layout_width="wrap_content"
+                    style="@style/DarkBeigeSwitch"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:checked="true" />
+
+            </RelativeLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="15dp"
+                android:layout_marginBottom="30dp"
                 android:background="@color/lightBlack" />
 
         </LinearLayout>

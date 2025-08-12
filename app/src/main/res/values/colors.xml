@@ -38,7 +38,8 @@
     <color name="beige">#E6DAC8</color>
     <color name="thick_beige">#FFD8C4A6</color>
     <color name="inactive">#FF9E9E9E</color>
-    <color name="dark_beige">#D3C3A9</color>
+    <color name="light_dark_beige">#D3C3A9</color>
+    <color name="dark_beige">#A49370</color> <!-- example dark beige -->
     <color name="light_beige">#E0D7C6</color>
     <color name="coolDeepBlack">#010203</color>
     <color name="ballBlack">#33363D</color>

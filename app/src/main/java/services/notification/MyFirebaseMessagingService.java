@@ -4,6 +4,9 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.media.AudioAttributes;
+import android.net.Uri;
+import android.os.Vibrator;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -11,12 +14,15 @@ import androidx.core.app.NotificationCompat;
 
 import com.claw.ai.App;
 import com.claw.ai.MainActivity;
+import com.claw.ai.R;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
+
+import settings.notifications.NotificationSettings;
 
 public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
@@ -74,9 +80,25 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             return;
         }
 
+        // Check if notifications are enabled for this type
+        if (!shouldShowNotification(notificationType)) {
+            Log.d(TAG, "Notifications disabled for type: " + notificationType);
+            return;
+        }
+
         Log.d(TAG, "FCM message received with title: " + title + ", body: " + body + ", type: " + notificationType);
         showNotification(title, body, notificationType);
         refreshAlertList(notificationType);
+    }
+
+    private boolean shouldShowNotification(String notificationType) {
+        if (PRICE_ALERT_TYPE.equals(notificationType)) {
+            return NotificationSettings.Companion.isPriceAlertsEnabled(this);
+        } else if (PATTERN_ALERT_TYPE.equals(notificationType)) {
+            return NotificationSettings.Companion.isPatternAlertsEnabled(this);
+        }
+        // Default to true for unknown types
+        return true;
     }
 
     private void showNotification(String title, String body, String notificationType) {
@@ -86,11 +108,28 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         String channelId = determineChannelId(notificationType);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setSmallIcon(R.drawable.ic_notification) // Use your app's notification icon
                 .setContentTitle(title)
                 .setContentText(body)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true);
+
+        // Apply sound settings
+        if (NotificationSettings.Companion.isNotificationSoundEnabled(this)) {
+            Uri soundUri = getSoundForNotificationType(notificationType);
+            if (soundUri != null) {
+                builder.setSound(soundUri);
+            }
+        } else {
+            builder.setSound(null);
+        }
+
+        // Apply vibration settings
+        if (NotificationSettings.Companion.isVibrationEnabled(this)) {
+            builder.setVibrate(new long[]{0, 300, 200, 300}); // Custom vibration pattern
+        } else {
+            builder.setVibrate(null);
+        }
 
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -108,7 +147,29 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
         builder.setContentIntent(pendingIntent);
 
+        // Show notification with vibration if enabled
+        if (NotificationSettings.Companion.isVibrationEnabled(this)) {
+            Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+            if (vibrator != null && vibrator.hasVibrator()) {
+                vibrator.vibrate(new long[]{0, 300, 200, 300}, -1);
+            }
+        }
+
         notificationManager.notify((int) System.currentTimeMillis(), builder.build());
+    }
+
+    /**
+     * Get the appropriate sound URI for the notification type
+     */
+    private Uri getSoundForNotificationType(String notificationType) {
+        if (PATTERN_ALERT_TYPE.equals(notificationType)) {
+            return Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.price_alert_sample_two);
+        } else if (PRICE_ALERT_TYPE.equals(notificationType)) {
+            return Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.default_notification);
+        } else {
+            // Default sound
+            return Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.default_notification);
+        }
     }
 
     /**

@@ -22,5 +22,11 @@ class ContactsTileActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+
+        onClicks()
+    }
+
+    private fun onClicks() {
+        binding.closeButton.setOnClickListener { finish() }
     }
 }

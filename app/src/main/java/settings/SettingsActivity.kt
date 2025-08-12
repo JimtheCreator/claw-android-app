@@ -9,6 +9,7 @@ import androidx.core.view.WindowInsetsCompat
 import com.claw.ai.R
 import com.claw.ai.databinding.ActivitySettingsBinding
 import settings.charts.ChartsTileActivity
+import settings.notifications.NotificationSettings
 import settings.subscriptios.BillingPlanSettings
 
 class SettingsActivity : AppCompatActivity() {
@@ -40,6 +41,10 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
+        pushNotificationTile.setOnClickListener{
+            val intent = Intent(this@SettingsActivity, NotificationSettings::class.java)
+            startActivity(intent)
+        }
 
     }
 }

@@ -182,6 +182,10 @@ public class SubscriptionPlanSheetFragment extends BottomSheetDialogFragment {
 
 
     private void setupClickListeners() {
+        binding.closebutton.setOnClickListener(v ->{
+            dismiss();
+        });
+
         binding.initiateTestDrivePay.setOnClickListener(v -> {
             if (currentUser != null) {
                 User user = currentUser;

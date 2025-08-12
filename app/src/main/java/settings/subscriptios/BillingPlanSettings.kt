@@ -286,6 +286,7 @@ class BillingPlanSettings : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
+        binding.closeButton.setOnClickListener { finish() }
         binding.changeBillingPlan.setOnClickListener { openSubscriptionPlanSheet() }
         binding.cancelBillingPlan.setOnClickListener {
             try{

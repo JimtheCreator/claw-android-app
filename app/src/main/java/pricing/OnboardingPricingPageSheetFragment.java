@@ -76,11 +76,9 @@ public class OnboardingPricingPageSheetFragment extends BottomSheetDialogFragmen
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        initiateViews();
         setupPlanCardMappings();
         observeViewModel();
         setupClickListeners();
-        binding.closebutton.setOnClickListener(v -> dismiss());
 
         // Disable buttons until plans are loaded
         binding.initiateTestDrivePay.setEnabled(false);
@@ -328,6 +326,8 @@ public class OnboardingPricingPageSheetFragment extends BottomSheetDialogFragmen
     }
 
     private void setupClickListeners() {
+        binding.closebutton.setOnClickListener(v -> dismiss());
+
         binding.initiateTestDrivePay.setOnClickListener(v -> {
             resetState();
             activeProgressBar = binding.testDriveProgressBar;
@@ -423,10 +423,6 @@ public class OnboardingPricingPageSheetFragment extends BottomSheetDialogFragmen
             }
         }
         return null;
-    }
-
-    private void initiateViews() {
-        // Initialize additional views if needed
     }
 
     @Override

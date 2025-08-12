@@ -25,6 +25,7 @@ import models.User;
 import pricing.OnboardingPricingPageSheetFragment;
 import pricing.SubscriptionPlanSheetFragment;
 import settings.SettingsActivity;
+import timber.log.Timber;
 import viewmodels.google_login.AuthViewModel;
 
 public class MoreTabFragment extends Fragment {
@@ -58,12 +59,15 @@ public class MoreTabFragment extends Fragment {
     private void setupObservers() {
         // Observe auth state changes
         authViewModel.getAuthState().observe(getViewLifecycleOwner(), authState -> {
+            if (binding == null) return;
             AuthViewModel.LoadingContext context = authViewModel.getLoadingContext().getValue();
-            if (authState == AuthViewModel.AuthState.LOADING) {
-                showLoadingState(context != AuthViewModel.LoadingContext.BOTTOM_SHEET_SIGN_UP);
-            } else {
-                showLoadingState(false);
-                if (authState == AuthViewModel.AuthState.AUTHENTICATED) {
+            switch (authState) {
+                case LOADING:
+                    Log.d("MoreTab", "LOADING");
+                    showLoadingState(context != AuthViewModel.LoadingContext.BOTTOM_SHEET_SIGN_UP);
+                case AUTHENTICATED:
+                    Log.d("MoreTab", "AUTHENTICATED");
+                    showLoadingState(false);
                     if (isAdded() && !isStateSaved()) {
                         Log.d("MoreTabFragment", "User is authenticated (from AuthState observer).");
                         User authenticatedUser = authViewModel.getCurrentUser().getValue();
@@ -80,15 +84,23 @@ public class MoreTabFragment extends Fragment {
                             }
                         } else {
                             Log.w("MoreTabFragment", "User is authenticated, but user data is currently null in ViewModel. Usage limits might not be updated immediately by this block.");
+                            showLoginPage();
                         }
                     }
-                } else if (authState == AuthViewModel.AuthState.UNAUTHENTICATED) {
+                    break;
+                case UNAUTHENTICATED:
+                    showLoadingState(false);
                     showLoginPage();
-                } else if (authState == AuthViewModel.AuthState.ERROR) {
+                    break;
+                case ERROR: // Treat ERROR as UNAUTHENTICATED for watchlist display
+                    Timber.d("Auth state: %s", authState.toString());
+                    showLoadingState(false);
+                    Log.d("MoreTab", "ERROR ROOT");
                     if (!authViewModel.isUserSignedIn()) {
+                        Log.d("MoreTab", "ERROR");
                         showLoginPage();
                     }
-                }
+                    break;
             }
         });
 
@@ -158,9 +170,9 @@ public class MoreTabFragment extends Fragment {
             binding.profilePage.planFrame.setVisibility(View.GONE);
         }
 
-        if (currentUser.getSubscriptionType().equals("free") || currentUser.getSubscriptionType().equals("test_drive")){
+        if (currentUser.getSubscriptionType().equals("free") || currentUser.getSubscriptionType().equals("test_drive")) {
             binding.profilePage.subscribeButton.setVisibility(View.VISIBLE);
-        }else {
+        } else {
             binding.profilePage.subscribeButton.setVisibility(View.GONE);
         }
 

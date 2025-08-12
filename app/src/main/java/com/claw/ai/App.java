@@ -3,6 +3,8 @@ package com.claw.ai;
 import android.app.Application;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.media.AudioAttributes;
 import android.net.Uri;
 
@@ -13,6 +15,7 @@ import backend.ApiService;
 import backend.MainClient;
 import database.roomDB.AppDatabase;
 import repositories.SyncRepository;
+import settings.notifications.NotificationSettings;
 
 public class App extends Application {
 
@@ -51,12 +54,25 @@ public class App extends Application {
         NotificationChannel channel = new NotificationChannel(PATTERN_ALERTS_CHANNEL_ID, name, importance);
         channel.setDescription(description);
 
-        // Set the custom sound for the channel
-        Uri soundUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.price_alert_sample_two);
-        AudioAttributes audioAttributes = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                .build();
-        channel.setSound(soundUri, audioAttributes);
+        // Check if sound is enabled in settings
+        if (NotificationSettings.Companion.isNotificationSoundEnabled(this)) {
+            // Set the custom sound for the channel
+            Uri soundUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.price_alert_sample_two);
+            AudioAttributes audioAttributes = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .build();
+            channel.setSound(soundUri, audioAttributes);
+        } else {
+            channel.setSound(null, null);
+        }
+
+        // Check if vibration is enabled in settings
+        if (NotificationSettings.Companion.isVibrationEnabled(this)) {
+            channel.enableVibration(true);
+            channel.setVibrationPattern(new long[]{0, 300, 200, 300});
+        } else {
+            channel.enableVibration(false);
+        }
 
         NotificationManager notificationManager = getSystemService(NotificationManager.class);
         if (notificationManager != null) {
@@ -72,12 +88,25 @@ public class App extends Application {
         NotificationChannel channel = new NotificationChannel(PRICE_ALERTS_CHANNEL_ID, name, importance);
         channel.setDescription(description);
 
-        // Set the custom sound for the channel
-        Uri soundUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.default_notification);
-        AudioAttributes audioAttributes = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                .build();
-        channel.setSound(soundUri, audioAttributes);
+        // Check if sound is enabled in settings
+        if (NotificationSettings.Companion.isNotificationSoundEnabled(this)) {
+            // Set the custom sound for the channel
+            Uri soundUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.default_notification);
+            AudioAttributes audioAttributes = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .build();
+            channel.setSound(soundUri, audioAttributes);
+        } else {
+            channel.setSound(null, null);
+        }
+
+        // Check if vibration is enabled in settings
+        if (NotificationSettings.Companion.isVibrationEnabled(this)) {
+            channel.enableVibration(true);
+            channel.setVibrationPattern(new long[]{0, 300, 200, 300});
+        } else {
+            channel.enableVibration(false);
+        }
 
         NotificationManager notificationManager = getSystemService(NotificationManager.class);
         if (notificationManager != null) {
@@ -90,5 +119,24 @@ public class App extends Application {
         ApiService apiService = MainClient.getApiService();
         SyncRepository syncRepository = new SyncRepository(this, database, apiService);
         syncRepository.startPeriodicSync();
+    }
+
+    /**
+     * Method to recreate notification channels when settings change
+     * Call this from NotificationSettings activity when user changes preferences
+     */
+    public static void recreateNotificationChannels(Context context) {
+        App app = (App) context.getApplicationContext();
+
+        // Delete existing channels
+        NotificationManager notificationManager =
+                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (notificationManager != null) {
+            notificationManager.deleteNotificationChannel(PRICE_ALERTS_CHANNEL_ID);
+            notificationManager.deleteNotificationChannel(PATTERN_ALERTS_CHANNEL_ID);
+        }
+
+        // Recreate channels with new settings
+        app.createNotificationChannels();
     }
 }

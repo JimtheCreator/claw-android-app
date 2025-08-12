@@ -254,8 +254,6 @@ public class HomeTabFragment extends Fragment {
         }
 
     }
-
-    // Click Listeners
     private void setupClickListeners() {
         binding.signup.setOnClickListener(v -> {
             if (getActivity() instanceof MainActivity) {

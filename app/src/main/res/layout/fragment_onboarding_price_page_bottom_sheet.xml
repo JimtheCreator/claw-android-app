@@ -34,24 +34,23 @@
                     android:layout_gravity="center_horizontal"
                     android:layout_marginStart="20dp"
                     android:layout_marginEnd="20dp"
-                    android:fontFamily="@font/sanfrans_bold"
+                    android:fontFamily="@font/sf_pro_text_bold"
                     android:gravity="center_horizontal"
-                    android:text="You\’re In. Eyes on the Market."
+                    android:text="You\’re In!"
                     android:textColor="@color/white"
-                    android:textSize="30sp" />
+                    android:textSize="28sp" />
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center_horizontal"
                     android:layout_marginStart="20dp"
-                    android:layout_marginTop="10dp"
                     android:layout_marginEnd="20dp"
-                    android:fontFamily="@font/regular"
+                    android:fontFamily="@font/sf_pro_text_regular"
                     android:gravity="center_horizontal"
-                    android:text="Choose your plan to unlock powerful market insights and start seeing patterns like never before."
+                    android:text="Choose your plan to unlock powerful market insights and start seeing trends like never before."
                     android:textColor="@color/grey"
-                    android:textSize="17sp" />
+                    android:textSize="15.5sp" />
 
                 <androidx.cardview.widget.CardView
                     android:layout_width="match_parent"
@@ -1099,13 +1098,13 @@
         android:layout_gravity="end"
         android:layout_marginTop="15dp"
         android:layout_marginEnd="20dp"
-        android:background="@drawable/light_black_circle">
+        android:background="@drawable/cool_black_circle">
 
         <ImageView
             android:layout_width="20dp"
             android:layout_height="20dp"
             android:layout_centerInParent="true"
-            android:src="@drawable/baseline_close_24" />
+            android:src="@drawable/close_ic_grey" />
 
 
     </RelativeLayout>

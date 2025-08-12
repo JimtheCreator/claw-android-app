@@ -153,4 +153,9 @@
         <item name="android:windowExitAnimation">@android:anim/fade_out</item>
     </style>
 
+    <style name="DarkBeigeSwitch" parent="Widget.AppCompat.CompoundButton.Switch">
+        <item name="android:thumbTint">@color/dark_beige</item>
+        <item name="android:trackTint">@color/dark_beige</item>
+    </style>
+
 </resources>
