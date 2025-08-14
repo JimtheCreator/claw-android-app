@@ -85,8 +85,7 @@
                 android:layout_height="1dp"
                 android:layout_marginTop="15dp"
                 android:layout_marginBottom="15dp"
-                android:background="@color/lightBlack"
-                />
+                android:background="@color/lightBlack" />
 
             <RelativeLayout
                 android:id="@+id/billing_tile"
@@ -123,7 +122,8 @@
                     android:layout_height="wrap_content"
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
-                    android:src="@drawable/small_arrow_forward" />
+                    android:src="@drawable/small_arrow_forward"
+                    />
 
             </RelativeLayout>
 
@@ -180,6 +180,7 @@
                 android:background="@color/lightBlack" />
 
             <RelativeLayout
+                android:id="@+id/terms_of_service"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="25dp">
@@ -220,6 +221,7 @@
                 android:background="@color/lightBlack" />
 
             <LinearLayout
+                android:id="@+id/privacy_policy"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
@@ -250,6 +252,7 @@
                 android:background="@color/lightBlack" />
 
             <LinearLayout
+                android:id="@+id/billing_policy"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">

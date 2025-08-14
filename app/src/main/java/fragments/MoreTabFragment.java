@@ -25,14 +25,14 @@ import models.User;
 import pricing.OnboardingPricingPageSheetFragment;
 import pricing.SubscriptionPlanSheetFragment;
 import settings.SettingsActivity;
-import timber.log.Timber;
+import settings.about.AboutActivity;
 import viewmodels.google_login.AuthViewModel;
 
 public class MoreTabFragment extends Fragment {
     private FragmentMoreTabBinding binding;
     private AuthViewModel authViewModel;
     private User currentUser;
-
+    private static final String TAG = "MoreTabFragment";
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -52,76 +52,138 @@ public class MoreTabFragment extends Fragment {
         authViewModel = new ViewModelProvider(requireActivity()).get(AuthViewModel.class);
         authViewModel.initialize(requireActivity(), getString(R.string.web_client_id));
         setupObservers();
-        initializeViews();
         setupClickListeners();
     }
 
     private void setupObservers() {
         // Observe auth state changes
         authViewModel.getAuthState().observe(getViewLifecycleOwner(), authState -> {
-            if (binding == null) return;
+            if (binding == null || !isAdded()) return;
+
+            Log.d(TAG, "Auth state changed to: " + authState);
+
             AuthViewModel.LoadingContext context = authViewModel.getLoadingContext().getValue();
-            switch (authState) {
-                case LOADING:
-                    Log.d("MoreTab", "LOADING");
-                    showLoadingState(context != AuthViewModel.LoadingContext.BOTTOM_SHEET_SIGN_UP);
-                case AUTHENTICATED:
-                    Log.d("MoreTab", "AUTHENTICATED");
-                    showLoadingState(false);
-                    if (isAdded() && !isStateSaved()) {
-                        Log.d("MoreTabFragment", "User is authenticated (from AuthState observer).");
-                        User authenticatedUser = authViewModel.getCurrentUser().getValue();
+            if (context == null) context = AuthViewModel.LoadingContext.NONE;
 
-                        if (authenticatedUser != null) {
-                            this.currentUser = authenticatedUser;
-                            Log.d("MoreTabFragment", "User data retrieved from ViewModel: " + this.currentUser.getUuid() + ". Showing profile and updating limits.");
+            handleAuthState(authState, context);
+        });
 
-                            showProfilePage();
+        // Observe loading context changes
+        authViewModel.getLoadingContext().observe(getViewLifecycleOwner(), loadingContext -> {
+            if (binding == null || !isAdded()) return;
 
-                            Boolean isNew = authViewModel.getIsNewUser().getValue();
-                            if (isNew != null && isNew) {
-                                openOnboardingPricingPage();
-                            }
-                        } else {
-                            Log.w("MoreTabFragment", "User is authenticated, but user data is currently null in ViewModel. Usage limits might not be updated immediately by this block.");
-                            showLoginPage();
-                        }
-                    }
-                    break;
-                case UNAUTHENTICATED:
-                    showLoadingState(false);
-                    showLoginPage();
-                    break;
-                case ERROR: // Treat ERROR as UNAUTHENTICATED for watchlist display
-                    Timber.d("Auth state: %s", authState.toString());
-                    showLoadingState(false);
-                    Log.d("MoreTab", "ERROR ROOT");
-                    if (!authViewModel.isUserSignedIn()) {
-                        Log.d("MoreTab", "ERROR");
-                        showLoginPage();
-                    }
-                    break;
+            Log.d(TAG, "Loading context changed to: " + loadingContext);
+
+            AuthViewModel.AuthState authState = authViewModel.getAuthState().getValue();
+            if (authState != null) {
+                handleAuthState(authState, loadingContext);
             }
         });
 
-        // ADD THIS NEW OBSERVER: Observe real-time user changes
+        // Observe real-time user changes
         authViewModel.getCurrentUser().observe(getViewLifecycleOwner(), user -> {
-            if (user != null && authViewModel.getAuthState().getValue() == AuthViewModel.AuthState.AUTHENTICATED) {
+            if (!isAdded()) return;
+
+            AuthViewModel.AuthState currentAuthState = authViewModel.getAuthState().getValue();
+            if (user != null && currentAuthState == AuthViewModel.AuthState.AUTHENTICATED) {
                 this.currentUser = user;
-                Log.d("MoreTabFragment", "User data updated in real-time. New plan: " + user.getSubscriptionType());
-                showProfilePage(); // This will refresh the UI with the new plan
+                Log.d(TAG, "User data updated in real-time. Plan: " + user.getSubscriptionType());
+                updateProfileUI();
+            } else if (user == null && currentAuthState != AuthViewModel.AuthState.LOADING) {
+                this.currentUser = null;
+                Log.d(TAG, "User data cleared");
             }
         });
 
+        // Observe error messages
         authViewModel.getErrorMessage().observe(getViewLifecycleOwner(), errorMessage -> {
-            if (errorMessage != null && !errorMessage.isEmpty()) {
+            if (errorMessage != null && !errorMessage.isEmpty() && isAdded()) {
                 Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_LONG).show();
             }
         });
     }
 
+    private void handleAuthState(AuthViewModel.AuthState authState, AuthViewModel.LoadingContext loadingContext) {
+        Log.d(TAG, "Handling auth state: " + authState + " with context: " + loadingContext);
+
+        switch (authState) {
+            case LOADING:
+                handleLoadingState(loadingContext);
+                break;
+
+            case AUTHENTICATED:
+                handleAuthenticatedState();
+                break;
+
+            case UNAUTHENTICATED:
+                showLoadingState(false);
+                showLoginPage();
+                break;
+
+            case ERROR:
+                showLoadingState(false);
+                if (!authViewModel.isUserSignedIn()) {
+                    showLoginPage();
+                } else {
+                    // Stay on current page but stop loading
+                    Log.d(TAG, "Error state but user is signed in - maintaining current view");
+                }
+                break;
+        }
+    }
+
+    private void handleLoadingState(AuthViewModel.LoadingContext context) {
+        switch (context) {
+            case BOTTOM_SHEET_SIGN_UP:
+                // Don't show loading spinner for bottom sheet sign up
+                // The bottom sheet itself should handle its own loading state
+                Log.d(TAG, "Loading for bottom sheet sign up - not showing spinner");
+                break;
+
+            case GENERAL_SIGN_IN:
+            case SIGN_OUT:
+            case INITIALIZATION:
+                showLoadingState(true);
+                break;
+
+            case NONE:
+            default:
+                // Keep current loading state or hide if no specific context
+                break;
+        }
+    }
+
+    private void handleAuthenticatedState() {
+        showLoadingState(false);
+
+        if (!isAdded() || isStateSaved()) return;
+
+        Log.d(TAG, "Handling authenticated state");
+        User authenticatedUser = authViewModel.getCurrentUserValue();
+
+        if (authenticatedUser != null) {
+            this.currentUser = authenticatedUser;
+            Log.d(TAG, "User authenticated: " + this.currentUser.getUuid() +
+                    ", plan: " + this.currentUser.getSubscriptionType());
+
+            showProfilePage();
+
+            // Check if this is a new user
+            Boolean isNew = authViewModel.getIsNewUser().getValue();
+            if (isNew != null && isNew) {
+                openOnboardingPricingPage();
+            }
+        } else {
+            Log.w(TAG, "Authenticated state but user data is null");
+            showLoginPage();
+        }
+    }
+
     private void showLoadingState(boolean isLoading) {
         if (binding == null) return;
+
+        Log.d(TAG, "Setting loading state: " + isLoading);
+
         if (isLoading) {
             binding.progressBar.setVisibility(View.VISIBLE);
             binding.loginPage.getRoot().setVisibility(View.GONE);
@@ -131,18 +193,64 @@ public class MoreTabFragment extends Fragment {
         }
     }
 
-    private void openOnboardingPricingPage() {
-        OnboardingPricingPageSheetFragment fragment = OnboardingPricingPageSheetFragment.newInstance();
-        fragment.show(getParentFragmentManager(), fragment.getTag());
-    }
-
     private void showLoginPage() {
         if (binding == null) return;
+
+        Log.d(TAG, "Showing login page");
         binding.loginPage.getRoot().setVisibility(View.VISIBLE);
         binding.profilePage.getRoot().setVisibility(View.GONE);
     }
 
-    // Method 1: Simple string replacement and capitalization
+    private void showProfilePage() {
+        if (binding == null) return;
+
+        Log.d(TAG, "Showing profile page");
+        binding.loginPage.getRoot().setVisibility(View.GONE);
+        binding.profilePage.getRoot().setVisibility(View.VISIBLE);
+
+        updateProfileUI();
+    }
+
+    private void updateProfileUI() {
+        if (binding == null || currentUser == null) return;
+
+        Log.d(TAG, "Updating profile UI for user: " + currentUser.getUuid() +
+                ", plan: " + currentUser.getSubscriptionType());
+
+        // Update user info
+        binding.profilePage.userName.setText(currentUser.getDisplayName());
+        binding.profilePage.userEmail.setText(currentUser.getEmail());
+
+        // Update subscription info
+        String subscriptionType = currentUser.getSubscriptionType();
+        if (subscriptionType != null && !subscriptionType.isEmpty()) {
+            binding.profilePage.planFrame.setVisibility(View.VISIBLE);
+            binding.profilePage.planName.setText(formatPlanName(subscriptionType));
+            Log.d(TAG, "Plan frame visible with plan: " + formatPlanName(subscriptionType));
+        } else {
+            binding.profilePage.planFrame.setVisibility(View.GONE);
+            Log.d(TAG, "Plan frame hidden - no subscription type");
+        }
+
+        // Update subscribe button visibility
+        boolean shouldShowSubscribeButton = subscriptionType != null &&
+                (subscriptionType.equals("free") || subscriptionType.equals("test_drive"));
+
+        binding.profilePage.subscribeButton.setVisibility(
+                shouldShowSubscribeButton ? View.VISIBLE : View.GONE
+        );
+
+        Log.d(TAG, "Subscribe button visibility: " + (shouldShowSubscribeButton ? "VISIBLE" : "GONE") +
+                " for plan: " + subscriptionType);
+
+        // Load profile image
+        if (currentUser.getAvatarUrl() != null) {
+            Glide.with(this)
+                    .load(currentUser.getAvatarUrl())
+                    .into(binding.profilePage.userProfilePhoto);
+        }
+    }
+
     private String formatPlanName(String subscriptionType) {
         if (subscriptionType == null || subscriptionType.isEmpty()) {
             return "Free Plan";
@@ -154,42 +262,42 @@ public class MoreTabFragment extends Fragment {
                 .collect(Collectors.joining(" "));
     }
 
-    private void showProfilePage() {
-        if (binding == null) return;
-        binding.loginPage.getRoot().setVisibility(View.GONE);
-        binding.profilePage.getRoot().setVisibility(View.VISIBLE);
+    private void setupClickListeners() {
+        binding.loginPage.signInWithGoogle.setOnClickListener(v -> {
+            Log.d(TAG, "Sign in with Google clicked");
+            signInWithGoogle();
+        });
 
-        if (currentUser == null) return;
+        binding.loginPage.signup.setOnClickListener(v -> {
+            Log.d(TAG, "Sign up clicked");
+            openSignUpBottomSheet();
+        });
 
-        binding.profilePage.userName.setText(currentUser.getDisplayName());
-        binding.profilePage.userEmail.setText(currentUser.getEmail());
-        if (currentUser.getSubscriptionType() != null) {
-            binding.profilePage.planFrame.setVisibility(View.VISIBLE);
-            binding.profilePage.planName.setText(formatPlanName(currentUser.getSubscriptionType()));
-        } else {
-            binding.profilePage.planFrame.setVisibility(View.GONE);
-        }
+        binding.profilePage.signOut.setOnClickListener(v -> {
+            Log.d(TAG, "Sign out clicked");
+            signOut();
+        });
 
-        if (currentUser.getSubscriptionType().equals("free") || currentUser.getSubscriptionType().equals("test_drive")) {
-            binding.profilePage.subscribeButton.setVisibility(View.VISIBLE);
-        } else {
-            binding.profilePage.subscribeButton.setVisibility(View.GONE);
-        }
+        binding.profilePage.settingsButton.setOnClickListener(v ->
+                startActivity(new Intent(requireContext(), SettingsActivity.class)));
 
-        Glide.with(this).load(currentUser.getAvatarUrl()).into(binding.profilePage.userProfilePhoto);
+        binding.profilePage.subscribeButton.setOnClickListener(v -> {
+            Log.d(TAG, "Subscribe button clicked");
+            createPlan();
+        });
+
+        binding.profilePage.about.setOnClickListener(v ->
+                startActivity(new Intent(requireContext(), AboutActivity.class)));
     }
 
-    private void setupClickListeners() {
-        binding.loginPage.signInWithGoogle.setOnClickListener(v -> signInWithGoogle());
-        binding.loginPage.signup.setOnClickListener(v -> openSignUpBottomSheet());
-        binding.profilePage.signOut.setOnClickListener(v -> signOut());
-        binding.profilePage.settingsButton.setOnClickListener(v -> startActivity(new Intent(requireContext(), SettingsActivity.class)));
-        binding.profilePage.subscribeButton.setOnClickListener(v -> createPlan());
+    private void openOnboardingPricingPage() {
+        OnboardingPricingPageSheetFragment fragment = OnboardingPricingPageSheetFragment.newInstance();
+        fragment.show(getParentFragmentManager(), fragment.getTag());
     }
 
     private void createPlan() {
-        SubscriptionPlanSheetFragment sub_page = SubscriptionPlanSheetFragment.newInstance();
-        sub_page.show(getParentFragmentManager(), sub_page.getTag());
+        SubscriptionPlanSheetFragment subPage = SubscriptionPlanSheetFragment.newInstance();
+        subPage.show(getParentFragmentManager(), subPage.getTag());
     }
 
     private void signInWithGoogle() {
@@ -204,14 +312,6 @@ public class MoreTabFragment extends Fragment {
     private void signOut() {
         if (getActivity() != null) {
             authViewModel.signOut(requireActivity());
-        }
-    }
-
-    private void initializeViews() {
-        if (authViewModel.isUserSignedIn()) {
-            showProfilePage();
-        } else {
-            showLoginPage();
         }
     }
 

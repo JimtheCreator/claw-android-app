@@ -28,6 +28,15 @@
         android:theme="@style/Theme.Claw"
         tools:targetApi="31">
         <activity
+            android:name="settings.about.LicensesActivity"
+            android:exported="false" />
+        <activity
+            android:name="settings.about.RequirementsActivity"
+            android:exported="false" />
+        <activity
+            android:name="settings.about.AboutActivity"
+            android:exported="false" />
+        <activity
             android:name="settings.contacts.ContactsTileActivity"
             android:exported="false" />
         <activity
@@ -59,9 +68,6 @@
             android:exported="false" />
         <activity
             android:name="search.SearchActivity"
-            android:exported="false" />
-        <activity
-            android:name="opensource.LicenseActivity"
             android:exported="false" />
         <activity
             android:name="pricing.TestDrivePage"

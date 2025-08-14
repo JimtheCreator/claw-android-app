@@ -15,8 +15,6 @@
     <color name="chip_unselected">#2A2A2A</color>
 
     <!-- Text Colors -->
-    <color name="text_primary">#FFFFFF</color>
-    <color name="text_secondary">#B3B3B3</color>
     <color name="text_tertiary">#808080</color>
     <color name="text_disabled">#4D4D4D</color>
     <color name="searchbar_colour">#2A2A2A</color>
@@ -38,14 +36,20 @@
     <color name="beige">#E6DAC8</color>
     <color name="thick_beige">#FFD8C4A6</color>
     <color name="inactive">#FF9E9E9E</color>
-    <color name="light_dark_beige">#D3C3A9</color>
-    <color name="dark_beige">#A49370</color> <!-- example dark beige -->
+    <color name="dark_beige">#D3C3A9</color>
     <color name="light_beige">#E0D7C6</color>
     <color name="coolDeepBlack">#010203</color>
     <color name="ballBlack">#33363D</color>
     <color name="niceBlack">#0D0D0D</color>
     <color name="niceblue">#66CCFF</color>
     <color name="forestGreen">#228B22</color>
+
+    <!-- Add these to your existing colors.xml -->
+    <color name="handle_color">#40FFFFFF</color>
+    <color name="accent_color">#FF6B6B</color>
+    <color name="error_color">#FF5252</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B0FFFFFF</color>
 
     <!-- Accent Colors -->
     <color name="neon_cyan">#00D1FF</color>
@@ -136,5 +140,47 @@
     <color name="transparentCool9">#808BC34A</color>
     <color name="transparentCool10">#803F51B5</color>
     <color name="transparentBeige">#80D3C3A9</color>
+
+
+    <!-- Card colors -->
+    <color name="card_background">#1A1A1A</color>
+    <color name="card_stroke">#2A2A2A</color>
+
+    <!-- Icon and badge colors -->
+    <color name="icon_background">#2D2D2D</color>
+    <color name="icon_stroke">#3D3D3D</color>
+    <color name="version_badge_background">#2A2A2A</color>
+    <color name="version_badge_stroke">#3A3A3A</color>
+    <color name="version_text">#CCCCCC</color>
+
+    <!-- Category colors -->
+    <color name="category_background">#1E3A8A</color>
+    <color name="category_text">#FFFFFF</color>
+    <color name="category_ui">#3B82F6</color>
+    <color name="category_media">#10B981</color>
+    <color name="category_animation">#F59E0B</color>
+    <color name="category_network">#8B5CF6</color>
+    <color name="category_reactive">#EF4444</color>
+    <color name="category_database">#06B6D4</color>
+    <color name="category_backend">#F97316</color>
+    <color name="category_charts">#84CC16</color>
+    <color name="category_payments">#EC4899</color>
+    <color name="category_effects">#F472B6</color>
+    <color name="category_logging">#A3A3A3</color>
+    <color name="category_components">#6366F1</color>
+    <color name="category_default">#4B5563</color>
+
+    <!-- Bottom sheet colors -->
+    <color name="bottom_sheet_background">#1F1F1F</color>
+    <color name="bottom_sheet_handle">#4B4B4B</color>
+    <color name="description_card_background">#252525</color>
+    <color name="description_card_stroke">#353535</color>
+    <color name="license_text_background">#1A1A1A</color>
+    <color name="license_text_stroke">#2A2A2A</color>
+    <color name="license_text_color">#CCCCCC</color>
+    <color name="dot_separator">#666666</color>
+
+    <!-- Utility -->
+    <color name="transparent">#00000000</color>
 
 </resources>

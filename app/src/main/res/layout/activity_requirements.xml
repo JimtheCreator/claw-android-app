@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black2_0"
+    android:orientation="vertical"
+    tools:context="settings.about.RequirementsActivity">
+
+    <ImageView
+        android:id="@+id/close_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="15dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginBottom="10dp"
+        android:src="@drawable/baseline_arrow_back_ios_new_24" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="5dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="5dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/sf_pro_text_bold"
+                android:gravity="start"
+                android:text="Requirements"
+                android:textColor="@color/off_white"
+                android:textSize="27sp" />
+
+            <!-- 1 -->
+            <RelativeLayout
+                android:layout_marginTop="30dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:layout_marginEnd="15dp"
+                    android:layout_toStartOf="@+id/green_check1"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:textSize="18sp"
+                        android:textColor="@color/off_white"
+                        android:fontFamily="@font/sf_pro_text_regular"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Android Version" />
+
+                    <TextView
+                        android:textSize="16sp"
+                        android:textColor="@color/inactive"
+                        android:fontFamily="@font/sf_pro_text_regular"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Requires Android 8.1 (Oreo) or newer for full feature support." />
+
+                </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/green_check1"
+                    android:layout_alignParentEnd="true"
+                    android:src="@drawable/outline_check_circle_24"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true" />
+
+            </RelativeLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="15dp"
+                android:layout_marginBottom="15dp"
+                android:background="@color/lightBlack" />
+
+            <!-- 2 -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:layout_marginEnd="15dp"
+                    android:layout_toStartOf="@+id/green_check2"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:textSize="18sp"
+                        android:textColor="@color/off_white"
+                        android:fontFamily="@font/sf_pro_text_regular"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Internet Connection" />
+
+                    <TextView
+                        android:textSize="16sp"
+                        android:textColor="@color/inactive"
+                        android:fontFamily="@font/sf_pro_text_regular"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Stable Wi-Fi or 4G+ required for real-time market data." />
+
+                </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/green_check2"
+                    android:layout_alignParentEnd="true"
+                    android:src="@drawable/outline_check_circle_24"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true" />
+
+            </RelativeLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="15dp"
+                android:layout_marginBottom="15dp"
+                android:background="@color/lightBlack" />
+
+            <!-- 3 -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:layout_marginEnd="15dp"
+                    android:layout_toStartOf="@+id/green_check3"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:textSize="18sp"
+                        android:textColor="@color/off_white"
+                        android:fontFamily="@font/sf_pro_text_regular"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Watchers Account" />
+
+                    <TextView
+                        android:textSize="16sp"
+                        android:textColor="@color/inactive"
+                        android:fontFamily="@font/sf_pro_text_regular"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Required to access free or paid plans and sync preferences." />
+
+                </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/green_check3"
+                    android:layout_alignParentEnd="true"
+                    android:src="@drawable/outline_check_circle_24"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true" />
+
+            </RelativeLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="15dp"
+                android:layout_marginBottom="15dp"
+                android:background="@color/lightBlack" />
+
+            <!-- 4 -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:layout_marginEnd="15dp"
+                    android:layout_toStartOf="@+id/green_check4"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:textSize="18sp"
+                        android:textColor="@color/off_white"
+                        android:fontFamily="@font/sf_pro_text_regular"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Notifications Enabled" />
+
+                    <TextView
+                        android:textSize="16sp"
+                        android:textColor="@color/inactive"
+                        android:fontFamily="@font/sf_pro_text_regular"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Required to receive price and pattern alerts instantly." />
+
+                </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/green_check4"
+                    android:layout_alignParentEnd="true"
+                    android:src="@drawable/outline_check_circle_24"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true" />
+
+            </RelativeLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="15dp"
+                android:layout_marginBottom="15dp"
+                android:background="@color/lightBlack" />
+
+            <!-- 5 -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:layout_marginEnd="15dp"
+                    android:layout_toStartOf="@+id/green_check5"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:textSize="18sp"
+                        android:textColor="@color/off_white"
+                        android:fontFamily="@font/sf_pro_text_regular"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Storage Space" />
+
+                    <TextView
+                        android:textSize="16sp"
+                        android:textColor="@color/inactive"
+                        android:fontFamily="@font/sf_pro_text_regular"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Minimum 200MB free for app data, charts, and analysis downloads." />
+
+                </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/green_check5"
+                    android:layout_alignParentEnd="true"
+                    android:src="@drawable/outline_check_circle_24"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true" />
+
+            </RelativeLayout>
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</LinearLayout>
+

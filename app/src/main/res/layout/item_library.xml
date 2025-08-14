@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/library_card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="4dp"
+    android:layout_marginVertical="6dp"
+    app:cardBackgroundColor="@color/card_background"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="4dp"
+    app:strokeColor="@color/card_stroke"
+    app:strokeWidth="0.5dp"
+    android:foreground="?android:attr/selectableItemBackground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="20dp">
+
+        <!-- Library Info -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <!-- Name and Version Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="4dp">
+
+                <TextView
+                    android:id="@+id/library_name"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/sf_pro_text_bold"
+                    android:text="Material Design Components"
+                    android:textColor="@color/text_primary"
+                    android:textSize="18sp"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/library_version"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/version_badge_background"
+                    android:fontFamily="@font/sf_pro_text_medium"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="3dp"
+                    android:text="v1.12.0"
+                    android:textColor="@color/version_text"
+                    android:textSize="12sp" />
+
+            </LinearLayout>
+
+            <!-- Author -->
+            <TextView
+                android:id="@+id/library_author"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/sf_pro_text_medium"
+                android:text="by Google"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp"
+                android:layout_marginBottom="6dp" />
+
+            <!-- Description -->
+            <TextView
+                android:id="@+id/library_description"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/sf_pro_text_regular"
+                android:text="Modular and customizable Material Design UI components"
+                android:textColor="@color/text_tertiary"
+                android:textSize="14sp"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:lineSpacingExtra="2dp"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Category Tag -->
+            <TextView
+                android:id="@+id/library_category"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/category_tag_background"
+                android:fontFamily="@font/sf_pro_text_medium"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="4dp"
+                android:text="UI Framework"
+                android:textAllCaps="true"
+                android:textColor="@color/category_text"
+                android:textSize="11sp"
+                android:letterSpacing="0.05" />
+
+        </LinearLayout>
+
+        <!-- Arrow indicator -->
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="12dp"
+            android:src="@drawable/ic_chevron_right"
+            android:alpha="0.6"
+            app:tint="@color/text_secondary" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

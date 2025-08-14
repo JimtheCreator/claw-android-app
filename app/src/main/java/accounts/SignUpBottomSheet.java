@@ -1,5 +1,7 @@
 package accounts;
 
+import static bottomsheets.PolicyBottomSheetFragmentKt.showPolicyBottomSheet;
+
 import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
@@ -16,6 +18,7 @@ import com.claw.ai.databinding.FragmentSignUpBottomSheetBinding;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 
+import models.PolicyType;
 import pricing.OnboardingPricingPageSheetFragment;
 import viewmodels.google_login.AuthViewModel;
 import viewmodels.telegram_login.TelegramAuthViewModel;
@@ -110,6 +113,10 @@ public class SignUpBottomSheet extends BottomSheetDialogFragment {
     }
 
     private void setupClickListeners() {
+        binding.termsOfServiceTag.setOnClickListener(v -> {
+            showPolicyBottomSheet(requireActivity(), PolicyType.TERMS_OF_SERVICE);
+        });
+
         binding.signUpWithGoogle.setOnClickListener(v -> signUpWithGoogle());
     }
 

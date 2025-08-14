@@ -305,8 +305,12 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             )
             watchListListener.onAddToWatchlist(userId, symbolObj, "Binance")
         }
-
         marketChartLayout.createPriceAlert.setOnClickListener {
+            val userId = firebaseUser?.uid
+            if (userId == null) {
+                openSignUpBottomSheet(getSupportFragmentManager())
+                return@setOnClickListener
+            }
             val symbol =
                 (root.context as? ComponentActivity)?.intent?.getStringExtra("SYMBOL") ?: ""
             val stringCurrentPrice = marketChartLayout.currentPrice.text.toString()
@@ -321,6 +325,11 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             }
         }
         marketChartLayout.supportResistanceButton.setOnClickListener {
+            val userId = firebaseUser?.uid
+            if (userId == null) {
+                openSignUpBottomSheet(getSupportFragmentManager())
+                return@setOnClickListener
+            }
             currentAnimator?.cancel()
             viewModel.setAnalysisMode(AnalysisMode.SUPPORT_RESISTANCE)
             analysisPanelManager.setMode(AnalysisMode.SUPPORT_RESISTANCE)
@@ -333,6 +342,11 @@ class SymbolMarketDataActivity : AppCompatActivity() {
             }
         }
         marketChartLayout.trendlineButton.setOnClickListener {
+            val userId = firebaseUser?.uid
+            if (userId == null) {
+                openSignUpBottomSheet(getSupportFragmentManager())
+                return@setOnClickListener
+            }
             currentAnimator?.cancel()
             viewModel.setAnalysisMode(AnalysisMode.TRENDLINES)
             analysisPanelManager.setMode(AnalysisMode.TRENDLINES)

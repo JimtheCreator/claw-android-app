@@ -38,7 +38,7 @@ public class SetupBottomSheetFragment extends BottomSheetDialogFragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setStyle(DialogFragment.STYLE_NORMAL, R.style.BottomSheetDialogTheme);
+        setStyle(DialogFragment.STYLE_NORMAL, R.style.BottomSheetDialogThemeBlackShade);
 
         requestPermissionLauncher = registerForActivityResult(
                 new ActivityResultContracts.RequestPermission(),

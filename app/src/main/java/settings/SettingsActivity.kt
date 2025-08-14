@@ -6,8 +6,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import bottomsheets.showPolicyBottomSheet
 import com.claw.ai.R
 import com.claw.ai.databinding.ActivitySettingsBinding
+import models.PolicyType
 import settings.charts.ChartsTileActivity
 import settings.notifications.NotificationSettings
 import settings.subscriptios.BillingPlanSettings
@@ -40,11 +42,18 @@ class SettingsActivity : AppCompatActivity() {
             val intent = Intent(this@SettingsActivity, BillingPlanSettings::class.java)
             startActivity(intent)
         }
-
         pushNotificationTile.setOnClickListener{
             val intent = Intent(this@SettingsActivity, NotificationSettings::class.java)
             startActivity(intent)
         }
-
+        termsOfService.setOnClickListener{
+            showPolicyBottomSheet(PolicyType.TERMS_OF_SERVICE)
+        }
+        privacyPolicy.setOnClickListener{
+            showPolicyBottomSheet(PolicyType.PRIVACY_POLICY)
+        }
+        billingPolicy.setOnClickListener{
+            showPolicyBottomSheet(PolicyType.BILLING_POLICY)
+        }
     }
 }
