@@ -2,4 +2,6 @@
 <resources>
     <dimen name="recycler_item_spacing">16dp</dimen>
     <dimen name="usage_bar_margin_top">12dp</dimen>
+    <dimen name="star_size">48dp</dimen>
+    <dimen name="star_margin">8dp</dimen>
 </resources>

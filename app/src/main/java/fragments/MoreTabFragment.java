@@ -6,6 +6,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -21,6 +22,9 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 
 import accounts.SignUpBottomSheet;
+import bottomsheets.settings.InviteHelper;
+import bottomsheets.settings.RateBottomSheet;
+import bottomsheets.settings.SupportBottomSheet;
 import models.User;
 import pricing.OnboardingPricingPageSheetFragment;
 import pricing.SubscriptionPlanSheetFragment;
@@ -154,11 +158,11 @@ public class MoreTabFragment extends Fragment {
     }
 
     private void handleAuthenticatedState() {
+        // This part remains the same
         showLoadingState(false);
-
         if (!isAdded() || isStateSaved()) return;
-
         Log.d(TAG, "Handling authenticated state");
+
         User authenticatedUser = authViewModel.getCurrentUserValue();
 
         if (authenticatedUser != null) {
@@ -166,17 +170,31 @@ public class MoreTabFragment extends Fragment {
             Log.d(TAG, "User authenticated: " + this.currentUser.getUuid() +
                     ", plan: " + this.currentUser.getSubscriptionType());
 
+            // This now shows the profile page *after* user data is confirmed
             showProfilePage();
 
-            // Check if this is a new user
             Boolean isNew = authViewModel.getIsNewUser().getValue();
             if (isNew != null && isNew) {
                 openOnboardingPricingPage();
             }
         } else {
             Log.w(TAG, "Authenticated state but user data is null");
+            // It might be better to trigger a refresh here or show a specific error
+            // rather than just showing the login page.
             showLoginPage();
         }
+    }
+
+    private void showProfilePage() {
+        if (binding == null) return;
+
+        Log.d(TAG, "Showing profile page");
+        // First, update the UI with the now-confirmed currentUser
+        updateProfileUI();
+
+        // Then, make the elements visible
+        binding.loginPage.getRoot().setVisibility(View.GONE);
+        binding.profilePage.getRoot().setVisibility(View.VISIBLE);
     }
 
     private void showLoadingState(boolean isLoading) {
@@ -201,59 +219,9 @@ public class MoreTabFragment extends Fragment {
         binding.profilePage.getRoot().setVisibility(View.GONE);
     }
 
-    private void showProfilePage() {
-        if (binding == null) return;
-
-        Log.d(TAG, "Showing profile page");
-        binding.loginPage.getRoot().setVisibility(View.GONE);
-        binding.profilePage.getRoot().setVisibility(View.VISIBLE);
-
-        updateProfileUI();
-    }
-
-    private void updateProfileUI() {
-        if (binding == null || currentUser == null) return;
-
-        Log.d(TAG, "Updating profile UI for user: " + currentUser.getUuid() +
-                ", plan: " + currentUser.getSubscriptionType());
-
-        // Update user info
-        binding.profilePage.userName.setText(currentUser.getDisplayName());
-        binding.profilePage.userEmail.setText(currentUser.getEmail());
-
-        // Update subscription info
-        String subscriptionType = currentUser.getSubscriptionType();
-        if (subscriptionType != null && !subscriptionType.isEmpty()) {
-            binding.profilePage.planFrame.setVisibility(View.VISIBLE);
-            binding.profilePage.planName.setText(formatPlanName(subscriptionType));
-            Log.d(TAG, "Plan frame visible with plan: " + formatPlanName(subscriptionType));
-        } else {
-            binding.profilePage.planFrame.setVisibility(View.GONE);
-            Log.d(TAG, "Plan frame hidden - no subscription type");
-        }
-
-        // Update subscribe button visibility
-        boolean shouldShowSubscribeButton = subscriptionType != null &&
-                (subscriptionType.equals("free") || subscriptionType.equals("test_drive"));
-
-        binding.profilePage.subscribeButton.setVisibility(
-                shouldShowSubscribeButton ? View.VISIBLE : View.GONE
-        );
-
-        Log.d(TAG, "Subscribe button visibility: " + (shouldShowSubscribeButton ? "VISIBLE" : "GONE") +
-                " for plan: " + subscriptionType);
-
-        // Load profile image
-        if (currentUser.getAvatarUrl() != null) {
-            Glide.with(this)
-                    .load(currentUser.getAvatarUrl())
-                    .into(binding.profilePage.userProfilePhoto);
-        }
-    }
-
     private String formatPlanName(String subscriptionType) {
         if (subscriptionType == null || subscriptionType.isEmpty()) {
-            return "Free Plan";
+            return "---";
         }
 
         // Replace underscores with spaces and capitalize each word
@@ -288,7 +256,165 @@ public class MoreTabFragment extends Fragment {
 
         binding.profilePage.about.setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), AboutActivity.class)));
+
+        // Keep the other two as they are:
+        binding.profilePage.rate.setOnClickListener(v ->
+                openRateBottomSheet());
+
+        binding.profilePage.support.setOnClickListener(v ->
+                openSupportBottomSheet());
+
+
+        // Updated invite click listener with loading state
+        binding.profilePage.invite.setOnClickListener(v -> {
+            Log.d(TAG, "Invite clicked - starting share process");
+
+            // Disable the button and show loading state
+            v.setEnabled(false);
+            if (v instanceof TextView) {
+                ((TextView) v).setText("Sharing...");
+            }
+
+            InviteHelper.INSTANCE.shareInvite(requireContext(), new InviteHelper.ShareCallback() {
+                @Override
+                public void onShareStarted() {
+                    Log.d(TAG, "Share process started");
+                    // UI is already updated above
+                }
+
+                @Override
+                public void onShareCompleted() {
+                    Log.d(TAG, "Share process completed");
+                    if (isAdded() && binding != null) {
+                        // Re-enable the button and restore text
+                        v.setEnabled(true);
+                        if (v instanceof TextView) {
+                            ((TextView) v).setText("Invite Friends");
+                        }
+                    }
+                }
+
+                @Override
+                public void onShareFailed(String error) {
+                    Log.e(TAG, "Share process failed: " + error);
+                    if (isAdded() && binding != null) {
+                        // Re-enable the button and restore text
+                        v.setEnabled(true);
+                        if (v instanceof TextView) {
+                            ((TextView) v).setText("Invite Friends");
+                        }
+                        Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show();
+                    }
+                }
+            });
+        });
+
     }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        Log.d(TAG, "Fragment resumed - refreshing user data");
+
+        // Force refresh user data when fragment resumes
+        if (authViewModel != null && authViewModel.isUserSignedIn()) {
+            Log.d(TAG, "User is signed in - forcing data refresh");
+            authViewModel.refreshCurrentUser(); // You'll need to add this method to AuthViewModel
+        }
+
+        // Cleanup old cached invite images
+        InviteHelper.INSTANCE.cleanupCachedImages(requireContext());
+    }
+
+    // Update your updateProfileUI method to add more logging and validation
+    private void updateProfileUI() {
+        if (binding == null || currentUser == null) {
+            Log.w(TAG, "Cannot update UI - binding or currentUser is null");
+            return;
+        }
+
+        Log.d(TAG, "Updating profile UI for user: " + currentUser.getUuid() +
+                ", plan: " + currentUser.getSubscriptionType());
+
+        // Update user info
+        binding.profilePage.userName.setText(currentUser.getDisplayName());
+        binding.profilePage.userEmail.setText(currentUser.getEmail());
+
+        // Update subscription info with more robust validation
+        String subscriptionType = currentUser.getSubscriptionType();
+        Log.d(TAG, "Raw subscription type: '" + subscriptionType + "'");
+
+        if (subscriptionType != null && !subscriptionType.trim().isEmpty()) {
+            binding.profilePage.planFrame.setVisibility(View.VISIBLE);
+            String formattedPlan = formatPlanName(subscriptionType.trim());
+            binding.profilePage.planName.setText(formattedPlan);
+            Log.d(TAG, "Plan frame visible with formatted plan: " + formattedPlan);
+        } else {
+            binding.profilePage.planFrame.setVisibility(View.GONE);
+            Log.d(TAG, "Plan frame hidden - no valid subscription type");
+        }
+
+        // Update subscribe button visibility with more robust checking
+        boolean shouldShowSubscribeButton = shouldShowSubscribeButton(subscriptionType);
+
+        binding.profilePage.subscribeButton.setVisibility(
+                shouldShowSubscribeButton ? View.VISIBLE : View.GONE
+        );
+
+        Log.d(TAG, "Subscribe button visibility: " + (shouldShowSubscribeButton ? "VISIBLE" : "GONE") +
+                " for plan: " + subscriptionType);
+
+        // Load profile image
+        if (currentUser.getAvatarUrl() != null && !currentUser.getAvatarUrl().trim().isEmpty()) {
+            Glide.with(this)
+                    .load(currentUser.getAvatarUrl())
+                    .into(binding.profilePage.userProfilePhoto);
+        }
+    }
+
+    // Add this helper method to determine if subscribe button should be shown
+    private boolean shouldShowSubscribeButton(String subscriptionType) {
+        if (subscriptionType == null || subscriptionType.trim().isEmpty()) {
+            return true; // Show for null/empty (assume free)
+        }
+
+        String trimmedType = subscriptionType.trim().toLowerCase();
+        boolean isFreeTier = trimmedType.equals("free") ||
+                trimmedType.equals("test_drive") ||
+                trimmedType.equals("trial");
+
+        Log.d(TAG, "Subscribe button check - plan: '" + trimmedType + "', show button: " + isFreeTier);
+        return isFreeTier;
+    }
+
+    // Add this method to handle app lifecycle changes that might affect user data
+    @Override
+    public void onStart() {
+        super.onStart();
+        Log.d(TAG, "Fragment started");
+
+        // Double-check user state when fragment becomes visible
+        if (authViewModel != null && authViewModel.getAuthState().getValue() == AuthViewModel.AuthState.AUTHENTICATED) {
+            User currentAuthUser = authViewModel.getCurrentUserValue();
+            if (currentAuthUser != null && (this.currentUser == null ||
+                    !currentAuthUser.getSubscriptionType().equals(this.currentUser.getSubscriptionType()))) {
+                Log.d(TAG, "User data changed while fragment was not visible - updating");
+                this.currentUser = currentAuthUser;
+                updateProfileUI();
+            }
+        }
+    }
+
+    private void openRateBottomSheet() {
+        RateBottomSheet rateBottomSheet = RateBottomSheet.Companion.newInstance();
+        rateBottomSheet.show(getParentFragmentManager(), rateBottomSheet.getTag());
+    }
+
+    private void openSupportBottomSheet() {
+        SupportBottomSheet supportBottomSheet = SupportBottomSheet.Companion.newInstance();
+        supportBottomSheet.show(getParentFragmentManager(), supportBottomSheet.getTag());
+    }
+
 
     private void openOnboardingPricingPage() {
         OnboardingPricingPageSheetFragment fragment = OnboardingPricingPageSheetFragment.newInstance();
